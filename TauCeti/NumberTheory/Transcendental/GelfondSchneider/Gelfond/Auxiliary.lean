@@ -5,7 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.Analysis.SpecialFunctions.Exp.ExponentialPolynomial
+public import TauCeti.Analysis.SpecialFunctions.Exp.ExponentialPolynomial.Basic
 public import TauCeti.NumberTheory.Transcendental.GelfondSchneider.SchneiderAuxiliary
 
 import TauCeti.Algebra.CharZero.RatCast

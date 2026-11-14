@@ -12,7 +12,7 @@ public import Mathlib.RingTheory.Algebraic.Basic
 import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 import Mathlib.FieldTheory.IntermediateField.Adjoin.Basic
 import TauCeti.Algebra.CharZero.RatCast
-import TauCeti.Analysis.SpecialFunctions.Exp.ExponentialPolynomial
+import TauCeti.Analysis.SpecialFunctions.Exp.ExponentialPolynomial.Basic
 import TauCeti.NumberTheory.Height.House
 import TauCeti.NumberTheory.Transcendental.GelfondSchneider.AnalyticBound
 import TauCeti.NumberTheory.Transcendental.GelfondSchneider.SchneiderAuxiliary

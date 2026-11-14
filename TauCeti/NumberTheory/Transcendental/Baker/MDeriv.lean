@@ -41,6 +41,9 @@ derivative is `z ↦ ∏ᵢ gᵢ^{(σᵢ)}(zᵢ)`.
 * `TauCeti.Baker.differentiable_mDeriv`, `TauCeti.Baker.mDeriv_add`,
   `TauCeti.Baker.mDeriv_const_mul`, `TauCeti.Baker.mDeriv_sum`: `D^σ` preserves entire functions
   and is linear on them.
+* `TauCeti.Baker.eq_zero_of_forall_mDeriv_eq_zero`, `TauCeti.Baker.forall_mDeriv_eq_zero_iff`,
+  `TauCeti.Baker.exists_mDeriv_ne_zero`: identity principle for mixed partial derivatives of entire
+  functions on `ℂⁿ`.
 * `TauCeti.Baker.mDeriv_prod`: `D^σ (z ↦ ∏ᵢ gᵢ(zᵢ)) = z ↦ ∏ᵢ gᵢ^{(σᵢ)}(zᵢ)`.
 * `TauCeti.Baker.mDeriv_exp_dotProduct`: `D^σ (z ↦ e^{w · z}) = z ↦ w^σ e^{w · z}`.
 * `TauCeti.Baker.mDeriv_monomial_mul_exp`: the Leibniz expansion of `D^σ (z ↦ z^τ e^{w · z})`.
@@ -170,6 +173,26 @@ private theorem listDeriv_listDeriv (hf : Differentiable ℂ f) (l : List (Fin n
       listDeriv_iterate_partialDeriv (differentiable_listDeriv hf l τ), ih, Pi.add_apply,
       iterate_add_apply]
 
+private theorem eq_zero_of_forall_listDeriv_eq_zero (hf : Differentiable ℂ f) :
+    ∀ {l : List (Fin n)}, l.Nodup → ∀ {z₀ : Fin n → ℂ},
+      (∀ σ : Fin n → ℕ, listDeriv l σ f z₀ = 0) →
+      ∀ {z : Fin n → ℂ}, (∀ j ∉ l, z j = z₀ j) → f z = 0
+  | [], _, z₀, h, z, hz => by
+    obtain rfl : z = z₀ := funext fun j ↦ hz j (by simp)
+    exact h 0
+  | i :: l, hl, z₀, h, z, hz => by
+    obtain ⟨hil, hl⟩ := List.nodup_cons.mp hl
+    refine eq_zero_of_forall_listDeriv_eq_zero hf hl (z₀ := update z₀ i (z i)) (fun τ ↦ ?_)
+      fun j hj ↦ ?_
+    · refine eq_zero_update_of_forall_iterate_partialDeriv_eq_zero
+        (differentiable_listDeriv hf l τ) (fun k ↦ ?_) (z i)
+      have hcongr : listDeriv l τ f = listDeriv l (update τ i k) f :=
+        listDeriv_congr (fun j hj ↦ by simp [ne_of_mem_of_not_mem hj hil]) f
+      simpa [listDeriv_cons, hcongr.symm] using h (update τ i k)
+    · by_cases hij : j = i
+      · subst hij; simp
+      · simp [hij, hz j (by simp [hij, hj])]
+
 end List
 
 /-! ### Basic properties of `mDeriv` -/
@@ -239,6 +262,27 @@ theorem mDeriv_sum {ι : Type*} (s : Finset ι) {f : ι → (Fin n → ℂ) → 
     rw [sum_insert ha, sum_insert ha, mDeriv_add (hf a (mem_insert_self a s))
       (Differentiable.sum fun b hb ↦ hf b (mem_insert_of_mem hb)),
       ih fun b hb ↦ hf b (mem_insert_of_mem hb)]
+
+/-- **Identity principle for mixed partial derivatives.** An entire function `f : ℂⁿ → ℂ` whose
+mixed partial derivatives `D^σ f (z₀)` (`σ ∈ ℕⁿ`) all vanish at a single point `z₀` is identically
+zero. -/
+theorem eq_zero_of_forall_mDeriv_eq_zero {f : (Fin n → ℂ) → ℂ} (hf : Differentiable ℂ f)
+    {z₀ : Fin n → ℂ} (h : ∀ σ : Fin n → ℕ, mDeriv σ f z₀ = 0) : f = 0 :=
+  funext fun _ ↦ eq_zero_of_forall_listDeriv_eq_zero hf (List.nodup_finRange n) h
+    fun j hj ↦ absurd (List.mem_finRange j) hj
+
+/-- All mixed partial derivatives of an entire function `f : ℂⁿ → ℂ` at `z₀` vanish if and only if
+`f = 0`. -/
+theorem forall_mDeriv_eq_zero_iff {f : (Fin n → ℂ) → ℂ} (hf : Differentiable ℂ f)
+    (z₀ : Fin n → ℂ) : (∀ σ : Fin n → ℕ, mDeriv σ f z₀ = 0) ↔ f = 0 :=
+  ⟨eq_zero_of_forall_mDeriv_eq_zero hf, fun h σ ↦ by simp [h]⟩
+
+/-- Every nonzero entire function `f : ℂⁿ → ℂ` has a nonvanishing mixed partial derivative `D^σ f`
+at every point `z₀ ∈ ℂⁿ`. -/
+theorem exists_mDeriv_ne_zero {f : (Fin n → ℂ) → ℂ} (hf : Differentiable ℂ f) (hf0 : f ≠ 0)
+    (z₀ : Fin n → ℂ) : ∃ σ : Fin n → ℕ, mDeriv σ f z₀ ≠ 0 := by
+  by_contra! h
+  exact hf0 (eq_zero_of_forall_mDeriv_eq_zero hf h)
 
 /-! ### Separated products and exponential monomials -/
 

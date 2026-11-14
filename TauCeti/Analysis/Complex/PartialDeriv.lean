@@ -27,6 +27,10 @@ calculus on entire functions.
 * `TauCeti.differentiable_partialDeriv`: a partial derivative of an entire function is entire.
 * `TauCeti.partialDeriv_comm`: partial derivatives of an entire function commute.
 * `TauCeti.partialDeriv_add`, `TauCeti.partialDeriv_const_smul`: `∂ᵢ` is linear.
+* `TauCeti.iterate_partialDeriv_eq_iteratedDeriv_update`,
+  `TauCeti.eq_zero_update_of_forall_iterate_partialDeriv_eq_zero`: `∂ᵢ^k f (z)` equals the `k`-th
+  derivative along the `i`-th coordinate line through `z`, so if all `∂ᵢ^k f (z)` vanish then `f`
+  vanishes along that coordinate line.
 * `TauCeti.partialDeriv_prod`, `TauCeti.iterate_partialDeriv_prod`: for a separated product
   `z ↦ ∏ⱼ gⱼ(zⱼ)` of entire functions of one variable, `∂ᵢ^k` differentiates the `i`-th factor
   `k` times.
@@ -168,6 +172,32 @@ theorem iterate_partialDeriv_add (hf : Differentiable ℂ f) (hg : Differentiabl
     rw [iterate_succ_apply', iterate_succ_apply', iterate_succ_apply', ih,
       partialDeriv_add (differentiable_iterate_partialDeriv hf i k)
         (differentiable_iterate_partialDeriv hg i k)]
+
+/-- For finite `ι` and complete `E`, the iterated partial derivative `∂ᵢ^k f (z)` of an entire
+function `f : (ι → ℂ) → E` is the `k`-th derivative of `f` restricted to the line through `z`
+parallel to the `i`-th coordinate axis. -/
+theorem iterate_partialDeriv_eq_iteratedDeriv_update (hf : Differentiable ℂ f) (i : ι) (k : ℕ)
+    (z : ι → ℂ) :
+    (partialDeriv i)^[k] f z = iteratedDeriv k (fun s ↦ f (update z i s)) (z i) := by
+  induction k generalizing f with
+  | zero => simp
+  | succ k ih =>
+    rw [iterate_succ_apply, ih (differentiable_partialDeriv hf i), iteratedDeriv_succ']
+    refine congrFun (congrArg (iteratedDeriv k) (funext fun s ↦ ?_)) (z i)
+    rw [partialDeriv_eq_deriv_update (hf (update z i s)) i]
+    simp [update_idem]
+
+/-- For finite `ι` and complete `E`, if every iterated partial derivative `∂ᵢ^k f (z)` (`k : ℕ`) of
+an entire function `f : (ι → ℂ) → E` vanishes at `z`, then `f` vanishes along the entire `i`-th
+coordinate line through `z`. -/
+theorem eq_zero_update_of_forall_iterate_partialDeriv_eq_zero (hf : Differentiable ℂ f) {i : ι}
+    {z : ι → ℂ} (h : ∀ k : ℕ, (partialDeriv i)^[k] f z = 0) (s : ℂ) :
+    f (update z i s) = 0 := by
+  have := Fintype.ofFinite ι
+  have hg : Differentiable ℂ (fun w ↦ f (update z i w)) := fun w ↦
+    ((hf (update z i w)).hasFDerivAt.comp w (hasFDerivAt_update z w)).differentiableAt
+  exact congrFun (hg.eq_zero_of_forall_iteratedDeriv_eq_zero fun k ↦ by
+    rw [← iterate_partialDeriv_eq_iteratedDeriv_update hf i k z, h k]) s
 
 end Entire
 
