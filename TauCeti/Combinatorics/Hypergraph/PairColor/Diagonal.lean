@@ -246,4 +246,24 @@ theorem card_fillDiagonal_colorOfPair_ne_le_of_card_le {m : ℕ} (hm : ∀ A ∈
   classical
   exact (S.card_fillDiagonal_colorOfPair_ne_le P).trans (by simpa using P.sum_sq_card_parts_le hm)
 
+open Classical in
+/-- Filling diagonal blocks on top of an intermediate pair-color system `S` edits at most the pairs
+already differing between `S` and `T` plus the within-cell distinct pairs of `P`. -/
+theorem card_fillDiagonal_colorOfPair_ne_le_add (T : PairColorSystem κ V) :
+    #{p : V × V | (S.fillDiagonal P).colorOfPair p.1 p.2 ≠
+      (T.colorOfPair p.1 p.2).map some} ≤
+      #{p : V × V | S.colorOfPair p.1 p.2 ≠ T.colorOfPair p.1 p.2} +
+        ∑ A ∈ P.parts, #A * (#A - 1) := by
+  have hsub : (univ.filter fun p : V × V ↦ (S.fillDiagonal P).colorOfPair p.1 p.2 ≠
+        (T.colorOfPair p.1 p.2).map some) ⊆
+      (univ.filter fun p : V × V ↦ S.colorOfPair p.1 p.2 ≠ T.colorOfPair p.1 p.2) ∪
+        (univ.filter fun p : V × V ↦ (S.fillDiagonal P).colorOfPair p.1 p.2 ≠
+          (S.colorOfPair p.1 p.2).map some) := fun p hp ↦ by
+    simp only [mem_union, mem_filter, mem_univ, true_and] at hp ⊢
+    by_cases h : S.colorOfPair p.1 p.2 = T.colorOfPair p.1 p.2
+    · exact Or.inr (h ▸ hp)
+    · exact Or.inl h
+  exact (card_le_card hsub).trans
+    ((card_union_le _ _).trans (Nat.add_le_add_left (S.card_fillDiagonal_colorOfPair_ne P).le _))
+
 end TauCeti.PairColorSystem

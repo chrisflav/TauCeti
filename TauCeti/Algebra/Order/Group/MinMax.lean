@@ -30,6 +30,7 @@ twice its absolute value is `|a| + |b| - |b - a|`.
 * `TauCeti.abs_max_zero_min_add_min_zero_max_add_abs_sub`: the median `u` of `0`, `a` and `b`
   satisfies `|u| + |a - u| = |a|`.
 * `TauCeti.two_nsmul_abs_max_zero_min_add_min_zero_max`: `2 • |u| = |a| + |b| - |b - a|`.
+* `TauCeti.min_add_max_sub_zero`: `min a b + max (a - b) 0 = a`.
 -/
 
 public section
@@ -79,5 +80,9 @@ theorem two_nsmul_abs_max_zero_min_add_min_zero_max (a b : α) :
     rcases le_total 0 b with hb | hb <;>
     simp only [min_eq_left, min_eq_right, max_eq_left, max_eq_right, hab, ha, hb] <;>
     grind [abs_of_nonneg, abs_of_nonpos]
+
+/-- Adding the positive part of `a - b` to `min a b` recovers `a`. -/
+theorem min_add_max_sub_zero (a b : α) : min a b + max (a - b) 0 = a := by
+  grind
 
 end TauCeti

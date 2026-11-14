@@ -236,18 +236,7 @@ theorem exists_recoloring_isPairColorRegular [Fintype κ] (hε : 0 < ε)
     cases c with
     | none => simp [hε.le]
     | some c => simpa only [Option.elim_some] using hdens A hA B hB hAB c
-  · have hsub : (univ.filter fun p : V × V ↦ (R.fillDiagonal P).colorOfPair p.1 p.2 ≠
-          (S.colorOfPair p.1 p.2).map some) ⊆
-        (univ.filter fun p : V × V ↦ R.colorOfPair p.1 p.2 ≠ S.colorOfPair p.1 p.2) ∪
-          (univ.filter fun p : V × V ↦ (R.fillDiagonal P).colorOfPair p.1 p.2 ≠
-            (R.colorOfPair p.1 p.2).map some) := by
-      intro p hp
-      simp only [mem_union, mem_filter, mem_univ, true_and] at hp ⊢
-      by_cases h : R.colorOfPair p.1 p.2 = S.colorOfPair p.1 p.2
-      · exact Or.inr (by simpa only [h] using hp)
-      · exact Or.inl h
-    exact (card_le_card hsub).trans (card_union_le _ _ |>.trans
-      (add_le_add hedit (R.card_fillDiagonal_colorOfPair_ne P).le))
+  · exact (R.card_fillDiagonal_colorOfPair_ne_le_add P S).trans (Nat.add_le_add_right hedit _)
 
 end PairColorSystem
 

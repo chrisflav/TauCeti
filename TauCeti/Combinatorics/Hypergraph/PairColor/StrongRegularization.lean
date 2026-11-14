@@ -16,18 +16,19 @@ import Mathlib.Tactic.Positivity
 
 Equitable pair-color regularity
 (`PairColorSystem.exists_refining_equipartition_sum_irregularPairs_le`) produces an equipartition
-whose irregular cell pairs cover at most `ε |V|²` vertex pairs at a tolerance `ε` chosen in
-advance. Because the returned number of cells depends on `ε`, that theorem cannot directly achieve
-a tolerance scheduled as a function of the returned number of cells.
+whose irregular distinct-cell pairs cover at most `ε |V|²` ordered vertex pairs at a tolerance `ε`
+chosen in advance. Because the returned number of cells depends on `ε`, that theorem cannot
+directly achieve a tolerance scheduled as a function of the returned number of cells.
 
 This file proves the strong (Alon–Fischer–Krivelevich–Szegedy) form for pair-color systems. Given
 an energy-gap bound `g > 0` and a positive tolerance schedule `η : ℕ → ℝ`, iterating seeded
 equitable regularization produces nested equipartitions `P₀ ≥ P₁ ≥ P₂ ≥ …`, where `P_{i+1}`
 regularizes `P_i` at tolerance `η #P_i.parts`. Because the pair-color energy lies in `[0, 1]` and
 is nondecreasing under refinement, some consecutive pair `(P, Q) = (P_i, P_{i+1})` with
-`i ≤ ⌊1 / g⌋₊` satisfies `S.energy Q - S.energy P ≤ g`. The fine equipartition `Q` is then
-`η #P.parts`-regular outside an `η #P.parts`-fraction of the vertex pairs, while `#P.parts` is
-bounded independently of `|V|` by `strongPairColorRegularityBound g η #P₀.parts`.
+`i ≤ ⌊1 / g⌋₊` satisfies `S.energy Q - S.energy P ≤ g`. The `η #P.parts`-irregular distinct-cell
+pairs of the fine equipartition `Q` then cover at most an `η #P.parts`-fraction of the ordered
+vertex pairs, while `#P.parts` is bounded independently of `|V|` by
+`strongPairColorRegularityBound g η #P₀.parts`.
 
 Combined with the `L¹` density-deviation bound across a small energy gap
 (`PairColorSystem.sum_card_mul_abs_pairColorDensity_sub_refinementParent_le`) and coupled
@@ -81,7 +82,7 @@ theorem le_strongPairColorRegularityStep (η : ℕ → ℝ) (m : ℕ) :
   le_max_left _ _
 
 /-- `strongPairColorRegularityStep` is monotone in the cell count. -/
-theorem monotone_strongPairColorRegularityStep (η : ℕ → ℝ) :
+theorem strongPairColorRegularityStep_mono (η : ℕ → ℝ) :
     Monotone (strongPairColorRegularityStep η) := fun _ _ h ↦
   max_le_max h (Finset.sup_mono (range_mono (Nat.succ_le_succ h)))
 
@@ -117,9 +118,9 @@ theorem strongPairColorRegularityBound_pos (g : ℝ) (η : ℕ → ℝ) (l : ℕ
     (Function.monotone_iterate_of_id_le (le_strongPairColorRegularityStep η) (Nat.zero_le _) _)
 
 /-- `strongPairColorRegularityBound` is monotone in the initial cell count `l`. -/
-theorem monotone_strongPairColorRegularityBound (g : ℝ) (η : ℕ → ℝ) :
+theorem strongPairColorRegularityBound_mono (g : ℝ) (η : ℕ → ℝ) :
     Monotone (strongPairColorRegularityBound g η) := fun _ _ h ↦
-  (monotone_strongPairColorRegularityStep η).iterate _ (max_le_max h le_rfl)
+  (strongPairColorRegularityStep_mono η).iterate _ (max_le_max h le_rfl)
 
 namespace PairColorSystem
 
@@ -163,9 +164,10 @@ private theorem exists_strong_refining_equipartition_iterate [Fintype κ]
 
 /-- **Strong equitable pair-color regularity refining a seed.** Given `g > 0`, a positive schedule
 `η : ℕ → ℝ`, and an equipartition `P₀` of `V`, there exist nested equipartitions `Q ≤ P ≤ P₀` such
-that `#P.parts ≤ strongPairColorRegularityBound g η #P₀.parts`, `#Q.parts` is bounded by equitable
-regularization at `(η #P.parts, #P.parts)`, the `η #P.parts`-irregular cell pairs of `Q` cover at
-most `η #P.parts |V|²` ordered vertex pairs, and `S.energy Q - S.energy P ≤ g`. -/
+that `#P.parts ≤ strongPairColorRegularityBound g η #P₀.parts`,
+`#Q.parts ≤ equitablePairColorRegularityBound (η #P.parts) #P.parts`, the
+`η #P.parts`-irregular distinct-cell pairs of `Q` cover at most `η #P.parts |V|²` ordered vertex
+pairs, and `S.energy Q - S.energy P ≤ g`. -/
 theorem exists_strong_refining_equipartition_sum_irregularPairs_le [Fintype κ]
     (P₀ : Finpartition (univ : Finset V)) (hP₀ : P₀.IsEquipartition) {g : ℝ} (hg : 0 < g)
     {η : ℕ → ℝ} (hη : ∀ m, 0 < η m) :
@@ -179,7 +181,7 @@ theorem exists_strong_refining_equipartition_sum_irregularPairs_le [Fintype κ]
   have hbound : (strongPairColorRegularityStep η)^[⌊1 / g⌋₊] #P₀.parts ≤
       strongPairColorRegularityBound g η #P₀.parts := by
     rw [strongPairColorRegularityBound_def]
-    exact (monotone_strongPairColorRegularityStep η).iterate _ (le_max_left _ _)
+    exact (strongPairColorRegularityStep_mono η).iterate _ (le_max_left _ _)
   obtain ⟨P, Q, hQP, hPP₀, hP, hQ, hPcard, hQcard, hreg, hgap⟩ | ⟨P, hPP₀, hP, hPcard, hE⟩ :=
     S.exists_strong_refining_equipartition_iterate P₀ hP₀ hη ⌊1 / g⌋₊
   · exact ⟨P, Q, hQP, hPP₀, hP, hQ, hPcard.trans hbound, hQcard, hreg, hgap⟩
@@ -195,8 +197,10 @@ theorem exists_strong_refining_equipartition_sum_irregularPairs_le [Fintype κ]
 
 /-- **Strong equitable pair-color regularity.** Given `g > 0`, a positive schedule `η : ℕ → ℝ`, and
 `l ≤ |V|`, there exist nested equipartitions `Q ≤ P` of `V` with
-`l ≤ #P.parts ≤ strongPairColorRegularityBound g η l` such that `Q` is `η #P.parts`-regular outside
-at most `η #P.parts |V|²` vertex pairs and `S.energy Q - S.energy P ≤ g`. -/
+`l ≤ #P.parts ≤ strongPairColorRegularityBound g η l` and
+`#Q.parts ≤ equitablePairColorRegularityBound (η #P.parts) #P.parts` such that the
+`η #P.parts`-irregular distinct-cell pairs of `Q` cover at most `η #P.parts |V|²` ordered vertex
+pairs and `S.energy Q - S.energy P ≤ g`. -/
 theorem exists_strong_equipartition_sum_irregularPairs_le [Fintype κ] {g : ℝ} (hg : 0 < g)
     {η : ℕ → ℝ} (hη : ∀ m, 0 < η m) {l : ℕ} (hl : l ≤ Fintype.card V) :
     ∃ P Q : Finpartition (univ : Finset V),

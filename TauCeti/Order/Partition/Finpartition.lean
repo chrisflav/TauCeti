@@ -6,15 +6,20 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Order.Setoid.Partition
+public import Mathlib.Order.Partition.Equipartition
 public import Mathlib.Order.Partition.Finpartition
 public import Mathlib.Algebra.Field.Defs
+public import Mathlib.Algebra.Order.Floor.Defs
 public import Mathlib.Algebra.Order.GroupWithZero.Basic
+public import Mathlib.Algebra.Order.Ring.Defs
 public import Mathlib.Data.Fintype.Prod
 import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Algebra.BigOperators.Group.Finset.Sigma
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
+import Mathlib.Algebra.Order.Floor.Semiring
 import Mathlib.Combinatorics.SimpleGraph.Regularity.Equitabilise
+import Mathlib.Data.Nat.Cast.Order.Field
 import Mathlib.Data.Set.Finite.Range
 
 /-!
@@ -26,8 +31,9 @@ the single part of the coarsest partition of a non-bottom element, the fact that
 the whole element as a part is the coarsest, the characterization of the coarsest partition as the
 one with exactly one part, the partition of a type into the
 fibres of a map to a finite type, the associated indexed partition, the sizes of the traces of a
-subset on the parts, cardinality bounds for common refinements, a bound on the sum of the squared
-part sizes, the existence of a partition into at most `k` parts of size at most `#s / k + 1`, the
+subset on the parts, cardinality bounds for common refinements, bounds on the sum of the squared
+part sizes and on the within-part distinct-pair count of an equipartition, the existence of a
+partition into at most `k` parts of size at most `#s / k + 1`, the
 refinement relations of `Finpartition.bind` and of a refining partition's parts,
 the monotonicity of `Finpartition.bind`, products over its parts, its parts through each point,
 and the fact that it is inverse to restricting a refinement to the parts of the coarser partition,
@@ -216,6 +222,38 @@ theorem exists_card_parts_le_card_le {ι : Type*} [DecidableEq ι] (s : Finset �
   · refine ⟨⊥, ((card_bot s).trans_lt hsk).le, fun A hA ↦ ?_⟩
     obtain ⟨a, -, rfl⟩ := mem_bot_iff.1 hA
     simp
+
+/-- In an equipartition `P` of `s`, the within-part ordered distinct pairs number at most
+`#s * (#s / #P.parts)`. -/
+theorem IsEquipartition.sum_card_mul_sub_one_le {ι : Type*} [DecidableEq ι] {s : Finset ι}
+    {P : Finpartition s} (hP : P.IsEquipartition) :
+    ∑ A ∈ P.parts, A.card * (A.card - 1) ≤ s.card * (s.card / P.parts.card) := by
+  calc ∑ A ∈ P.parts, A.card * (A.card - 1)
+      ≤ ∑ A ∈ P.parts, A.card * (s.card / P.parts.card) :=
+        Finset.sum_le_sum fun A hA ↦
+          Nat.mul_le_mul_left _ (Nat.sub_le_of_le_add (hP.card_part_le_average_add_one hA))
+    _ = s.card * (s.card / P.parts.card) := by rw [← Finset.sum_mul, P.sum_card_parts]
+
+/-- In an equipartition `P` of `s` with at least `⌈1 / ε⌉₊` parts (`0 < ε`), the within-part
+ordered distinct pairs number at most `ε * (#s) ^ 2`. -/
+theorem IsEquipartition.natCast_sum_card_mul_sub_one_le {ι K : Type*} [DecidableEq ι]
+    [Semifield K] [LinearOrder K] [IsStrictOrderedRing K] [FloorSemiring K] {s : Finset ι}
+    {P : Finpartition s} (hP : P.IsEquipartition) {ε : K} (hε : 0 < ε)
+    (hm : ⌈1 / ε⌉₊ ≤ P.parts.card) :
+    ((∑ A ∈ P.parts, A.card * (A.card - 1) : ℕ) : K) ≤ ε * (s.card : K) ^ 2 := by
+  have hm_pos : (0 : K) < P.parts.card :=
+    Nat.cast_pos.2 ((Nat.ceil_pos.2 (one_div_pos.2 hε)).trans_le hm)
+  have hdiv : (s.card : K) / P.parts.card ≤ ε * s.card := by
+    rw [div_le_iff₀ hm_pos, mul_right_comm]
+    simpa only [one_mul] using mul_le_mul_of_nonneg_right
+      ((div_le_iff₀' hε).1 ((Nat.le_ceil _).trans (Nat.cast_le.2 hm))) (Nat.cast_nonneg s.card)
+  calc ((∑ A ∈ P.parts, A.card * (A.card - 1) : ℕ) : K)
+      ≤ ((s.card * (s.card / P.parts.card) : ℕ) : K) := Nat.cast_le.2 hP.sum_card_mul_sub_one_le
+    _ = (s.card : K) * ((s.card / P.parts.card : ℕ) : K) := Nat.cast_mul _ _
+    _ ≤ (s.card : K) * ((s.card : K) / P.parts.card) :=
+        mul_le_mul_of_nonneg_left Nat.cast_div_le (Nat.cast_nonneg _)
+    _ ≤ (s.card : K) * (ε * s.card) := mul_le_mul_of_nonneg_left hdiv (Nat.cast_nonneg _)
+    _ = ε * (s.card : K) ^ 2 := by rw [sq, mul_left_comm]
 
 variable {Ω : Type*} {u : Set Ω}
 

@@ -10,7 +10,7 @@ public import Mathlib.Data.Option.Basic
 public import Mathlib.Data.Sym.Sym2
 public import Mathlib.Logic.Equiv.Defs
 public import Mathlib.Data.Fintype.Pi
-import Mathlib.Data.Finset.Prod
+public import Mathlib.Data.Finset.Prod
 
 /-!
 # Coherent colors on ordered distinct pairs
@@ -20,7 +20,9 @@ involution describing how colors change when the vertices are exchanged. This pe
 symmetric colors and genuinely oriented colors in the lower skeleton of a hypergraph complex.
 
 `PairColorSystem.colorOfPair` extends the coloring to all vertex pairs with values in `Option`:
-only diagonal pairs have color `none`. `PairColorSystem.ofRaw` makes any directed coloring
+only diagonal pairs have color `none`, and `PairColorSystem.card_filter_colorOfPair_eq_swap` and
+`PairColorSystem.card_filter_colorOfPair_ne_swap` relate rectangle color and disagreement counts on
+`s ×ˢ t` and `t ×ˢ s`. `PairColorSystem.ofRaw` makes any directed coloring
 coherent by recording its colors in both orientations, using the product palette.
 `PairColorSystem.relabel` renames the palette along an equivalence.
 `PairColorSystem.split` refines a coloring by a symmetric labelling of the unordered pairs.
@@ -96,6 +98,27 @@ theorem colorOfPair_swap_eq_some_iff (S : PairColorSystem κ V) (u v : V) (c : �
     S.colorOfPair v u = some (S.rev c) ↔ S.colorOfPair u v = some c := by
   rw [S.colorOfPair_swap, Option.map_eq_some_iff]
   simp only [S.rev_involutive.injective.eq_iff, exists_eq_right]
+
+open Finset in
+/-- Reversing both the vertex sets and the palette color preserves the count of pairs of that
+color. -/
+theorem card_filter_colorOfPair_eq_swap [DecidableEq κ] (S : PairColorSystem κ V)
+    (s t : Finset V) (c : κ) :
+    #{q ∈ s ×ˢ t | S.colorOfPair q.1 q.2 = some c} =
+      #{q ∈ t ×ˢ s | S.colorOfPair q.1 q.2 = some (S.rev c)} :=
+  Finset.card_equiv (Equiv.prodComm V V) fun q ↦ by
+    simp [and_comm, S.colorOfPair_swap_eq_some_iff q.1 q.2 c]
+
+open Finset in
+/-- For two pair-color systems with the same palette reversal, the disagreement count on `s ×ˢ t`
+equals that on `t ×ˢ s`. -/
+theorem card_filter_colorOfPair_ne_swap [DecidableEq κ] (R S : PairColorSystem κ V)
+    (hrev : R.rev = S.rev) (s t : Finset V) :
+    #{q ∈ s ×ˢ t | R.colorOfPair q.1 q.2 ≠ S.colorOfPair q.1 q.2} =
+      #{q ∈ t ×ˢ s | R.colorOfPair q.1 q.2 ≠ S.colorOfPair q.1 q.2} :=
+  Finset.card_equiv (Equiv.prodComm V V) fun q ↦ by
+    simp [and_comm, R.colorOfPair_swap q.1 q.2, S.colorOfPair_swap q.1 q.2, hrev,
+      (Option.map_injective S.rev_involutive.injective).ne_iff]
 
 /-- Make a directed coloring coherent by retaining the colors in both orientations.
 The palette is `κ × κ`, and reversal exchanges the coordinates. -/

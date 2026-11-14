@@ -164,12 +164,8 @@ theorem sum_pairColorDensity_le_one [Fintype κ] (S : PairColorSystem κ V) (s t
 theorem pairColorDensity_swap (S : PairColorSystem κ V) (c : κ) (s t : Finset V) :
     pairColorDensity S (S.rev c) t s = pairColorDensity S c s t := by
   classical
-  have hcolor : #((t ×ˢ s).filter fun p => S.colorOfPair p.1 p.2 = some (S.rev c)) =
-      #((s ×ˢ t).filter fun p => S.colorOfPair p.1 p.2 = some c) := by
-    apply card_equiv (Equiv.prodComm V V)
-    intro p
-    simp [and_comm, ← S.colorOfPair_swap_eq_some_iff p.2 p.1 c]
-  simp only [pairColorDensity_def, hcolor, card_filter_ne_product_comm t s]
+  simp only [pairColorDensity_def, ← S.card_filter_colorOfPair_eq_swap s t c,
+    card_filter_ne_product_comm t s]
 
 /-- Pair-color density depends only on the colors on the tested rectangle. -/
 theorem pairColorDensity_congr {κ V : Type*} {S T : PairColorSystem κ V} {s t : Finset V}

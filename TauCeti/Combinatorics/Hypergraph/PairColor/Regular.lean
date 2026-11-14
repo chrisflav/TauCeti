@@ -45,6 +45,10 @@ schedule `F : ℕ → ℝ` at the lower complexity, the number of vertex cells p
   discrepancy of a regular pair of disjoint sets.
 * `TauCeti.PairColorSystem.IsRegularPair.abs_sum_sum_mul_sub_le`: the same bound for tests with
   values in `[0, 1]`.
+* `TauCeti.PairColorSystem.abs_pairColorDensity_sub_le_of_abs_card_filter_colorOfPair_sub_le`:
+  bound on `|pairColorDensity S c s t - p|` from a count discrepancy bound on `s ×ˢ t`.
+* `TauCeti.PairColorSystem.isRegularPair_of_abs_card_filter_colorOfPair_sub_le`: converse deducing
+  `IsRegularPair` from uniform rectangle count discrepancy.
 * `TauCeti.PairSkeleton3`: vertex cells together with a pair-color system.
 * `TauCeti.PairSkeleton3.IsPairColorRegular`: every pair of vertex cells is regular.
 * `TauCeti.PairSkeleton3.isPairColorRegular_bot`: the partition into singletons is regular.
@@ -214,6 +218,55 @@ theorem IsRegularPair.abs_sum_sum_mul_sub_le (h : S.IsRegularPair ε s t) (hst :
   rw [natCast_card_filter, sum_product]
   simp only [sum_sub_distrib, sum_const, nsmul_eq_mul]
   ring
+
+variable (S) in
+/-- If `(s, t)` is a pair of disjoint nonempty sets and the color-`c` count on `s ×ˢ t` is within
+`ω * (#s * #t)` of `p * (#s * #t)`, then `|(pairColorDensity S c s t : ℝ) - p| ≤ ω`. -/
+theorem abs_pairColorDensity_sub_le_of_abs_card_filter_colorOfPair_sub_le
+    (c : κ) (hs : s.Nonempty) (ht : t.Nonempty) (hst : Disjoint s t) {p ω : ℝ}
+    (hcnt : |(#{q ∈ s ×ˢ t | S.colorOfPair q.1 q.2 = some c} : ℝ) - p * (#s * #t)| ≤
+      ω * (#s * #t)) :
+    |(pairColorDensity S c s t : ℝ) - p| ≤ ω := by
+  have hpos : (0 : ℝ) < #s * #t :=
+    mul_pos (Nat.cast_pos.2 hs.card_pos) (Nat.cast_pos.2 ht.card_pos)
+  have hd : (#{q ∈ s ×ˢ t | S.colorOfPair q.1 q.2 = some c} : ℝ) =
+      pairColorDensity S c s t * (#s * #t) :=
+    mod_cast (pairColorDensity_mul_card_of_disjoint S c hst).symm
+  rw [hd, ← sub_mul, abs_mul, abs_of_pos hpos] at hcnt
+  exact le_of_mul_le_mul_right hcnt hpos
+
+variable (S) in
+/-- **Regularity from rectangle count discrepancy.** If `(s, t)` is a pair of disjoint nonempty
+sets and every rectangle `s' ×ˢ t' ⊆ s ×ˢ t` has color-`c` count within `(δ ^ 3 / 2) * (#s * #t)`
+of `p c * (#s' * #t')` where `0 < δ`, then `(s, t)` is `δ`-regular. -/
+theorem isRegularPair_of_abs_card_filter_colorOfPair_sub_le
+    (hs : s.Nonempty) (ht : t.Nonempty) (hst : Disjoint s t)
+    {p : κ → ℝ} {δ : ℝ} (hδ : 0 < δ)
+    (hcnt : ∀ c, ∀ s' ⊆ s, ∀ t' ⊆ t,
+      |(#{q ∈ s' ×ˢ t' | S.colorOfPair q.1 q.2 = some c} : ℝ) - p c * (#s' * #t')| ≤
+        (δ ^ 3 / 2) * (#s * #t)) :
+    S.IsRegularPair δ s t := by
+  obtain hδ1 | hδ1 := le_or_gt 1 δ
+  · exact isRegularPair_of_one_le hδ1
+  have hs0 : (0 : ℝ) < #s := Nat.cast_pos.2 hs.card_pos
+  have ht0 : (0 : ℝ) < #t := Nat.cast_pos.2 ht.card_pos
+  refine isRegularPair_iff.2 fun c s' hs' t' ht' hs's ht't ↦ ?_
+  have hs'ne : s'.Nonempty := card_pos.1 (Nat.cast_pos.1 ((mul_pos hδ hs0).trans_le hs's))
+  have ht'ne : t'.Nonempty := card_pos.1 (Nat.cast_pos.1 ((mul_pos hδ ht0).trans_le ht't))
+  have hsub : |(pairColorDensity S c s' t' : ℝ) - p c| ≤ δ / 2 := by
+    refine S.abs_pairColorDensity_sub_le_of_abs_card_filter_colorOfPair_sub_le c hs'ne ht'ne
+      (hst.mono hs' ht') ?_
+    have hprod : (δ * #s) * (δ * #t) ≤ #s' * #t' :=
+      mul_le_mul hs's ht't (by positivity) (by positivity)
+    exact (hcnt c s' hs' t' ht').trans (by nlinarith [mul_pos hs0 ht0])
+  have hδ3 : δ ^ 3 ≤ δ := pow_le_of_le_one hδ.le hδ1.le (by norm_num)
+  have hfull : |(pairColorDensity S c s t : ℝ) - p c| ≤ δ / 2 :=
+    (S.abs_pairColorDensity_sub_le_of_abs_card_filter_colorOfPair_sub_le c hs ht hst
+      (hcnt c s subset_rfl t subset_rfl)).trans (by linarith)
+  calc |(pairColorDensity S c s' t' : ℝ) - pairColorDensity S c s t|
+      ≤ |(pairColorDensity S c s' t' : ℝ) - p c| + |p c - pairColorDensity S c s t| :=
+        abs_sub_le _ _ _
+    _ ≤ δ := by rw [abs_sub_comm (p c)]; linarith
 
 end Discrepancy
 
