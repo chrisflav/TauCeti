@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Analysis.CStarAlgebra.Unitary.Connected
 public import Mathlib.Topology.Algebra.Star.Unitary
+public import TauCeti.Analysis.CStarAlgebra.Exponential
 import Mathlib.Analysis.CStarAlgebra.ContinuousFunctionalCalculus.RealImaginaryPart
 import Mathlib.Tactic.NormNum
 
@@ -15,11 +16,12 @@ import Mathlib.Tactic.NormNum
 
 A unitary with nonnegative real part, and any self-adjoint unitary, is joined to the identity.
 These continuous-functional-calculus paths supply the two factors of the reflection argument
-for Hilbert-space unitaries. They do not assert connectedness of the unitary group of a general
-C⋆-algebra.
+for Hilbert-space unitaries. In addition, `Unitary.selfAdjointRotationPath` gives the explicit
+exponential rotation path `t ↦ expUnitary ((t * π) • (2⁻¹ • (1 - u)))` from `1` to a self-adjoint
+unitary `u`. They do not assert connectedness of the unitary group of a general C⋆-algebra.
 
-The proofs are adapted from
-[AtiyahSinger/Analysis/FredholmPaths.lean][fredholm-paths] in Lean-Atiyah-Singer.
+The proofs of `Unitary.joined_one_of_nonneg_realPart` and `Unitary.joined_one_of_isSelfAdjoint` are
+adapted from [AtiyahSinger/Analysis/FredholmPaths.lean][fredholm-paths] in Lean-Atiyah-Singer.
 They supply the source formalization's supplementary reflection argument for the invertible
 path connectedness used in *Spin Geometry*, III §7, Lemma 7.7, p. 203.
 
@@ -28,6 +30,7 @@ path connectedness used in *Spin Geometry*, III §7, Lemma 7.7, p. 203.
 * H. B. Lawson, Jr., and M.-L. Michelsohn, *Spin Geometry*, Princeton Mathematical Series 38,
   Princeton University Press, 1989, Chapter III, §7, Lemma 7.7, p. 203,
   [DOI](https://doi.org/10.1515/9781400883912).
+* B. Blackadar, *K-Theory for Operator Algebras*, second edition, Proposition 4.6.2.
 
 [fredholm-paths]: https://github.com/alpha-squared-labs/Lean-Atiyah-Singer/blob/09fc7bab3f9ff606901bde4b5a5580470da63a70/AtiyahSinger/Analysis/FredholmPaths.lean
 -/
@@ -35,7 +38,7 @@ path connectedness used in *Spin Geometry*, III §7, Lemma 7.7, p. 203.
 public section
 
 open Complex
-open scoped ComplexOrder ComplexStarModule
+open scoped ComplexOrder ComplexStarModule unitInterval
 
 /-- A unitary with nonnegative real part lies in the path component of the identity. -/
 theorem Unitary.joined_one_of_nonneg_realPart
@@ -74,3 +77,28 @@ theorem Unitary.joined_one_of_isSelfAdjoint
     simp [star_smul, hu.star_eq]
   simpa using hw.inv.mul hwu
 
+/-- Explicit exponential rotation path `t ↦ expUnitary ((t * π) • (2⁻¹ • (1 - u)))` from `1` to a
+self-adjoint unitary `u` in a unital C⋆-algebra. -/
+noncomputable def Unitary.selfAdjointRotationPath {A : Type*} [CStarAlgebra A]
+    {u : unitary A} (hu : IsSelfAdjoint (u : A)) : Path (1 : unitary A) u :=
+  (selfAdjoint.expUnitaryPathToOne
+    (Real.pi • ⟨(2⁻¹ : ℝ) • (1 - (u : A)),
+      (Unitary.isStarProjection_inv_two_smul_one_sub hu).isSelfAdjoint⟩)).cast
+    rfl (Unitary.expUnitary_pi_smul_inv_two_smul_one_sub hu).symm
+
+@[simp]
+theorem Unitary.selfAdjointRotationPath_apply {A : Type*} [CStarAlgebra A]
+    {u : unitary A} (hu : IsSelfAdjoint (u : A)) (t : I) :
+    Unitary.selfAdjointRotationPath hu t =
+      selfAdjoint.expUnitary
+        ((t : ℝ) • (Real.pi • ⟨(2⁻¹ : ℝ) • (1 - (u : A)),
+          (Unitary.isStarProjection_inv_two_smul_one_sub hu).isSelfAdjoint⟩)) :=
+  (rfl)
+
+/-- Closed-form value of `Unitary.selfAdjointRotationPath` along `[0, 1]`. -/
+theorem Unitary.coe_selfAdjointRotationPath_apply {A : Type*} [CStarAlgebra A]
+    {u : unitary A} (hu : IsSelfAdjoint (u : A)) (t : I) :
+    (Unitary.selfAdjointRotationPath hu t : A) =
+      1 + (Complex.exp (Complex.I * ↑((t : ℝ) * Real.pi)) - 1) • ((2⁻¹ : ℝ) • (1 - (u : A))) := by
+  rw [Unitary.selfAdjointRotationPath_apply, smul_smul]
+  exact (Unitary.isStarProjection_inv_two_smul_one_sub hu).coe_expUnitary_smul ((t : ℝ) * Real.pi)
