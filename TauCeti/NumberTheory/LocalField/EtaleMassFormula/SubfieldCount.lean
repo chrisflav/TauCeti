@@ -146,13 +146,12 @@ private theorem tsum_one_div_natCard_residueField_pow_discriminantExponent_eq (e
       e / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (inertiaDegree K F * (e - 1)) := by
   have := isSepClosure_tower_top K F (SeparableClosure K)
   let Φ := IsSepClosure.equiv F (SeparableClosure F) (SeparableClosure K)
-  let ε := IntermediateField.equivTotallyRamifiedOfDegree (K := K) F Φ e
+  let ε := equivTotallyRamifiedOfDegree (K := K) Φ e
   have hw (L) : 1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ L.1.discriminantExponent =
       1 / (Nat.card 𝓀[F] : ℝ≥0∞) ^ (ε L).1.wildExponent *
         (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (inertiaDegree K F * (e - 1))) := by
     let E : IntermediateField F (SeparableClosure K) := L.1.toSubfield.toIntermediateField L.2.1
-    have hε : (ε L).1 = E.map Φ.symm.toAlgHom :=
-      IntermediateField.coe_equivTotallyRamifiedOfDegree_apply F Φ L
+    have hε : (ε L).1 = E.map Φ.symm.toAlgHom := coe_equivTotallyRamifiedOfDegree_apply Φ L
     have hM := (ε L).2
     rw [hε] at hM ⊢
     exact one_div_natCard_residueField_pow_discriminantExponent_restrictScalars F Φ E hM

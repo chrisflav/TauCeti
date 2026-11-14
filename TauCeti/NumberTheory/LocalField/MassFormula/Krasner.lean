@@ -163,8 +163,8 @@ private theorem setLIntegral_eisensteinBox_rootCount {n j : ℕ} (hn : 0 < n)
     exact Nat.cast_eq_zero.mpr (Classical.byContradiction fun hrc ↦
       hnot (hj ▸ mem_eisensteinBox_of_rootCount_ne_zero hn hL heis hrc))
   have hrel := IntermediateField.wildExponent_add_eq_discriminantExponent_add_one hL
-  rw [hdiff, add_zero, L.lintegral_rootCount hL μ hμ, show L.discriminantExponent + 1 = n + j by
-    omega] at hsplit
+  have hdj : L.discriminantExponent + 1 = n + j := by omega
+  rw [hdiff, add_zero, L.lintegral_rootCount hL μ hμ, hdj] at hsplit
   exact hsplit
 
 /-- Pointwise on `eisensteinBox K n j`, root counts over the `j`-stratum of `σ_K(n)` sum to `n`. -/
@@ -198,23 +198,23 @@ theorem ncard_totallyRamifiedOfDegree_wildExponent_eq_mul_measure_eisensteinBox 
       (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) * (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞))) =
       (n : ℝ≥0∞) * μ (eisensteinBox K n j) := by
   set hfin := finite_totallyRamifiedOfDegree_wildExponent_eq (K := K) n j
+  set B := eisensteinBox K n j
   have haemeas (L : IntermediateField K (SeparableClosure K)) (hL : L ∈ hfin.toFinset) :
-      AEMeasurable (fun a ↦ (L.rootCount a : ℝ≥0∞)) (μ.restrict (eisensteinBox K n j)) :=
+      AEMeasurable (fun a ↦ (L.rootCount a : ℝ≥0∞)) (μ.restrict B) :=
     (aemeasurable_rootCount_restrict_eisensteinSet μ (hfin.mem_toFinset.mp hL).1).mono_set
       (eisensteinBox_subset_eisensteinSet n j)
   calc ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) *
         (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) * (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞)))
-      = ∑ L ∈ hfin.toFinset, ∫⁻ a in eisensteinBox K n j, (L.rootCount a : ℝ≥0∞) ∂μ := by
+      = ∑ L ∈ hfin.toFinset, ∫⁻ a in B, (L.rootCount a : ℝ≥0∞) ∂μ := by
         rw [Set.ncard_eq_toFinset_card _ hfin, ← nsmul_eq_mul, ← Finset.sum_const]
         exact Finset.sum_congr rfl fun L hL ↦
           (setLIntegral_eisensteinBox_rootCount hn (hfin.mem_toFinset.mp hL).1
             (hfin.mem_toFinset.mp hL).2 μ hμ).symm
-    _ = ∫⁻ a in eisensteinBox K n j, ∑ L ∈ hfin.toFinset, (L.rootCount a : ℝ≥0∞) ∂μ :=
+    _ = ∫⁻ a in B, ∑ L ∈ hfin.toFinset, (L.rootCount a : ℝ≥0∞) ∂μ :=
         (lintegral_finsetSum' hfin.toFinset haemeas).symm
-    _ = ∫⁻ _ in eisensteinBox K n j, (n : ℝ≥0∞) ∂μ :=
-        setLIntegral_congr_fun (measurableSet_eisensteinBox n j)
-          fun _ ha ↦ sum_rootCount_eq_of_mem_eisensteinBox hn ha
-    _ = (n : ℝ≥0∞) * μ (eisensteinBox K n j) := setLIntegral_const _ _
+    _ = ∫⁻ _ in B, (n : ℝ≥0∞) ∂μ := setLIntegral_congr_fun (measurableSet_eisensteinBox n j)
+        fun _ ha ↦ sum_rootCount_eq_of_mem_eisensteinBox hn ha
+    _ = (n : ℝ≥0∞) * μ B := setLIntegral_const _ _
 
 /-- **Krasner's theorem in measure form**: for `0 < n` and normalized left-invariant measure `μ`,
 `# {E ∈ σ_K(n) | c(E) = j} = n * q ^ (n + j) * μ (eisensteinBox K n j) / (1 - q⁻¹)` in `ℝ≥0∞`. -/
@@ -225,39 +225,20 @@ theorem ncard_totallyRamifiedOfDegree_wildExponent_eq_of_measure_eisensteinBox {
       (n : ℝ≥0∞) * (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) * μ (eisensteinBox K n j) /
         (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞)) := by
   have hid := ncard_totallyRamifiedOfDegree_wildExponent_eq_mul_measure_eisensteinBox hn j μ hμ
-  have hq1 : (1 : ℝ≥0∞) < Nat.card 𝓀[K] := by exact_mod_cast Finite.one_lt_card (α := 𝓀[K])
-  have hq0 : (Nat.card 𝓀[K] : ℝ≥0∞) ≠ 0 := (zero_lt_one.trans hq1).ne'
-  have hqt : (Nat.card 𝓀[K] : ℝ≥0∞) ≠ ⊤ := ENNReal.natCast_ne_top _
-  have hu0 : 1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞) ≠ 0 :=
+  set q := (Nat.card 𝓀[K] : ℝ≥0∞)
+  set N := ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞)
+  have hq1 : (1 : ℝ≥0∞) < q := Nat.one_lt_cast.mpr (Finite.one_lt_card (α := 𝓀[K]))
+  have hq0 : q ≠ 0 := (zero_lt_one.trans hq1).ne'
+  have hqt : q ≠ ⊤ := ENNReal.natCast_ne_top _
+  have hu0 : 1 - 1 / q ≠ 0 :=
     (tsub_pos_iff_lt.mpr (by rw [one_div]; exact ENNReal.inv_lt_one.mpr hq1)).ne'
-  have hu_top : 1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞) ≠ ⊤ :=
-    ne_top_of_le_ne_top ENNReal.one_ne_top tsub_le_self
-  rw [ENNReal.eq_div_iff hu0 hu_top, mul_comm]
-  calc ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) *
-        (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞))
-      = ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) *
-          (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞)) *
-          ((Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j))⁻¹ * (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) := by
-        rw [mul_assoc (_ * _),
-          ENNReal.inv_mul_cancel (pow_ne_zero _ hq0) (ENNReal.pow_ne_top hqt), mul_one]
-    _ = ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) *
-          (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) * (1 - 1 / (Nat.card 𝓀[K] : ℝ≥0∞))) *
-          (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) := by simp only [one_div]; ring
-    _ = (n : ℝ≥0∞) * (Nat.card 𝓀[K] : ℝ≥0∞) ^ (n + j) * μ (eisensteinBox K n j) := by
-        rw [hid]; ring
-
-/-- Clearing `q ^ m * q` in `ℝ≥0∞` for the `j % n ≠ 0` case of Krasner's formula. -/
-private theorem ennreal_mul_pow_mul_sub_inv {q m : ℕ} (hq0 : (q : ℝ≥0∞) ≠ 0)
-    (hqt : (q : ℝ≥0∞) ≠ ⊤) (x : ℝ≥0∞) :
-    x * (1 / (q : ℝ≥0∞) ^ m * (1 - 1 / (q : ℝ≥0∞))) * ((q : ℝ≥0∞) ^ m * (q : ℝ≥0∞)) =
-      x * ((q - 1 : ℕ) : ℝ≥0∞) := by
-  calc x * (1 / (q : ℝ≥0∞) ^ m * (1 - 1 / (q : ℝ≥0∞))) * ((q : ℝ≥0∞) ^ m * (q : ℝ≥0∞))
-      = x * (((q : ℝ≥0∞) ^ m)⁻¹ * (q : ℝ≥0∞) ^ m) * ((1 - (q : ℝ≥0∞)⁻¹) * (q : ℝ≥0∞)) := by
-        simp only [one_div]; ring
-    _ = x * ((q - 1 : ℕ) : ℝ≥0∞) := by
-        rw [ENNReal.inv_mul_cancel (pow_ne_zero _ hq0) (ENNReal.pow_ne_top hqt), mul_one,
-          ENNReal.sub_mul fun _ _ ↦ hqt, one_mul, ENNReal.inv_mul_cancel hq0 hqt,
-          ENNReal.natCast_sub, Nat.cast_one]
+  have hu_top : 1 - 1 / q ≠ ⊤ := ne_top_of_le_ne_top ENNReal.one_ne_top tsub_le_self
+  have hinv : 1 / q ^ (n + j) * q ^ (n + j) = 1 := by
+    rw [one_div]; exact ENNReal.inv_mul_cancel (pow_ne_zero _ hq0) (ENNReal.pow_ne_top hqt)
+  rw [ENNReal.eq_div_iff hu0 hu_top]
+  calc (1 - 1 / q) * N = (1 - 1 / q) * N * (1 / q ^ (n + j) * q ^ (n + j)) := by rw [hinv, mul_one]
+    _ = N * (1 / q ^ (n + j) * (1 - 1 / q)) * q ^ (n + j) := by ring
+    _ = (n : ℝ≥0∞) * q ^ (n + j) * μ (eisensteinBox K n j) := by rw [hid]; ring
 
 /-- Converting the `ℝ≥0∞` volume identity on an Ore-admissible box into `krasnerCount K n j`. -/
 private theorem cast_ncard_eq_krasnerCount_of_isOreAdmissible {n j : ℕ} (hn : 0 < n)
@@ -269,10 +250,13 @@ private theorem cast_ncard_eq_krasnerCount_of_isOreAdmissible {n j : ℕ} (hn : 
     ⟨⟨integerBox K (Fin n), isCompact_integerBox⟩, by
       rw [isOpen_integerBox.interior_eq]; exact ⟨0, by simp⟩⟩
   let μ := Measure.addHaarMeasure B
+  -- Substitute the Haar volume of `eisensteinBox K n j` and cancel `1 - q⁻¹`.
   have hid0 := ncard_totallyRamifiedOfDegree_wildExponent_eq_of_measure_eisensteinBox hn j μ
     Measure.addHaarMeasure_self
   rw [measure_eisensteinBox hn hadm μ Measure.addHaarMeasure_self] at hid0
+  rw [krasnerCount_of_isOreAdmissible hadm]
   set q := Nat.card 𝓀[K]
+  set N := {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard
   have hq1 : 1 < q := Finite.one_lt_card (α := 𝓀[K])
   have hq0_enn : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast (zero_lt_one.trans hq1).ne'
   have hqt_enn : (q : ℝ≥0∞) ≠ ⊤ := ENNReal.natCast_ne_top _
@@ -281,41 +265,42 @@ private theorem cast_ncard_eq_krasnerCount_of_isOreAdmissible {n j : ℕ} (hn : 
       (by rw [one_div]; exact ENNReal.inv_lt_one.mpr (by exact_mod_cast hq1))).ne'
   have hu_top : 1 - 1 / (q : ℝ≥0∞) ≠ ⊤ := ne_top_of_le_ne_top ENNReal.one_ne_top tsub_le_self
   set sd := ∑ h ∈ Finset.Ico 1 n, oreCoefficientDepth K n j h
-  have hid : ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) =
-      (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) *
-        (1 / (q : ℝ≥0∞) ^ (1 + sd) * if j % n = 0 then 1 else 1 - 1 / (q : ℝ≥0∞)) := by
-    rwa [show (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) *
-        (1 / (q : ℝ≥0∞) ^ (1 + sd) * (1 - 1 / (q : ℝ≥0∞)) *
-          if j % n = 0 then 1 else 1 - 1 / (q : ℝ≥0∞)) =
-        (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) *
-          (1 / (q : ℝ≥0∞) ^ (1 + sd) * if j % n = 0 then 1 else 1 - 1 / (q : ℝ≥0∞)) *
-          (1 - 1 / (q : ℝ≥0∞)) by ring, ENNReal.mul_div_cancel_right hu0 hu_top] at hid0
-  rw [krasnerCount_of_isOreAdmissible hadm]
+  have hid : (N : ℝ≥0∞) = (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) *
+      (1 / (q : ℝ≥0∞) ^ (1 + sd) * if j % n = 0 then 1 else 1 - 1 / (q : ℝ≥0∞)) := by
+    rw [hid0]; symm; rw [ENNReal.eq_div_iff hu0 hu_top]; ring
+  -- Clear powers of `q` uniformly in `ℕ` and cast to `ℚ`.
+  let c : ℕ := if j % n = 0 then q else q - 1
+  have hc_enn : (if j % n = 0 then (1 : ℝ≥0∞) else 1 - 1 / (q : ℝ≥0∞)) * q = c := by
+    dsimp only [c]; split_ifs
+    · simp
+    · rw [ENNReal.sub_mul fun _ _ ↦ hqt_enn, one_mul, one_div,
+        ENNReal.inv_mul_cancel hq0_enn hqt_enn, ENNReal.natCast_sub, Nat.cast_one]
+  have hmul : (N : ℝ≥0∞) * (q : ℝ≥0∞) ^ (1 + sd + 1) = (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) * c := by
+    rw [hid, pow_succ, ← hc_enn]
+    calc _ = (n : ℝ≥0∞) * (q : ℝ≥0∞) ^ (n + j) *
+          (((q : ℝ≥0∞) ^ (1 + sd))⁻¹ * (q : ℝ≥0∞) ^ (1 + sd)) *
+          ((if j % n = 0 then 1 else 1 - (q : ℝ≥0∞)⁻¹) * q) := by simp only [one_div]; ring
+      _ = _ := by
+        rw [ENNReal.inv_mul_cancel (pow_ne_zero _ hq0_enn) (ENNReal.pow_ne_top hqt_enn), mul_one,
+          one_div]
+  have hnat : N * q ^ (1 + sd + 1) = n * q ^ (n + j) * c := by exact_mod_cast hmul
   have hq0_rat : (q : ℚ) ≠ 0 := by exact_mod_cast (zero_lt_one.trans hq1).ne'
+  have hc_rat : (c : ℚ) = (if j % n = 0 then 1 else 1 - (q : ℚ)⁻¹) * q := by
+    dsimp only [c]; split_ifs
+    · simp
+    · simp [Nat.cast_sub hq1.le, sub_mul, inv_mul_cancel₀ hq0_rat]
+  have hrat : (N : ℚ) * (q : ℚ) ^ (1 + sd + 1) =
+      (n : ℚ) * (q : ℚ) ^ (n + j) * (if j % n = 0 then 1 else 1 - (q : ℚ)⁻¹) * q := by
+    simpa [hc_rat, mul_assoc] using congrArg (Nat.cast (R := ℚ)) hnat
   have hexp : ((n + j - 1 : ℕ) : ℤ) - (sd : ℤ) = ((n + j : ℕ) : ℤ) - ((1 + sd : ℕ) : ℤ) := by
     omega
-  rcases eq_or_ne (j % n) 0 with hb0 | hb
-  · rw [ite_eq_left hb0] at hid ⊢
-    rw [mul_one, mul_one_div,
-      ENNReal.eq_div_iff (pow_ne_zero _ hq0_enn) (ENNReal.pow_ne_top hqt_enn), mul_comm] at hid
-    have hrat : ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℚ) *
-        (q : ℚ) ^ (1 + sd) = (n : ℚ) * (q : ℚ) ^ (n + j) := by
-      exact_mod_cast (by exact_mod_cast hid :
-        {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard * q ^ (1 + sd) =
-          n * q ^ (n + j))
-    rwa [mul_one, hexp, zpow_sub₀ hq0_rat, zpow_natCast, zpow_natCast, mul_div_assoc',
-      eq_div_iff (pow_ne_zero _ hq0_rat)]
-  · rw [ite_eq_right hb] at hid ⊢
-    have hmul := congrArg (· * ((q : ℝ≥0∞) ^ (1 + sd) * (q : ℝ≥0∞))) hid
-    rw [ennreal_mul_pow_mul_sub_inv hq0_enn hqt_enn, ← pow_succ] at hmul
-    have hnat : {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard *
-        q ^ (1 + sd + 1) = n * q ^ (n + j) * (q - 1) := by exact_mod_cast hmul
-    have hrat : ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℚ) *
-        (q : ℚ) ^ (1 + sd + 1) = (n : ℚ) * (q : ℚ) ^ (n + j) * ((q : ℚ) - 1) := by
-      simpa [Nat.cast_sub hq1.le] using congrArg (Nat.cast (R := ℚ)) hnat
-    rwa [hexp, zpow_sub₀ hq0_rat, zpow_natCast, zpow_natCast, inv_eq_one_div,
-      one_sub_div hq0_rat, mul_assoc, div_mul_div_comm, ← pow_succ, mul_div_assoc', ← mul_assoc,
-      eq_div_iff (pow_ne_zero _ hq0_rat)]
+  rw [hexp, zpow_sub₀ hq0_rat, zpow_natCast, zpow_natCast]
+  refine mul_right_cancel₀ (pow_ne_zero (1 + sd + 1) hq0_rat) ?_
+  rw [hrat, pow_succ]
+  conv_lhs =>
+    enter [1, 1, 2]
+    rw [← div_mul_cancel₀ ((q : ℚ) ^ (n + j)) (pow_ne_zero (1 + sd) hq0_rat)]
+  ring
 
 /-- **Krasner's discriminant-refined count**: for `0 < n` and any local field `K` (including in
 equal characteristic), the members of `totallyRamifiedOfDegree K n` with wild exponent `j` form a
@@ -334,36 +319,6 @@ theorem krasner_refined_count (n j : ℕ) (hn : 0 < n) :
 
 /-! ### Closed form over `ℚ_[p]` -/
 
-/-- For `h ≠ 0`, `min m (v_p(h))` counts the powers `p ^ i` (`1 ≤ i ≤ m`) dividing `h`. -/
-private theorem min_padicValNat_eq_sum_ite_dvd (p : ℕ) [Fact p.Prime] (m : ℕ) {h : ℕ}
-    (hh : h ≠ 0) :
-    min m (padicValNat p h) = ∑ i ∈ Finset.Icc 1 m, if p ^ i ∣ h then 1 else 0 := by
-  have hdvd (i : ℕ) : p ^ i ∣ h ↔ i ≤ padicValNat p h :=
-    Nat.padicValNat_def ▸ multiplicity_dvd_iff_le hh
-  simp only [hdvd, ← Finset.card_filter]
-  have hfilter : (Finset.Icc 1 m).filter (· ≤ padicValNat p h) =
-      Finset.Icc 1 (min m (padicValNat p h)) := by ext; simp [le_min_iff, and_assoc]
-  rw [hfilter, Nat.card_Icc]; omega
-
-/-- Counting multiples of `d` in `Finset.Ico 1 m` via `Finset.Ioc 0 m`. -/
-private theorem sum_Ico_ite_dvd_add_ite_eq_div {m : ℕ} (hm : 0 < m) (d : ℕ) :
-    (∑ h ∈ Finset.Ico 1 m, if d ∣ h then 1 else 0) + (if d ∣ m then 1 else 0) = m / d := by
-  have hIoc : Finset.Ioc 0 m = insert m (Finset.Ico 1 m) := by ext; simp; omega
-  have hcard := Nat.Ioc_filter_dvd_card_eq_div m d
-  rw [Finset.card_filter, hIoc, Finset.sum_insert (by simp)] at hcard
-  omega
-
-/-- Splitting `min (a + [h < b]) (v_p(h))` into the `Icc 1 a` sum plus the `p ^ (a + 1)` term. -/
-private theorem min_padicValNat_add_ite_eq (p : ℕ) [Fact p.Prime] (a b : ℕ) {h : ℕ} (hh0 : h ≠ 0) :
-    min (a + if h < b then 1 else 0) (padicValNat p h) =
-      (∑ i ∈ Finset.Icc 1 a, if p ^ i ∣ h then 1 else 0) +
-        if h < b ∧ p ^ (a + 1) ∣ h then 1 else 0 := by
-  by_cases hlt : h < b
-  · have hIcc : Finset.Icc 1 (a + 1) = insert (a + 1) (Finset.Icc 1 a) := by ext; simp; omega
-    simp only [hlt, ↓reduceIte, true_and]
-    rw [min_padicValNat_eq_sum_ite_dvd p (a + 1) hh0, hIcc, Finset.sum_insert (by simp), add_comm]
-  · simp [hlt, min_padicValNat_eq_sum_ite_dvd p a hh0]
-
 /-- Evaluating `∑_{h ∈ Ico 1 n} min (j / n + [h < j % n]) (v_p(h))` for Ore-admissible `(n, j)`. -/
 private theorem sum_min_padicValNat_ore (p : ℕ) [Fact p.Prime] {n j : ℕ} (hn : 0 < n)
     (hadm : IsOreAdmissible ℚ_[p] n j) :
@@ -374,19 +329,43 @@ private theorem sum_min_padicValNat_ore (p : ℕ) [Fact p.Prime] {n j : ℕ} (hn
   have hb_lt : b < n := Nat.mod_lt j hn
   have ha_le : a ≤ padicValNat p n :=
     Nat.div_le_of_le_mul (mul_comm n _ ▸ ((isOreAdmissible_padic_iff p hn).mp hadm).2)
+  -- Express `min m (v_p(h))` as a divisor indicator sum and count multiples in `Ico 1 m`.
+  have hmin (m : ℕ) {h : ℕ} (hh : h ≠ 0) :
+      min m (padicValNat p h) = ∑ i ∈ Finset.Icc 1 m, if p ^ i ∣ h then 1 else 0 := by
+    have hdvd (i : ℕ) : p ^ i ∣ h ↔ i ≤ padicValNat p h :=
+      Nat.padicValNat_def ▸ multiplicity_dvd_iff_le hh
+    have hflt : (Finset.Icc 1 m).filter (· ≤ padicValNat p h) =
+        Finset.Icc 1 (min m (padicValNat p h)) := by ext; simp [le_min_iff, and_assoc]
+    simp only [hdvd, ← Finset.card_filter, hflt, Nat.card_Icc]; omega
+  have hdiv {m : ℕ} (hm : 0 < m) (d : ℕ) :
+      (∑ h ∈ Finset.Ico 1 m, if d ∣ h then 1 else 0) + (if d ∣ m then 1 else 0) = m / d := by
+    have hIoc : Finset.Ioc 0 m = insert m (Finset.Ico 1 m) := by ext; simp; omega
+    have hcard := Nat.Ioc_filter_dvd_card_eq_div m d
+    rw [Finset.card_filter, hIoc, Finset.sum_insert (by simp)] at hcard; omega
+  -- Swap sums on `1 ≤ i ≤ a`, using `p ^ i ∣ n` from `a ≤ v_p(n)`.
   have hsum_base : (∑ i ∈ Finset.Icc 1 a, ∑ h ∈ Finset.Ico 1 n, if p ^ i ∣ h then 1 else 0) + a =
       ∑ i ∈ Finset.Icc 1 a, n / p ^ i := by
-    conv_lhs => enter [2]; rw [show a = ∑ _i ∈ Finset.Icc 1 a, 1 by simp]
+    have ha_sum : a = ∑ _i ∈ Finset.Icc 1 a, 1 := by simp
+    conv_lhs => enter [2]; rw [ha_sum]
     rw [← Finset.sum_add_distrib]
     refine Finset.sum_congr rfl fun i hi ↦ ?_
     have hdvd_n : p ^ i ∣ n := (multiplicity_dvd_iff_le hn.ne').mpr
       (Nat.padicValNat_def ▸ (Finset.mem_Icc.mp hi).2.trans ha_le)
-    simpa [hdvd_n] using sum_Ico_ite_dvd_add_ite_eq_div hn (p ^ i)
+    simpa [hdvd_n] using hdiv hn (p ^ i)
+  -- Split off the `p ^ (a + 1)` term for `h < b`.
+  have hsplit (h : ℕ) (hh : h ∈ Finset.Ico 1 n) :
+      min (a + if h < b then 1 else 0) (padicValNat p h) =
+        (∑ i ∈ Finset.Icc 1 a, if p ^ i ∣ h then 1 else 0) +
+          if h < b ∧ p ^ (a + 1) ∣ h then 1 else 0 := by
+    have hh0 : h ≠ 0 := by have := (Finset.mem_Ico.mp hh).1; omega
+    by_cases hlt : h < b
+    · simp only [hlt, ↓reduceIte, true_and]
+      rw [hmin (a + 1) hh0, Finset.sum_Icc_succ_top (Nat.le_add_left 1 a)]
+    · simp [hlt, hmin a hh0]
+  rw [Finset.sum_congr rfl hsplit, Finset.sum_add_distrib, Finset.sum_comm,
+    add_right_comm _ _ a, hsum_base]
   rcases Nat.eq_zero_or_pos b with hb0 | hbpos
-  · simp only [hb0, ↓reduceIte, add_zero]
-    rw [← hsum_base, Finset.sum_comm]
-    exact congrArg (· + a) (Finset.sum_congr rfl fun h hh ↦
-      min_padicValNat_eq_sum_ite_dvd p a (by have := (Finset.mem_Ico.mp hh).1; omega))
+  · simp [hb0]
   · have hvb : padicValNat p b ≤ a := by
       rcases isOreAdmissible_iff.mp hadm with ⟨h0, -⟩ | ⟨-, hv, -⟩
       · omega
@@ -394,18 +373,13 @@ private theorem sum_min_padicValNat_ore (p : ℕ) [Fact p.Prime] {n j : ℕ} (hn
     have hnot_dvd_b : ¬ p ^ (a + 1) ∣ b := by
       rw [multiplicity_dvd_iff_le hbpos.ne', ← Nat.padicValNat_def]; omega
     simp only [hbpos.ne', ↓reduceIte]
-    rw [Finset.sum_congr rfl (fun h hh ↦ min_padicValNat_add_ite_eq p a b
-      (by have := (Finset.mem_Ico.mp hh).1; omega)),
-      Finset.sum_add_distrib, Finset.sum_comm, ← hsum_base]
-    have htail : (∑ x ∈ Finset.Ico 1 n, if x < b ∧ p ^ (a + 1) ∣ x then 1 else 0) =
-        b / p ^ (a + 1) := by
-      rw [← show (∑ h ∈ Finset.Ico 1 b, if p ^ (a + 1) ∣ h then 1 else 0) = b / p ^ (a + 1) by
-          simpa [hnot_dvd_b] using sum_Ico_ite_dvd_add_ite_eq_div hbpos (p ^ (a + 1)),
-        ← Finset.sum_subset (Finset.Ico_subset_Ico_right hb_lt.le)]
-      · exact Finset.sum_congr rfl fun h hh ↦ by simp [(Finset.mem_Ico.mp hh).2]
-      · intro h hh hnot
-        simp [show ¬ h < b from fun hlt ↦ hnot (Finset.mem_Ico.mpr ⟨(Finset.mem_Ico.mp hh).1, hlt⟩)]
-    rw [htail]; omega
+    have hb_div : (∑ h ∈ Finset.Ico 1 b, if p ^ (a + 1) ∣ h then 1 else 0) = b / p ^ (a + 1) := by
+      simpa [hnot_dvd_b] using hdiv hbpos (p ^ (a + 1))
+    rw [← hb_div, ← Finset.sum_subset (Finset.Ico_subset_Ico_right hb_lt.le)]
+    · exact congrArg _ (Finset.sum_congr rfl fun h hh ↦ by simp [(Finset.mem_Ico.mp hh).2])
+    · intro h hh hnot
+      have hge : ¬ h < b := fun hlt ↦ hnot (Finset.mem_Ico.mpr ⟨(Finset.mem_Ico.mp hh).1, hlt⟩)
+      simp [hge]
 
 /-- Over `ℚ_[p]`, evaluating `∑_{h ∈ Ico 1 n} oreCoefficientDepth ℚ_[p] n j h` yields the exponent
 of Pauli–Roblot Theorem 6.1. -/
@@ -423,26 +397,18 @@ private theorem sum_oreCoefficientDepth_padic (p : ℕ) [Fact p.Prime] {n j : �
     have hhK : (h : ℚ_[p]) ≠ 0 := Nat.cast_ne_zero.mpr (by have := (Finset.mem_Ico.mp hh).1; omega)
     rw [oreCoefficientDepth_of_cast_ne_zero ℚ_[p] n j hhK,
       _root_.Padic.natCastValuation_eq_padicValNat]; omega
+  have hflt : (Finset.Ico 1 n).filter (· < j % n) = Finset.Ico 1 (j % n) := by ext; simp; omega
   have hsum_add : (∑ h ∈ Finset.Ico 1 n, oreCoefficientDepth ℚ_[p] n j h) +
       (∑ h ∈ Finset.Ico 1 n, min (j / n + if h < j % n then 1 else 0) (padicValNat p h)) =
       (n - 1) * (j / n + 1) + (j % n - 1) := by
     rw [← Finset.sum_add_distrib, Finset.sum_congr rfl hterm, Finset.sum_add_distrib,
-      Finset.sum_const, Nat.card_Ico, smul_eq_mul, ← Finset.card_filter,
-      show (Finset.Ico 1 n).filter (· < j % n) = Finset.Ico 1 (j % n) by ext; simp; omega,
-      Nat.card_Ico]
-  have hj_int : (n : ℤ) * ((j / n : ℕ) : ℤ) + ((j % n : ℕ) : ℤ) = j := by
-    exact_mod_cast Nat.div_add_mod j n
-  have hsum_int := congrArg (Nat.cast (R := ℤ)) hsum_add
-  rw [Nat.cast_add, Nat.cast_add, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_sub hn,
-    Nat.cast_one] at hsum_int
-  have hmin_int := congrArg (Nat.cast (R := ℤ)) (sum_min_padicValNat_ore p hn hadm)
-  rw [Nat.cast_add, Nat.cast_add, Nat.cast_ite, Nat.cast_zero] at hmin_int
-  rw [Nat.cast_sub (by omega : 1 ≤ n + j), Nat.cast_add, Nat.cast_one]
-  rcases Nat.eq_zero_or_pos (j % n) with hb0 | hbpos
-  · simp only [hb0, Nat.zero_sub, Nat.cast_zero, add_zero, ↓reduceIte] at hj_int hsum_int hmin_int ⊢
-    linarith
-  · simp only [hbpos.ne', ↓reduceIte, Nat.cast_sub hbpos, Nat.cast_one] at hsum_int hmin_int ⊢
-    linarith
+      Finset.sum_const, Nat.card_Ico, smul_eq_mul, ← Finset.card_filter, hflt, Nat.card_Ico]
+  have hmin := sum_min_padicValNat_ore p hn hadm
+  have hmul : (n - 1) * (j / n + 1) + (j / n + 1) + j % n = j + n := by
+    rw [← add_one_mul, Nat.sub_add_cancel (m := 1) hn, mul_add_one, add_right_comm, Nat.div_add_mod]
+  rcases eq_or_ne (j % n) 0 with hb0 | hb0
+  · rw [ite_eq_left hb0] at hmin; rw [ite_eq_left hb0]; omega
+  · rw [ite_eq_right hb0] at hmin; rw [ite_eq_right hb0]; omega
 
 open scoped Classical in
 /-- **Pauli–Roblot closed form for Krasner's count over `ℚ_[p]`** ([Pauli–Roblot 2001, Theorem
@@ -475,31 +441,24 @@ theorem ncard_totallyRamifiedOfDegree_wildExponent_eq_padic (p : ℕ) [Fact p.Pr
 
 /-! ### Mass consistency and isomorphism-class mass at height `j` -/
 
-/-- Identifying the wild-exponent-`j` subtype of `S` with `{E ∈ S | E.wildExponent = j}`. -/
-private def wildExponentSubtypeEquiv (S : Set (IntermediateField K (SeparableClosure K)))
-    (j : ℕ) : {L : S // L.1.wildExponent = j} ≃ {E ∈ S | E.wildExponent = j} :=
-  ⟨fun L ↦ ⟨L.1.1, L.1.2, L.2⟩, fun E ↦ ⟨⟨E.1, E.2.1⟩, E.2.2⟩, fun _ ↦ rfl, fun _ ↦ rfl⟩
-
 /-- **Regrouped Serre mass consistency**: summing `# {E ∈ σ_K(n) | c(E) = j} * q ^ (-j)` over all
 wild exponents `j` recovers `n`, Serre's first mass formula grouped by wild exponent. -/
 theorem tsum_ncard_wildExponent_div_natCard_residueField_pow (n : ℕ) :
     ∑' j : ℕ, ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) /
       (Nat.card 𝓀[K] : ℝ≥0∞) ^ j = n := by
-  rw [← tsum_one_div_natCard_residueField_pow_wildExponent (K := K) (n := n),
-    ← tsum_fiberwise (fun L : totallyRamifiedOfDegree K n ↦
-      1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ L.1.wildExponent) (fun L ↦ L.1.wildExponent)]
+  rw [← tsum_one_div_natCard_residueField_pow_wildExponent (K := K) (n := n)]
+  set S := totallyRamifiedOfDegree K n
+  set q := (Nat.card 𝓀[K] : ℝ≥0∞)
+  rw [← tsum_fiberwise (fun L : S ↦ 1 / q ^ L.1.wildExponent) (fun L ↦ L.1.wildExponent)]
   refine tsum_congr fun j ↦ ?_
   have hfin := finite_totallyRamifiedOfDegree_wildExponent_eq (K := K) n j
-  calc ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) /
-        (Nat.card 𝓀[K] : ℝ≥0∞) ^ j
-      = ∑' E : {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j},
-          1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ E.1.wildExponent := by
+  calc ({E ∈ S | E.wildExponent = j}.ncard : ℝ≥0∞) / q ^ j
+      = ∑' E : {E ∈ S | E.wildExponent = j}, 1 / q ^ E.1.wildExponent := by
         rw [tsum_congr fun E ↦ by rw [E.2.2], ENNReal.tsum_set_const, ← hfin.cast_ncard_eq,
           ENat.toENNReal_coe, div_eq_mul_inv, one_div]
-    _ = ∑' L : ((fun L : totallyRamifiedOfDegree K n ↦ L.1.wildExponent) ⁻¹' {j}),
-          1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ L.1.1.wildExponent :=
-        ((wildExponentSubtypeEquiv (totallyRamifiedOfDegree K n) j).tsum_eq
-          fun E ↦ 1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ E.1.wildExponent).symm
+    _ = ∑' L : ((fun L : S ↦ L.1.wildExponent) ⁻¹' {j}), 1 / q ^ L.1.1.wildExponent :=
+        ((Equiv.subtypeSubtypeEquivSubtypeInter (· ∈ S) (fun E ↦ E.wildExponent = j)).tsum_eq
+          fun E ↦ 1 / q ^ E.1.wildExponent).symm
 
 /-- **Real-series consistency of `krasnerCount` with Serre's first mass formula**: for `0 < n`,
 the real series `∑_j krasnerCount K n j / q ^ j` converges to `n`. -/
@@ -511,14 +470,12 @@ theorem hasSum_krasnerCount_div_natCard_residueField_pow {n : ℕ} (hn : 0 < n) 
     have hkc : (krasnerCount K n j : ℝ) =
         ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ) := by
       exact_mod_cast (krasner_refined_count (K := K) n j hn).2.symm
-    rw [hkc, ENNReal.toReal_div, ENNReal.toReal_natCast, ENNReal.toReal_pow,
-      ENNReal.toReal_natCast]
+    rw [hkc, ENNReal.toReal_div, ENNReal.toReal_natCast, ENNReal.toReal_pow, ENNReal.toReal_natCast]
   simp_rw [hterm]
   have htsum := tsum_ncard_wildExponent_div_natCard_residueField_pow (K := K) n
-  have hne_top := htsum ▸ ENNReal.natCast_ne_top n
-  rw [← ENNReal.toReal_natCast n, ← htsum,
-    ENNReal.tsum_toReal_eq (ne_top_of_tsum_ne_top hne_top)]
-  exact ENNReal.hasSum_toReal hne_top
+  have hne := htsum ▸ ENNReal.natCast_ne_top n
+  rw [← ENNReal.toReal_natCast n, ← htsum, ENNReal.tsum_toReal_eq (ne_top_of_tsum_ne_top hne)]
+  exact ENNReal.hasSum_toReal hne
 
 namespace IsRepresentativeSet
 
@@ -531,34 +488,32 @@ theorem tsum_one_div_natCard_algEquiv_wildExponent_eq {n : ℕ}
     ∑' M : {M ∈ R | M.wildExponent = j}, 1 / (Nat.card (M ≃ₐ[K] M) : ℝ≥0∞) =
       ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) / n := by
   classical
+  set S := totallyRamifiedOfDegree K n
+  let w (M : IntermediateField K (SeparableClosure K)) : ℝ≥0∞ := 1 / Nat.card (M ≃ₐ[K] M)
   have h := hR.tsum_eq_tsum_div_natCard_algEquiv_mul
     (fun L ↦ if L.wildExponent = j then (1 : ℝ≥0∞) else 0)
     fun e ↦ by rw [IntermediateField.wildExponent_eq_of_algEquiv e]
   have hfin := finite_totallyRamifiedOfDegree_wildExponent_eq (K := K) n j
-  have hlhs : (∑' L : totallyRamifiedOfDegree K n,
-      if L.1.wildExponent = j then (1 : ℝ≥0∞) else 0) =
-      ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) := by
-    have hsub := tsum_subtype ({L : totallyRamifiedOfDegree K n | L.1.wildExponent = j})
-      (fun _ : totallyRamifiedOfDegree K n ↦ (1 : ℝ≥0∞))
+  have hlhs : (∑' L : S, if L.1.wildExponent = j then (1 : ℝ≥0∞) else 0) =
+      ({E ∈ S | E.wildExponent = j}.ncard : ℝ≥0∞) := by
+    have hsub := tsum_subtype ({L : S | L.1.wildExponent = j}) (fun _ : S ↦ (1 : ℝ≥0∞))
     simp only [Set.indicator_apply, Set.mem_ofPred_eq] at hsub
-    rw [← hsub, ENNReal.tsum_set_one,
-      Set.encard_congr (wildExponentSubtypeEquiv (totallyRamifiedOfDegree K n) j),
-      ← hfin.cast_ncard_eq, ENat.toENNReal_coe]
+    rw [← hsub, ← ENat.toENNReal_coe, hfin.cast_ncard_eq, ← ENNReal.tsum_set_one]
+    exact (Equiv.subtypeSubtypeEquivSubtypeInter (· ∈ S)
+      (fun E ↦ E.wildExponent = j)).tsum_eq fun _ ↦ (1 : ℝ≥0∞)
   have hrhs : (∑' M : R, (n : ℝ≥0∞) / Nat.card (M ≃ₐ[K] M) *
       if M.1.wildExponent = j then 1 else 0) =
-      (n : ℝ≥0∞) * ∑' M : {M ∈ R | M.wildExponent = j},
-        1 / (Nat.card (M ≃ₐ[K] M) : ℝ≥0∞) := by
+      (n : ℝ≥0∞) * ∑' M : {M ∈ R | M.wildExponent = j}, w M.1 := by
     have heq (M : R) : (n : ℝ≥0∞) / Nat.card (M ≃ₐ[K] M) *
         (if M.1.wildExponent = j then 1 else 0) =
-        (n : ℝ≥0∞) * (if M.1.wildExponent = j then
-          1 / (Nat.card (M ≃ₐ[K] M) : ℝ≥0∞) else 0) := by split_ifs <;> simp [div_eq_mul_inv]
+        (n : ℝ≥0∞) * if M.1.wildExponent = j then w M.1 else 0 := by
+      split_ifs <;> simp [w, div_eq_mul_inv]
     simp only [heq, ENNReal.tsum_mul_left]
     congr 1
-    have hsub := tsum_subtype ({M : R | M.1.wildExponent = j})
-      (fun M : R ↦ 1 / (Nat.card (M ≃ₐ[K] M) : ℝ≥0∞))
+    have hsub := tsum_subtype ({M : R | M.1.wildExponent = j}) (fun M : R ↦ w M.1)
     simp only [Set.indicator_apply, Set.mem_ofPred_eq] at hsub
-    exact hsub.symm.trans ((wildExponentSubtypeEquiv R j).tsum_eq
-      fun M ↦ 1 / (Nat.card (M ≃ₐ[K] M) : ℝ≥0∞))
+    exact hsub.symm.trans ((Equiv.subtypeSubtypeEquivSubtypeInter (· ∈ R)
+      (fun E ↦ E.wildExponent = j)).tsum_eq fun M ↦ w M.1)
   rw [hlhs, hrhs] at h
   exact (ENNReal.eq_div_iff (by exact_mod_cast hn.ne') (ENNReal.natCast_ne_top _)).mpr h.symm
 
@@ -572,13 +527,14 @@ characteristic. -/
 theorem encard_totallyRamifiedOfDegree_eq_tsum (n : ℕ) :
     ((totallyRamifiedOfDegree K n).encard : ℝ≥0∞) =
       ∑' j : ℕ, ({E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard : ℝ≥0∞) := by
+  set S := totallyRamifiedOfDegree K n
   rw [← ENNReal.tsum_set_one,
-    ← tsum_fiberwise (fun _ : totallyRamifiedOfDegree K n ↦ (1 : ℝ≥0∞)) (fun L ↦ L.1.wildExponent)]
+    ← tsum_fiberwise (fun _ : S ↦ (1 : ℝ≥0∞)) (fun L ↦ L.1.wildExponent)]
   refine tsum_congr fun j ↦ ?_
   have hfin := finite_totallyRamifiedOfDegree_wildExponent_eq (K := K) n j
-  exact ((wildExponentSubtypeEquiv (totallyRamifiedOfDegree K n) j).tsum_eq
-    fun _ ↦ (1 : ℝ≥0∞)).trans
-      (by rw [ENNReal.tsum_set_one, ← hfin.cast_ncard_eq, ENat.toENNReal_coe])
+  rw [← ENat.toENNReal_coe, hfin.cast_ncard_eq, ← ENNReal.tsum_set_one]
+  exact (Equiv.subtypeSubtypeEquivSubtypeInter (· ∈ S)
+    (fun E ↦ E.wildExponent = j)).tsum_eq fun _ ↦ (1 : ℝ≥0∞)
 
 /-- For `0 < n`, the extended cardinality of `totallyRamifiedOfDegree K n` (in `ℝ≥0∞`) is the sum
 over Ore-admissible wild exponents `j` of `# {E ∈ σ_K(n) | c(E) = j}`. -/
@@ -591,10 +547,9 @@ theorem encard_totallyRamifiedOfDegree_eq_tsum_isOreAdmissible {n : ℕ} (hn : 0
   refine tsum_congr fun j ↦ ?_
   by_cases hadm : IsOreAdmissible K n j
   · simp [hadm]
-  · rw [Set.indicator_of_notMem (show j ∉ {j : ℕ | IsOreAdmissible K n j} from hadm)]
-    simp only [Nat.cast_eq_zero,
-      Set.ncard_eq_zero (finite_totallyRamifiedOfDegree_wildExponent_eq n j),
-      Set.eq_empty_iff_forall_notMem]
+  · rw [Set.indicator_of_notMem (hadm : j ∉ {j : ℕ | IsOreAdmissible K n j})]
+    simp only [Nat.cast_eq_zero, Set.ncard_eq_zero
+      (finite_totallyRamifiedOfDegree_wildExponent_eq n j), Set.eq_empty_iff_forall_notMem]
     exact fun E ⟨hE, rfl⟩ ↦ hadm ((ore_realizability n E.wildExponent hn).mp ⟨E, hE, rfl⟩)
 
 /-- Away from equal characteristic `p ∣ n` (that is, whenever `(n : K) ≠ 0`), `σ_K(n)` is finite
@@ -604,9 +559,9 @@ theorem ncard_totallyRamifiedOfDegree_eq_sum_of_cast_ne_zero {n : ℕ} (hnK : (n
     (totallyRamifiedOfDegree K n).ncard =
       ∑ j ∈ Finset.Iic (n * natCastValuation K n hnK),
         {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j}.ncard := by
+  set S := totallyRamifiedOfDegree K n
   set B := n * natCastValuation K n hnK
-  have hunion : totallyRamifiedOfDegree K n =
-      ⋃ j ∈ (Finset.Iic B : Set ℕ), {E ∈ totallyRamifiedOfDegree K n | E.wildExponent = j} := by
+  have hunion : S = ⋃ j ∈ (Finset.Iic B : Set ℕ), {E ∈ S | E.wildExponent = j} := by
     ext E
     simp only [Set.mem_iUnion, Finset.mem_coe, Finset.mem_Iic, Set.mem_ofPred_eq, exists_prop]
     exact ⟨fun hE ↦ ⟨E.wildExponent, IntermediateField.wildExponent_le_mul_natCastValuation hE hnK,
@@ -635,21 +590,16 @@ theorem ncard_totallyRamifiedOfDegree_eq_sum_padic (p : ℕ) [Fact p.Prime] {n :
   rw [ncard_totallyRamifiedOfDegree_eq_sum_of_cast_ne_zero (Nat.cast_ne_zero.mpr hn.ne'),
     _root_.Padic.natCastValuation_eq_padicValNat]
 
-private theorem padicValNat_eq_zero_of_not_dvd {p m : ℕ} (h : ¬ p ∣ m) : padicValNat p m = 0 :=
-  Nat.padicValNat_def ▸ multiplicity_eq_zero_of_not_dvd h
-
-private theorem padicValNat_self' (p : ℕ) [Fact p.Prime] : padicValNat p p = 1 :=
-  Nat.padicValNat_def ▸ Nat.Prime.multiplicity_self
-
-/-- **`#σ_{ℚ_2}(2) = 6`**: `ℚ_2` has `6` totally ramified quadratic extensions (`2` at wild
-exponent `1` and `4` at wild exponent `2`). -/
+/-- **`#σ_{ℚ_2}(2) = 6`** via Krasner's formula (`2` extensions at wild exponent `1` and `4` at
+wild exponent `2`; compare `TauCeti.encard_totallyRamifiedOfDegree_two_padicTwo` via Kummer
+theory). -/
 theorem ncard_totallyRamifiedOfDegree_two_padicTwo :
     (totallyRamifiedOfDegree ℚ_[2] 2).ncard = 6 := by
+  have hIic : Finset.Iic 2 = {0, 1, 2} := by decide
   rw [ncard_totallyRamifiedOfDegree_eq_sum_padic 2 (by decide : 0 < 2)]
   simp_rw [ncard_totallyRamifiedOfDegree_wildExponent_eq_padic 2 (by decide : 0 < 2),
     isOreAdmissible_padic_iff 2 (by decide : 0 < 2)]
-  rw [padicValNat_self' 2, show Finset.Iic (2 * 1) = {0, 1, 2} by decide]
-  simp [padicValNat_eq_zero_of_not_dvd (p := 2) (m := 1) (by decide)]
+  simp [Nat.padicValNat_def, hIic]
 
 /-- **`#σ_{ℚ_3}(3) = 21`**: `ℚ_3` has `21` totally ramified cubic extensions inside
 `SeparableClosure ℚ_3` (`6` at wild exponent `1`, `6` at wild exponent `2`, and `9` at wild
@@ -657,41 +607,25 @@ exponent `3`). -/
 theorem ncard_totallyRamifiedOfDegree_three_padicThree :
     (totallyRamifiedOfDegree ℚ_[3] 3).ncard = 21 := by
   have : Fact (Nat.Prime 3) := ⟨by decide⟩
+  have hIic : Finset.Iic 3 = {0, 1, 2, 3} := by decide
   rw [ncard_totallyRamifiedOfDegree_eq_sum_padic 3 (by decide : 0 < 3)]
   simp_rw [ncard_totallyRamifiedOfDegree_wildExponent_eq_padic 3 (by decide : 0 < 3),
     isOreAdmissible_padic_iff 3 (by decide : 0 < 3)]
-  rw [padicValNat_self' 3, show Finset.Iic (3 * 1) = {0, 1, 2, 3} by decide]
-  simp [padicValNat_eq_zero_of_not_dvd (p := 3) (m := 1) (by decide),
-    padicValNat_eq_zero_of_not_dvd (p := 3) (m := 2) (by decide)]
-
-/-- Extended-cardinality form of `#σ_{ℚ_3}(3) = 21`. -/
-theorem encard_totallyRamifiedOfDegree_three_padicThree :
-    (totallyRamifiedOfDegree ℚ_[3] 3).encard = 21 := by
-  rw [← (Set.finite_of_ncard_ne_zero
-    (by rw [ncard_totallyRamifiedOfDegree_three_padicThree]; decide)).cast_ncard_eq,
-    ncard_totallyRamifiedOfDegree_three_padicThree]; rfl
+  simp [Nat.padicValNat_def, multiplicity_eq_zero_of_not_dvd (by decide : ¬ 3 ∣ 2), hIic]
 
 /-- **`#σ_{ℚ_2}(4) = 92`**: `ℚ_2` has `92` totally ramified quartic extensions inside
 `SeparableClosure ℚ_2` (stratum counts `4, 8, 16, 16, 16, 32` at wild exponents
 `1, 3, 5, 6, 7, 8`). -/
 theorem ncard_totallyRamifiedOfDegree_four_padicTwo :
     (totallyRamifiedOfDegree ℚ_[2] 4).ncard = 92 := by
-  have hv4 : padicValNat 2 4 = 2 :=
-    (show (4 : ℕ) = 2 ^ 2 from rfl) ▸ Nat.padicValNat_def ▸ Nat.multiplicity_prime_pow 2
+  have hv4 : multiplicity 2 4 = 2 := Nat.multiplicity_prime_pow (p := 2) 2
+  have hIic : Finset.Iic 8 = {0, 1, 2, 3, 4, 5, 6, 7, 8} := by decide
+  have hIcc : Finset.Icc 1 2 = {1, 2} := by decide
   rw [ncard_totallyRamifiedOfDegree_eq_sum_padic 2 (by decide : 0 < 4)]
   simp_rw [ncard_totallyRamifiedOfDegree_wildExponent_eq_padic 2 (by decide : 0 < 4),
     isOreAdmissible_padic_iff 2 (by decide : 0 < 4)]
-  rw [hv4, show Finset.Iic (4 * 2) = {0, 1, 2, 3, 4, 5, 6, 7, 8} by decide]
-  simp [padicValNat_self' 2, padicValNat_eq_zero_of_not_dvd (p := 2) (m := 1) (by decide),
-    padicValNat_eq_zero_of_not_dvd (p := 2) (m := 3) (by decide),
-    show Finset.Icc 1 2 = {1, 2} by decide]
-
-/-- Extended-cardinality form of `#σ_{ℚ_2}(4) = 92`. -/
-theorem encard_totallyRamifiedOfDegree_four_padicTwo :
-    (totallyRamifiedOfDegree ℚ_[2] 4).encard = 92 := by
-  rw [← (Set.finite_of_ncard_ne_zero
-    (by rw [ncard_totallyRamifiedOfDegree_four_padicTwo]; decide)).cast_ncard_eq,
-    ncard_totallyRamifiedOfDegree_four_padicTwo]; rfl
+  simp [Nat.padicValNat_def, hv4, multiplicity_eq_zero_of_not_dvd (by decide : ¬ 2 ∣ 3),
+    hIic, hIcc]
 
 /-- **Canonical tower decomposition of the total degree-`n` count**: for `0 < n`, the extended
 cardinality of all subextensions of `SeparableClosure K / K` of degree `n` equals
@@ -709,12 +643,13 @@ theorem encard_finrank_eq_sum_totallyRamifiedOfDegree {n : ℕ} (hn : 0 < n) :
           (unramifiedExtension K (SeparableClosure K) f)
         (totallyRamifiedOfDegree (unramifiedExtension K (SeparableClosure K) f)
           (n / f)).encard) := by
+  let P (f : ℕ) : Set (IntermediateField K (SeparableClosure K)) :=
+    {L | Module.finrank K L = f * (n / f) ∧ L.inertiaDegree = f}
   have hunion : {L : IntermediateField K (SeparableClosure K) | Module.finrank K L = n} =
-      ⋃ f ∈ (n.divisors : Set ℕ), {L : IntermediateField K (SeparableClosure K) |
-        Module.finrank K L = f * (n / f) ∧ L.inertiaDegree = f} := by
+      ⋃ f ∈ (n.divisors : Set ℕ), P f := by
     ext L
-    simp only [Set.mem_ofPred_eq, Set.mem_iUnion, Finset.mem_coe, Nat.mem_divisors, ne_eq, hn.ne',
-      not_false_eq_true, and_true, exists_prop]
+    simp only [P, Set.mem_iUnion, Set.mem_ofPred_eq, Finset.mem_coe, Nat.mem_divisors, ne_eq,
+      hn.ne', not_false_eq_true, and_true, exists_prop]
     refine ⟨fun hdeg ↦ ?_, fun ⟨f, hdvd, hdeg, _⟩ ↦ Nat.mul_div_cancel' hdvd ▸ hdeg⟩
     have : Module.Finite K L := Module.finite_of_finrank_pos (hdeg ▸ hn)
     let _ := finiteIntermediateFieldValuativeRel K (SeparableClosure K) L
@@ -725,9 +660,7 @@ theorem encard_finrank_eq_sum_totallyRamifiedOfDegree {n : ℕ} (hn : 0 < n) :
     rw [← L.inertiaDegree_eq, hdeg] at hmul
     have hdvd : L.inertiaDegree ∣ n := ⟨ramificationIndex K L, by rw [← hmul, mul_comm]⟩
     exact ⟨L.inertiaDegree, hdvd, (Nat.mul_div_cancel' hdvd).symm ▸ hdeg, rfl⟩
-  have hdisj : Set.PairwiseDisjoint (n.divisors : Set ℕ)
-      (fun f ↦ {L : IntermediateField K (SeparableClosure K) |
-        Module.finrank K L = f * (n / f) ∧ L.inertiaDegree = f}) :=
+  have hdisj : Set.PairwiseDisjoint (n.divisors : Set ℕ) P :=
     fun _ _ _ _ hne ↦ Set.disjoint_left.mpr fun _ h1 h2 ↦ hne (h1.2.symm.trans h2.2)
   rw [hunion, (Finset.finite_toSet _).encard_biUnion hdisj, finsum_mem_coe_finset]
   refine Finset.sum_congr rfl fun f hf ↦ ?_
