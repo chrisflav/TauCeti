@@ -62,6 +62,8 @@ products with a finite projective factor can be computed with the algebraic tens
 * `TauCeti.Huber.BanachModule.CompletedTensor.map`: the completed tensor product of two continuous
   linear maps.
 * `TauCeti.Huber.BanachModule.CompletedTensor.lid`: the unit isomorphism `A ⊗̂_A M ≃ M`.
+* `TauCeti.Huber.BanachModule.CompletedTensor.leftModule`: the extended `S`-module structure on
+  `V ⊗̂_A W` induced by a continuous `S`-action on `V` commuting with `A`.
 * `TauCeti.Huber.BanachModule.CompletedTensor.finiteProjectiveEquiv`: the isomorphism
   `P ⊗[A] M ≃ P ⊗̂_A M` for a finite projective `A`-module `P`.
 
@@ -151,6 +153,27 @@ theorem continuous_banachTensorTopology_iff {M : Type*} [AddCommGroup M] [Module
   refine continuous_iff_le_induced.mpr (banachTensorTopology_le
     (nonarchimedeanAddGroup_induced f) (continuousSMul_induced f) ?_)
   exact continuous_induced_rng.mpr hf
+
+/-- A scalar action on `V` commuting with `A` and acting continuously by constants acts
+continuously by constants on `V ⊗[A] W` for the tensor topology. -/
+theorem continuousConstSMul_banachTensorTopology {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    @ContinuousConstSMul S (V ⊗[A] W) (banachTensorTopology A V W) _ := by
+  let := banachTensorTopology A V W
+  have := nonarchimedeanAddGroup_banachTensorTopology A V W
+  have := continuousSMul_banachTensorTopology A V W
+  refine ⟨fun s ↦ ?_⟩
+  let fs : V →ₗ[A] V :=
+    { toFun v := s • v
+      map_add' := smul_add s
+      map_smul' a v := by simpa using (smul_comm a s v).symm }
+  have h := (continuous_banachTensorTopology_iff (M := V ⊗[A] W) (LinearMap.rTensor W fs)).mpr <|
+    ((continuous_tmul_banachTensorTopology A V W).comp
+      ((continuous_const_smul s).prodMap continuous_id)).congr fun _ ↦ rfl
+  refine h.congr fun u ↦ ?_
+  induction u using TensorProduct.inductionOn with
+  | tmul v w => rfl
+  | add x y hx hy => rw [map_add, smul_add, hx, hy]
 
 end Topology
 
@@ -251,6 +274,11 @@ theorem equivCompletion_toCompletion (x : V ⊗[A] W) :
       @Completion.coe' _ (banachTensorUniformSpace A V W) x :=
   (rfl)
 
+/-- `equivCompletion` is uniformly continuous. -/
+theorem uniformContinuous_equivCompletion :
+    UniformContinuous (equivCompletion A V W) :=
+  uniformContinuous_id
+
 /-- The map into the completion is continuous for the tensor topology. -/
 theorem continuous_toCompletion :
     Continuous[banachTensorTopology A V W, _] (toCompletion A V W) :=
@@ -291,6 +319,77 @@ theorem dense_span_range_tmul :
   induction x using TensorProduct.inductionOn with
   | tmul v w => exact Submodule.subset_span ⟨(v, w), rfl⟩
   | add x y hx hy => simpa using Submodule.add_mem _ hx hy
+
+section LeftAction
+
+local instance (priority := low) tensorUniformContinuousConstSMul_left {S : Type*} [Monoid S]
+    [DistribMulAction S V] [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    UniformContinuousConstSMul S (V ⊗[A] W) :=
+  have := continuousConstSMul_banachTensorTopology A V W (S := S)
+  uniformContinuousConstSMul_of_continuousConstSMul S (V ⊗[A] W)
+
+/-- A continuous scalar action on `V` commuting with `A` extends to `V ⊗̂_A W`. -/
+noncomputable instance (priority := low) leftDistribMulAction {S : Type*} [Monoid S]
+    [DistribMulAction S V] [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    DistribMulAction S (CompletedTensor A V W) :=
+  inferInstanceAs (DistribMulAction S (Completion (V ⊗[A] W)))
+
+instance (priority := low) uniformContinuousConstSMul_left {S : Type*} [Monoid S]
+    [DistribMulAction S V] [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    UniformContinuousConstSMul S (CompletedTensor A V W) :=
+  inferInstanceAs (UniformContinuousConstSMul S (Completion (V ⊗[A] W)))
+
+/-- **Extended left module structure on `V ⊗̂_A W`.** A continuous `S`-module structure on `V`
+commuting with `A` makes `V ⊗̂_A W` an `S`-module, definitionally agreeing with the base `A`-module
+structure when `S = A`. -/
+noncomputable instance (priority := low) leftModule {S : Type*} [Semiring S] [Module S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    Module S (CompletedTensor A V W) :=
+  inferInstanceAs (Module S (Completion (V ⊗[A] W)))
+
+instance (priority := low) smulCommClass_left {S₁ S₂ : Type*} [Monoid S₁] [DistribMulAction S₁ V]
+    [SMulCommClass A S₁ V] [ContinuousConstSMul S₁ V] [Monoid S₂] [DistribMulAction S₂ V]
+    [SMulCommClass A S₂ V] [ContinuousConstSMul S₂ V] [SMulCommClass S₁ S₂ V] :
+    SMulCommClass S₁ S₂ (CompletedTensor A V W) :=
+  inferInstanceAs (SMulCommClass S₁ S₂ (Completion (V ⊗[A] W)))
+
+instance (priority := low) smulCommClass_base_left {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    SMulCommClass A S (CompletedTensor A V W) :=
+  inferInstanceAs (SMulCommClass A S (Completion (V ⊗[A] W)))
+
+instance (priority := low) smulCommClass_left_base {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] :
+    SMulCommClass S A (CompletedTensor A V W) :=
+  SMulCommClass.symm A S (CompletedTensor A V W)
+
+instance (priority := low) isScalarTower_left {S₁ S₂ : Type*} [Monoid S₁] [DistribMulAction S₁ V]
+    [SMulCommClass A S₁ V] [ContinuousConstSMul S₁ V] [Monoid S₂] [DistribMulAction S₂ V]
+    [SMulCommClass A S₂ V] [ContinuousConstSMul S₂ V] [SMul S₁ S₂] [IsScalarTower S₁ S₂ V] :
+    IsScalarTower S₁ S₂ (CompletedTensor A V W) :=
+  inferInstanceAs (IsScalarTower S₁ S₂ (Completion (V ⊗[A] W)))
+
+instance (priority := low) isScalarTower_base_left {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] [SMul A S] [IsScalarTower A S V] :
+    IsScalarTower A S (CompletedTensor A V W) :=
+  inferInstanceAs (IsScalarTower A S (Completion (V ⊗[A] W)))
+
+variable {A V W} in
+/-- The completion map `V ⊗[A] W → V ⊗̂_A W` commutes with the extended left action of `S`. -/
+theorem toCompletion_smul {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] (s : S) (x : V ⊗[A] W) :
+    toCompletion A V W (s • x) = s • toCompletion A V W x :=
+  Completion.coe_smul s x
+
+variable {A V W} in
+/-- An extended left scalar acts on the first factor of an elementary tensor:
+`s • (v ⊗ w) = (s • v) ⊗ w`. -/
+theorem smul_tmul' {S : Type*} [Monoid S] [DistribMulAction S V]
+    [SMulCommClass A S V] [ContinuousConstSMul S V] (s : S) (v : V) (w : W) :
+    s • tmul A V W v w = tmul A V W (s • v) w := by
+  rw [← toCompletion_tmul, ← toCompletion_smul, TensorProduct.smul_tmul', toCompletion_tmul]
+
+end LeftAction
 
 variable {A V W}
 
