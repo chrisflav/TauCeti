@@ -87,4 +87,42 @@ theorem map_surjective_of_isLocalHom (f : R →+* S) [IsLocalHom f]
   (map_surjective_iff f).2
     ⟨hf, IsLocalRing.surjective_units_map_of_local_ringHom f hf inferInstance⟩
 
+section KerMap
+
+variable {k : Type*} [CommRing k] {π : R →+* k} {ρ : S →+* k}
+
+/-- Base change of formal coordinates restricts to the kernels of compatible coefficient
+reductions `π : R →+* k` and `ρ : S →+* k`. -/
+noncomputable def kerMap (f : R →+* S) (hf : ρ.comp f = π) :
+    (map π).ker →* (map ρ).ker where
+  toFun φ := ⟨map f φ.val, by
+    rw [MonoidHom.mem_ker, ← map_comp, hf, MonoidHom.mem_ker.mp φ.property]⟩
+  map_one' := Subtype.ext (map_one _)
+  map_mul' _ _ := Subtype.ext (map_mul _ _ _)
+
+/-- `kerMap` acts on the underlying coordinate by `FormalCoordinate.map`. -/
+@[simp]
+theorem coe_kerMap (f : R →+* S) (hf : ρ.comp f = π) (φ : (map π).ker) :
+    (kerMap f hf φ : FormalCoordinate S) = map f φ.val := (rfl)
+
+/-- If formal coordinates lift along `f : R →+* S` and `ρ.comp f = π`, then every coordinate over
+`S` reducing to `X` along `ρ` lifts to a coordinate over `R` reducing to `X` along `π`: any lift
+of `ψ ∈ ker (map ρ)` automatically lies in `ker (map π)`. -/
+theorem kerMap_surjective {f : R →+* S} (hf : ρ.comp f = π)
+    (hsurj : Function.Surjective (map f)) :
+    Function.Surjective (kerMap f hf) := fun ψ ↦ by
+  obtain ⟨φ, hφ⟩ := hsurj ψ.val
+  have hker : φ ∈ (map π).ker := by
+    rw [MonoidHom.mem_ker, ← hf, map_comp, hφ, MonoidHom.mem_ker.mp ψ.property]
+  exact ⟨⟨φ, hker⟩, Subtype.ext hφ⟩
+
+/-- Along a surjective local homomorphism commuting with reduction to `k`, coordinates reducing to
+`X` lift to coordinates reducing to `X`. -/
+theorem kerMap_surjective_of_isLocalHom (f : R →+* S) [IsLocalHom f]
+    (hf_surj : Function.Surjective f) (hf : ρ.comp f = π) :
+    Function.Surjective (kerMap f hf) :=
+  kerMap_surjective hf (map_surjective_of_isLocalHom f hf_surj)
+
+end KerMap
+
 end TauCeti.FormalCoordinate

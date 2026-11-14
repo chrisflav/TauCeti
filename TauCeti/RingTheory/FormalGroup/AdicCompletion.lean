@@ -67,6 +67,28 @@ theorem ext_adic [IsHausdorff I R] {F G : FormalGroup R}
         congrArg (fun H : FormalGroup (R ⧸ I ^ n) ↦
           MvPowerSeries.coeff e H.toPowerSeries) (h n)) d
 
+/-- Equality of formal group laws over `AdicCompletion I R` can be tested on the positive-exponent
+quotients `R ⧸ I ^ (n + 1)`. -/
+theorem ext_adicCompletion_succ {F G : FormalGroup (AdicCompletion I R)}
+    (h : ∀ n, F.map (AdicCompletion.evalₐ I (n + 1)).toRingHom =
+      G.map (AdicCompletion.evalₐ I (n + 1)).toRingHom) : F = G := by
+  refine ext_adicCompletion fun n ↦ ?_
+  have hfac : (AdicCompletion.evalₐ I n).toRingHom =
+      (Ideal.Quotient.factorPow I n.le_succ).comp (AdicCompletion.evalₐ I (n + 1)).toRingHom :=
+    RingHom.ext fun x ↦ (AdicCompletion.factor_evalₐ n.le_succ x).symm
+  rw [hfac, ← FormalGroup.map_comp, ← FormalGroup.map_comp, h n]
+
+/-- Equality of formal group laws over an `I`-adically Hausdorff ring can be tested modulo
+`I ^ (n + 1)` for all `n : ℕ`. -/
+theorem ext_adic_succ [IsHausdorff I R] {F G : FormalGroup R}
+    (h : ∀ n, F.map (Ideal.Quotient.mk (I ^ (n + 1))) = G.map (Ideal.Quotient.mk (I ^ (n + 1)))) :
+    F = G := by
+  refine ext_adic (I := I) fun n ↦ ?_
+  have hfac : Ideal.Quotient.mk (I ^ n) =
+      (Ideal.Quotient.factorPow I n.le_succ).comp (Ideal.Quotient.mk (I ^ (n + 1))) :=
+    RingHom.ext fun _ ↦ rfl
+  rw [hfac, ← FormalGroup.map_comp, ← FormalGroup.map_comp, h n]
+
 end FormalGroup
 
 namespace TauCeti
