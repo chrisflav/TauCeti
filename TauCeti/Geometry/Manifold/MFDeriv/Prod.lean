@@ -68,9 +68,11 @@ fields on a product manifold.
   `y ↦ ((φ (a y)).1, (ψ (b y)).2)`.
 * `MDifferentiableAt.mfderiv_snd_eq_mfderiv_fst_of_fiberProduct_comp`: the derivative of a
   fibre-product condition `(φ (a y)).2 = (ψ (b y)).1` along maps `a` and `b`.
-* `MDifferentiableAt.mvfderiv_comp_prodMk` and `MDifferentiableAt.mvfderiv_diag`: the
-  vector-valued derivative of `y ↦ h (a y, b y)` as the sum of the two partial derivatives along
-  `a` and `b`, and its specialization `d(y ↦ h (y, y)) = d₁h + d₂h` along the diagonal.
+* `MDifferentiableAt.mfderiv_comp_prodMk`, `MDifferentiableAt.mfderiv_diag`,
+  `MDifferentiableAt.mvfderiv_comp_prodMk`, and `MDifferentiableAt.mvfderiv_diag`: the
+  differential (and vector-valued differential) of `y ↦ h (a y, b y)` as the sum of the two partial
+  differentials along `a` and `b`, and its specialization `d(y ↦ h (y, y)) = d₁h + d₂h` along the
+  diagonal.
 -/
 
 public section
@@ -482,6 +484,29 @@ theorem MDifferentiableAt.mfderiv_snd_eq_mfderiv_fst_of_fiberProduct_comp
 
 end Comp
 
+/-- **Two-factor chain rule on manifolds.** The differential of `y ↦ h (a y, b y)` at `x` is the
+sum of the two partial differentials of `h` at `(a x, b x)` precomposed with `da` and `db`. -/
+theorem MDifferentiableAt.mfderiv_comp_prodMk {h : N × N' → N''} {a : M → N} {b : M → N'}
+    (hh : MDifferentiableAt (J.prod J') J'' h (a x, b x))
+    (ha : MDifferentiableAt I J a x) (hb : MDifferentiableAt I J' b x) :
+    mfderiv I J'' (fun y ↦ h (a y, b y)) x =
+      (mfderiv J J'' (fun z ↦ h (z, b x)) (a x)).comp (mfderiv I J a x) +
+        (mfderiv J' J'' (fun z ↦ h (a x, z)) (b x)).comp (mfderiv I J' b x) := by
+  ext v
+  have hc := mfderiv_comp_apply x hh (ha.prodMk hb) v
+  rw [Function.comp_def, mfderiv_prod_eq_add_apply hh, ← (ha.prodMk hb).mfderiv_fst_apply,
+    ← (ha.prodMk hb).mfderiv_snd_apply] at hc
+  exact hc
+
+/-- **Differential along the diagonal.** For a map `h` on `M × M` differentiable at `(x, x)`, the
+differential of `y ↦ h (y, y)` at `x` is the sum of its two partial differentials at `(x, x)`. -/
+theorem MDifferentiableAt.mfderiv_diag {h : M × M → N''}
+    (hh : MDifferentiableAt (I.prod I) J'' h (x, x)) :
+    mfderiv I J'' (fun y ↦ h (y, y)) x =
+      mfderiv I J'' (fun y ↦ h (y, x)) x + mfderiv I J'' (fun y ↦ h (x, y)) x := by
+  simpa only [id_eq, mfderiv_id, ContinuousLinearMap.comp_id] using
+    hh.mfderiv_comp_prodMk mdifferentiableAt_id mdifferentiableAt_id
+
 /-- **Two-factor chain rule for vector-valued functions.** The vector-valued differential of
 `y ↦ h (a y, b y)` at `x` is the sum of the two partial differentials of `h` at `(a x, b x)`
 precomposed with `da` and `db`. -/
@@ -492,21 +517,17 @@ theorem MDifferentiableAt.mvfderiv_comp_prodMk {V : Type*} [NormedAddCommGroup V
     mvfderiv I (fun y ↦ h (a y, b y)) x =
       (mvfderiv J (fun z ↦ h (z, b x)) (a x)).comp (mfderiv I J a x) +
         (mvfderiv J' (fun z ↦ h (a x, z)) (b x)).comp (mfderiv I J' b x) := by
-  ext v
-  have hc := mvfderiv_comp_apply x hh (ha.prodMk hb) v
-  rw [Function.comp_def, hh.mvfderiv_prod_eq_add_apply, ← (ha.prodMk hb).mfderiv_fst_apply,
-    ← (ha.prodMk hb).mfderiv_snd_apply] at hc
-  exact hc
+  simp only [mvfderiv, hh.mfderiv_comp_prodMk ha hb, ContinuousLinearMap.comp_add,
+    ContinuousLinearMap.comp_assoc]
 
-/-- **Differential along the diagonal.** For a function `h` on `M × M` differentiable at `(x, x)`,
-the differential of `y ↦ h (y, y)` at `x` is the sum of its two partial differentials at
-`(x, x)`. -/
+/-- **Vector-valued differential along the diagonal.** For a function `h` on `M × M` differentiable
+at `(x, x)`, the differential of `y ↦ h (y, y)` at `x` is the sum of its two partial differentials
+at `(x, x)`. -/
 theorem MDifferentiableAt.mvfderiv_diag {V : Type*} [NormedAddCommGroup V] [NormedSpace 𝕜 V]
     {h : M × M → V} (hh : MDifferentiableAt (I.prod I) 𝓘(𝕜, V) h (x, x)) :
     mvfderiv I (fun y ↦ h (y, y)) x =
       mvfderiv I (fun y ↦ h (y, x)) x + mvfderiv I (fun y ↦ h (x, y)) x := by
-  simpa only [id_eq, mfderiv_id, ContinuousLinearMap.comp_id] using
-    hh.mvfderiv_comp_prodMk mdifferentiableAt_id mdifferentiableAt_id
+  simp only [mvfderiv, hh.mfderiv_diag, ContinuousLinearMap.comp_add]
 
 end Coordinates
 

@@ -48,8 +48,10 @@ primitive. This is the manifold version of `TauCeti.cotangentGeneratedMap` on no
   local right inverse of the source projection through `x` agrees with it near `src x`
   (`TauCeti.CotangentBundle.eventuallyEq_generatingBranch`). The **generated map**
   `TauCeti.CotangentBundle.generatedMap` is the partial diffeomorphism `tgt ∘ branch`, between an
-  open neighbourhood of `src x` in `T*M` and an open subset of `T*N`. Near `x` its graph is the
-  generated correspondence (`TauCeti.CotangentBundle.eventually_generatedMap_generatingSource`).
+  open neighbourhood of `src x` in `T*M` and an open subset of `T*N`. Over the open branch image of
+  its source, its graph is the generated correspondence
+  (`TauCeti.CotangentBundle.eventually_generatedMap_generatingSource`,
+  `TauCeti.CotangentBundle.isGeneratedGraphOn_generatedMap`).
   At every point of its source it preserves the canonical symplectic form
   (`TauCeti.CotangentBundle.mpullback_generatedMap_symplecticForm`) and satisfies
   `λ_M - φ^*λ_N = d(S ∘ branch)`
@@ -425,6 +427,27 @@ theorem liouvilleForm_sub_mpullback_generatedMap {z : CotangentBundle I M}
   exact liouvilleForm_sub_mpullback_generatingTarget_comp hS
     ((generatingBranch hS hx).mdifferentiableAt (by simp) (generatedMap_source_subset hS hx hz))
     (eventually_generatingSource_generatingBranch hS hx (generatedMap_source_subset hS hx hz))
+
+/-- The branch image of the source of `generatedMap hS hx` is an open subset of `M × N`. -/
+theorem isOpen_image_generatingBranch_generatedMap_source :
+    IsOpen (generatingBranch hS hx '' (generatedMap hS hx).source) :=
+  (generatingBranch hS hx).toOpenPartialHomeomorph.isOpen_image_of_subset_source
+    (generatedMap hS hx).open_source (generatedMap_source_subset hS hx)
+
+/-- The base pair `x` belongs to the branch image of the source of `generatedMap hS hx`. -/
+theorem mem_image_generatingBranch_generatedMap_source :
+    x ∈ generatingBranch hS hx '' (generatedMap hS hx).source :=
+  ⟨generatingSource I S x, mem_generatedMap_source hS hx, generatingBranch_generatingSource hS hx⟩
+
+/-- **Every local canonical transformation `generatedMap` has a generated graph.** Over the open
+neighbourhood `generatingBranch hS hx '' (generatedMap hS hx).source` of `x`, `S` generates the
+graph of `generatedMap hS hx` restricted to its source. -/
+theorem isGeneratedGraphOn_generatedMap :
+    IsGeneratedGraphOn I J S (generatingBranch hS hx '' (generatedMap hS hx).source)
+      ((generatedMap hS hx).source.domRestrict (generatedMap hS hx)) :=
+  IsGeneratedGraphOn.of_rightInverse fun z ↦
+    ⟨generatingSource_generatingBranch hS hx (generatedMap_source_subset hS hx z.2),
+      generatedMap_apply hS hx z.2⟩
 
 end Generated
 
