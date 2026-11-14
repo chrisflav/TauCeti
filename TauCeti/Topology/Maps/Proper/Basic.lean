@@ -37,6 +37,13 @@ The nonemptiness hypotheses cannot be dropped: a map out of an empty space is pr
   embeddings rather than for subtypes.
 * `Continuous.isClosedEmbedding_fst_prod`: a parameter-preserving map `(p, x) ↦ (p, G (p, x))`
   with injective slices, compact second factor and Hausdorff target is a closed embedding.
+* `isProperMap_subtypeVal_iff`: the inclusion of a subset is proper exactly when the subset is
+  closed.
+* `isProperMap_prodMk_left` and `isProperMap_prodMk_right`: slice inclusions into a product are
+  proper when the fixed coordinate lies in a `T₁` space.
+* `isProperMap_iff_domRestrict_of_iUnion_eq_univ` and
+  `isProperMap_iff_domRestrict_of_isClosed_union`: properness can be checked on the pieces of a
+  finite closed cover of the source.
 -/
 
 public section
@@ -168,3 +175,76 @@ theorem Continuous.isClosedEmbedding_fst_prod {P : Type*} [TopologicalSpace P] [
     rw [himage]
     exact isClosedMap_fst_of_compactSpace _
       ((hC.preimage (by fun_prop)).inter (isClosed_eq (by fun_prop) (by fun_prop)))
+
+/-- The inclusion of a subset is proper if and only if the subset is closed. No separation axiom is
+needed. -/
+@[simp]
+theorem isProperMap_subtypeVal_iff {A : Set X} : IsProperMap ((↑) : A → X) ↔ IsClosed A :=
+  ⟨fun h ↦ Subtype.range_coe (s := A) ▸ h.isClosed_range, IsClosed.isProperMap_subtypeVal⟩
+
+/-- The left slice inclusion `y ↦ (x, y)` is proper when `X` is `T₁`. -/
+theorem isProperMap_prodMk_left [T1Space X] (x : X) : IsProperMap (fun y : Y ↦ (x, y)) :=
+  isProperMap_of_isClosedMap_of_inj (.prodMk_right x) (Prod.mk_right_injective x)
+    (isClosedMap_prodMk_left x)
+
+/-- The right slice inclusion `x ↦ (x, y)` is proper when `Y` is `T₁`. -/
+theorem isProperMap_prodMk_right [T1Space Y] (y : Y) : IsProperMap (fun x : X ↦ (x, y)) :=
+  isProperMap_of_isClosedMap_of_inj (.prodMk_left y) (Prod.mk_left_injective y)
+    (isClosedMap_prodMk_right y)
+
+/-- A map whose restrictions to the members of a finite closed cover of the source are proper is
+itself proper. No separation or local compactness hypothesis is needed. -/
+theorem IsProperMap.of_domRestrict_of_iUnion_eq_univ {ι : Type*} [Finite ι] {S : ι → Set X}
+    (hS : ∀ i, IsClosed (S i)) (hcover : ⋃ i, S i = Set.univ)
+    (hf : ∀ i, IsProperMap ((S i).domRestrict f)) : IsProperMap f := by
+  have hmem (x : X) : ∃ i, x ∈ S i := Set.mem_iUnion.1 (hcover ▸ Set.mem_univ x)
+  have hpre (C : Set Y) : f ⁻¹' C = ⋃ i, ((↑) : S i → X) '' ((S i).domRestrict f ⁻¹' C) := by
+    ext x
+    simp only [Set.mem_preimage, Set.mem_iUnion, Set.mem_image, Set.domRestrict_apply,
+      Subtype.exists]
+    exact ⟨fun hx ↦ let ⟨i, hi⟩ := hmem x; ⟨i, x, hi, hx, rfl⟩,
+      fun ⟨_, _, _, hx, hxeq⟩ ↦ hxeq ▸ hx⟩
+  refine isProperMap_iff_isClosedMap_and_compact_fibers.2 ⟨?_, ?_, ?_⟩
+  · refine continuous_iff_isClosed.2 fun C hC ↦ ?_
+    rw [hpre]
+    exact isClosed_iUnion_of_finite fun i ↦
+      (hS i).isClosedEmbedding_subtypeVal.isClosedMap _ (hC.preimage (hf i).continuous)
+  · intro D hD
+    have himg : f '' D = ⋃ i, (S i).domRestrict f '' (((↑) : S i → X) ⁻¹' D) := by
+      ext y
+      simp only [Set.mem_image, Set.mem_iUnion, Set.mem_preimage, Set.domRestrict_apply,
+        Subtype.exists]
+      exact ⟨fun ⟨x, hx, hxy⟩ ↦ let ⟨i, hi⟩ := hmem x; ⟨i, x, hi, hx, hxy⟩,
+        fun ⟨_, x, _, hx, hxy⟩ ↦ ⟨x, hx, hxy⟩⟩
+    rw [himg]
+    exact isClosed_iUnion_of_finite fun i ↦
+      (hf i).isClosedMap _ (hD.preimage continuous_subtype_val)
+  · intro y
+    rw [hpre]
+    exact isCompact_iUnion fun i ↦
+      ((hf i).isCompact_preimage isCompact_singleton).image continuous_subtype_val
+
+/-- **Properness on a finite closed cover**: a map is proper if and only if its restrictions to the
+members of a finite closed cover of the source are proper. -/
+theorem isProperMap_iff_domRestrict_of_iUnion_eq_univ {ι : Type*} [Finite ι] {S : ι → Set X}
+    (hS : ∀ i, IsClosed (S i)) (hcover : ⋃ i, S i = Set.univ) :
+    IsProperMap f ↔ ∀ i, IsProperMap ((S i).domRestrict f) :=
+  ⟨fun h i ↦ h.restrict (hS i), IsProperMap.of_domRestrict_of_iUnion_eq_univ hS hcover⟩
+
+/-- A map whose restrictions to two closed sets covering the source are proper is proper. -/
+theorem IsProperMap.of_domRestrict_of_isClosed_union {S T : Set X} (hS : IsClosed S)
+    (hT : IsClosed T) (hST : S ∪ T = Set.univ) (hfS : IsProperMap (S.domRestrict f))
+    (hfT : IsProperMap (T.domRestrict f)) : IsProperMap f := by
+  refine IsProperMap.of_domRestrict_of_iUnion_eq_univ (ι := Bool) (S := fun b ↦ cond b T S)
+    (fun b ↦ by cases b <;> assumption) ?_ (fun b ↦ by cases b <;> assumption)
+  ext x
+  simp only [Set.mem_iUnion, Bool.exists_bool, Bool.cond_false, Bool.cond_true, ← Set.mem_union,
+    hST, Set.mem_univ]
+
+/-- **Properness on a binary closed cover**: a map is proper if and only if its restrictions to two
+closed sets covering the source are proper. -/
+theorem isProperMap_iff_domRestrict_of_isClosed_union {S T : Set X} (hS : IsClosed S)
+    (hT : IsClosed T) (hST : S ∪ T = Set.univ) :
+    IsProperMap f ↔ IsProperMap (S.domRestrict f) ∧ IsProperMap (T.domRestrict f) :=
+  ⟨fun h ↦ ⟨h.restrict hS, h.restrict hT⟩,
+    fun ⟨hfS, hfT⟩ ↦ IsProperMap.of_domRestrict_of_isClosed_union hS hT hST hfS hfT⟩
