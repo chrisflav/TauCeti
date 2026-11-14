@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import TauCeti.Topology.VectorBundle.Core.Basic
+public import TauCeti.Topology.VectorBundle.FiniteRank.Basic
 public import Mathlib.Topology.LocallyConstant.Basic
 
 /-!
@@ -21,10 +22,12 @@ disjoint union of the core total spaces. Each core total space embeds openly, wi
 exactly its rank stratum. Thus its existing Mathlib vector-bundle topology is retained,
 rather than replaced by the product topology on coordinates.
 
-`FiniteRankAtlas.ofBundles` takes actual vector bundles on the rank strata, in any fibre
-universe. `FiniteRankAtlas.reconstructionHomeomorph` compares the reconstruction with
-their disjoint union, using `TauCeti.pointIndexedCoreHomeomorph` on each stratum. Its
-forward and inverse formulas retain the continuous linear fibre identifications.
+`FiniteRankAtlas.trivial` places the constant-rank trivial core on each clopen stratum of
+a locally constant rank function. `FiniteRankAtlas.ofBundles` takes actual vector bundles
+on the rank strata, in any fibre universe, and `FiniteRankAtlas.reconstructionHomeomorph`
+compares the reconstruction with their disjoint union using
+`TauCeti.pointIndexedCoreHomeomorph` on each stratum. Its forward and inverse formulas
+retain the continuous linear fibre identifications.
 -/
 
 public section
@@ -50,7 +53,18 @@ structure FiniteRankAtlas where
 
 namespace FiniteRankAtlas
 
-variable {𝕜 X} (A : FiniteRankAtlas 𝕜 X)
+variable {𝕜 X}
+
+/-- Two variable-rank bundle atlases of the same locally constant rank `r` are equal when their
+stratum cores are equal. -/
+theorem mk_eq_mk {r : LocallyConstant X ℕ}
+    {c₁ c₂ : ∀ n, VectorBundleCore 𝕜 {x : X // r x = n} (Fin n → 𝕜) {x : X // r x = n}}
+    {h₁ h₂} (hc : c₁ = c₂) :
+    (⟨r, c₁, h₁⟩ : FiniteRankAtlas 𝕜 X) = ⟨r, c₂, h₂⟩ := by
+  subst hc
+  rfl
+
+variable (A : FiniteRankAtlas 𝕜 X)
 
 /-- The finite coordinate fibre of the reconstructed variable-rank bundle.
 This is an abbreviation so the standard topological-module instances are available. -/
@@ -239,5 +253,41 @@ by the canonical inclusion of that stratum into the reconstructed total space. -
   rw [reconstructionHomeomorph_apply]
 
 end Reconstruction
+
+section Trivial
+
+variable (𝕜 X) in
+/-- The trivial variable-rank bundle atlas of locally constant rank `r`, with a single global
+coordinate chart on each clopen rank stratum. -/
+-- Expose the rank projection so fibre types over `x` reduce to `Fin (r x) → 𝕜`.
+@[expose, implicit_reducible]
+def trivial (r : LocallyConstant X ℕ) : FiniteRankAtlas 𝕜 X where
+  rank := r
+  charts n := (FiniteRankBundleCore.trivial 𝕜 {x : X // r x = n} n).core
+  indexAt_eq _ _ := rfl
+
+@[simp]
+theorem rank_trivial (r : LocallyConstant X ℕ) :
+    (trivial 𝕜 X r).rank = r :=
+  (rfl)
+
+@[simp]
+theorem charts_trivial (r : LocallyConstant X ℕ) (n : ℕ) :
+    (trivial 𝕜 X r).charts n = (FiniteRankBundleCore.trivial 𝕜 {x : X // r x = n} n).core :=
+  (rfl)
+
+/-- A map into the reconstructed total space of `trivial 𝕜 X r` over a continuous base map `b` is
+continuous if and only if its coordinate vector is continuous on every clopen rank stratum. -/
+theorem continuous_mk_trivial_iff {Y : Type*} [TopologicalSpace Y] {b : Y → X}
+    (hb : Continuous b) (r : LocallyConstant X ℕ) (s : ∀ y, (trivial 𝕜 X r).Fiber (b y)) :
+    Continuous (fun y ↦ (⟨b y, s y⟩ : TotalSpace Unit (trivial 𝕜 X r).Fiber)) ↔
+      ∀ n : ℕ, Continuous (fun y : {y : Y // r (b y) = n} ↦
+        (fun i : Fin n ↦ s y.1 (Fin.cast y.2.symm i))) := by
+  rw [(trivial 𝕜 X r).continuous_mk_iff_rankStrata hb s]
+  refine forall_congr' fun n ↦ ?_
+  exact FiniteRankBundleCore.continuous_trivial_iff.trans
+    (and_iff_right ((hb.comp continuous_subtype_val).subtype_mk _))
+
+end Trivial
 end FiniteRankAtlas
 end TauCeti

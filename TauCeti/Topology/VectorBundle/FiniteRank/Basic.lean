@@ -72,6 +72,14 @@ namespace FiniteRankBundleCore
 
 variable {𝕜 B}
 
+/-- Two point-indexed cores of the same rank `n` are equal when their underlying
+`VectorBundleCore`s are equal. -/
+theorem mk_eq_mk {n : ℕ} {c₁ c₂ : VectorBundleCore 𝕜 B (Fin n → 𝕜) B} {h₁ h₂}
+    (hc : c₁ = c₂) :
+    (⟨n, c₁, h₁⟩ : FiniteRankBundleCore 𝕜 B) = ⟨n, c₂, h₂⟩ := by
+  subst hc
+  rfl
+
 /-- To prove a property of point-indexed cores, one may assume the chosen index function
 is definitionally the identity. This avoids unpacking the fields of `VectorBundleCore`. -/
 @[elab_as_elim] theorem induction_on {motive : FiniteRankBundleCore 𝕜 B → Prop}

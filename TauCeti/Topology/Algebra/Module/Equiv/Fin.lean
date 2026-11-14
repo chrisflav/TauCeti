@@ -10,12 +10,13 @@ public import Mathlib.Topology.Algebra.Module.Equiv.Prod
 import Mathlib.Logic.Equiv.Fin.Basic
 
 /-!
-# Splitting and regrouping finite coordinates
+# Reindexing, splitting, and regrouping finite coordinates
 
-Continuous linear equivalences split vectors indexed by `Fin (n + m)` into two blocks,
-split `Fin n` at an index `d ≤ n`, and regroup the initial blocks of a pair of vectors
-before the remaining blocks. The vanishing characterizations identify products of
-coordinate subspaces with a single coordinate subspace, as needed for product charts.
+Continuous linear equivalences reindex vectors along `m = n` (`finCongrCLE`), split vectors
+indexed by `Fin (n + m)` into two blocks, split `Fin n` at an index `d ≤ n`, and regroup the
+initial blocks of a pair of vectors before the remaining blocks. The vanishing characterizations
+identify products of coordinate subspaces with a single coordinate subspace, as needed for
+product charts.
 
 The constructions combine Mathlib's `ContinuousLinearEquiv.piCongrLeft`,
 `sumPiEquivProdPi`, and `prodProdProdComm` with finite-index equivalences.
@@ -27,6 +28,27 @@ namespace TauCeti
 
 variable {𝕜 M : Type*} [Semiring 𝕜] [AddCommMonoid M] [Module 𝕜 M]
   [TopologicalSpace M] {n m d e : ℕ}
+
+/-- Reindex finite coordinate vectors along an equality of dimensions. -/
+def finCongrCLE (h : m = n) : (Fin m → M) ≃L[𝕜] (Fin n → M) :=
+  ContinuousLinearEquiv.piCongrLeft 𝕜 (fun _ : Fin n ↦ M) (finCongr h)
+
+@[simp]
+theorem finCongrCLE_apply (h : m = n) (v : Fin m → M) :
+    finCongrCLE (𝕜 := 𝕜) h v = fun i ↦ v (Fin.cast h.symm i) :=
+  (rfl)
+
+@[simp]
+theorem finCongrCLE_symm_apply (h : m = n) (v : Fin n → M) :
+    (finCongrCLE (𝕜 := 𝕜) h).symm v = fun i ↦ v (Fin.cast h i) := by
+  cases h
+  rfl
+
+@[simp]
+theorem finCongrCLE_rfl (n : ℕ) :
+    finCongrCLE (𝕜 := 𝕜) (M := M) (rfl : n = n) = ContinuousLinearEquiv.refl 𝕜 (Fin n → M) := by
+  ext v i
+  rfl
 
 /-- Split a concatenated vector into its two coordinate blocks. -/
 def splitCoords (n m : ℕ) :

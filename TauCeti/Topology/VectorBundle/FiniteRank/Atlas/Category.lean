@@ -193,4 +193,9 @@ def isoMk (e : ∀ x, A.Fiber x ≃ₗ[𝕜] D.Fiber x)
 @[simp] theorem fiberMap_isoMk_inv (e : ∀ x, A.Fiber x ≃ₗ[𝕜] D.Fiber x) (h h') (x : X) :
     (isoMk e h h').inv.fiberMap x = (e x).symm.toLinearMap := (rfl)
 
+/-- Every categorical isomorphism of bundle atlases is bijective on each fibre. -/
+theorem fiberMap_bijective_of_isIso (f : A ⟶ D) [IsIso f] (x : X) :
+    Function.Bijective (f.fiberMap x) :=
+  ((fiberFunctor x).mapIso (asIso f)).toLinearEquiv.bijective
+
 end TauCeti.FiniteRankAtlas

@@ -8,6 +8,7 @@ module
 public import TauCeti.Topology.VectorBundle.FiniteRank.Atlas.Category
 public import TauCeti.Topology.VectorBundle.Section
 public import Mathlib.CategoryTheory.Preadditive.AdditiveFunctor
+public import Mathlib.Topology.LocallyConstant.Algebra
 
 import TauCeti.Topology.VectorBundle.Smul
 
@@ -17,7 +18,8 @@ import TauCeti.Topology.VectorBundle.Smul
 Continuous fibrewise-linear maps between `TauCeti.FiniteRankAtlas` objects form abelian
 groups under pointwise operations, and composition is bilinear. Thus these
 variable-rank bundle atlases form a preadditive category, without a bounded-rank or
-finite-cover hypothesis on the base.
+finite-cover hypothesis on the base. Every rank-zero atlas, in particular `trivial 𝕜 X 0`,
+is a zero object (`HasZeroObject (FiniteRankAtlas 𝕜 X)`).
 
 The continuity criterion `TauCeti.FiniteRankAtlas.continuous_mk_iff_rankStrata` reduces a map
 into a reconstructed total space to maps into its native vector-bundle cores on the
@@ -130,5 +132,24 @@ instance : Preadditive (FiniteRankAtlas 𝕜 X) where
 /-- Evaluation on a fibre preserves the addition of bundle morphisms. -/
 instance (x : X) : (fiberFunctor (𝕜 := 𝕜) x).Additive where
   map_add := by intros; rfl
+
+/-- Any variable-rank atlas whose rank is identically zero is a zero object. -/
+theorem isZero_of_rank_eq_zero (A : FiniteRankAtlas 𝕜 X) (h : A.rank = 0) :
+    Limits.IsZero A := by
+  rw [Limits.IsZero.iff_id_eq_zero]
+  ext x v i
+  exact (Fin.cast (by simp [h]) i).elim0
+
+/-- The trivial rank-zero atlas is a zero object in `FiniteRankAtlas 𝕜 X`. -/
+theorem isZero_trivial_zero : Limits.IsZero (trivial 𝕜 X 0) :=
+  isZero_of_rank_eq_zero _ rfl
+
+instance : Limits.HasZeroObject (FiniteRankAtlas 𝕜 X) :=
+  ⟨⟨trivial 𝕜 X 0, isZero_trivial_zero⟩⟩
+
+open scoped ZeroObject in
+@[simp]
+theorem rank_zero : (0 : FiniteRankAtlas 𝕜 X).rank = 0 :=
+  ((Limits.isZero_zero (FiniteRankAtlas 𝕜 X)).iso isZero_trivial_zero).finiteRankAtlas_rank_eq
 
 end TauCeti.FiniteRankAtlas

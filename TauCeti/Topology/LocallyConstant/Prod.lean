@@ -103,4 +103,59 @@ theorem comap_map₂ {V : Type*} (k : C(W, X)) (h : Y → Z → V) (f : LocallyC
     (map₂ h f g).comap k = map₂ h (f.comap k) (g.comap k) :=
   ext fun _ ↦ rfl
 
+@[simp]
+theorem map₂_prodMk (f : LocallyConstant X Y) (g : LocallyConstant X Z) :
+    map₂ Prod.mk f g = f.prodMk g :=
+  ext fun _ ↦ rfl
+
+-- Not `@[simp]`, so `map_fst_prodMk` and `map_snd_prodMk` remain in `simp`-normal form.
+theorem map_prodMk {V : Type*} (m : Y × Z → V) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    (f.prodMk g).map m = map₂ (Function.curry m) f g :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map₂_curry {V : Type*} (m : Y × Z → V) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    map₂ (Function.curry m) f g = (f.prodMk g).map m :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map_uncurry_prodMk {V : Type*} (h : Y → Z → V) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    (f.prodMk g).map (Function.uncurry h) = map₂ h f g :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map_map₂ {U V : Type*} (h : Y → Z → U) (k : U → V) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    (map₂ h f g).map k = map₂ (fun y z ↦ k (h y z)) f g :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map₂_map_left {U V : Type*} (h : U → Z → V) (k : Y → U) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    map₂ h (f.map k) g = map₂ (fun y z ↦ h (k y) z) f g :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map₂_map_right {U V : Type*} (h : Y → U → V) (k : Z → U) (f : LocallyConstant X Y)
+    (g : LocallyConstant X Z) :
+    map₂ h f (g.map k) = map₂ (fun y z ↦ h y (k z)) f g :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map₂_const_left {V : Type*} (h : Y → Z → V) (y : Y) (g : LocallyConstant X Z) :
+    map₂ h (const X y) g = g.map (h y) :=
+  ext fun _ ↦ rfl
+
+@[simp]
+theorem map₂_const_right {V : Type*} (h : Y → Z → V) (f : LocallyConstant X Y) (z : Z) :
+    map₂ h f (const X z) = f.map (fun y ↦ h y z) :=
+  ext fun _ ↦ rfl
+
+theorem const_map₂_const {V : Type*} (h : Y → Z → V) (y : Y) (z : Z) :
+    map₂ h (const X y) (const X z) = const X (h y z) :=
+  ext fun _ ↦ rfl
+
 end LocallyConstant

@@ -59,55 +59,6 @@ universe u v w
 variable {𝕜 : Type v} [NontriviallyNormedField 𝕜]
   {X : Type u} [TopologicalSpace X]
 
-/-- Coordinate reindexing equivalence along an equality of finite dimensions. -/
-private def finCongrCLE {m n : ℕ} (h : m = n) : (Fin m → 𝕜) ≃L[𝕜] (Fin n → 𝕜) :=
-  ContinuousLinearEquiv.piCongrLeft 𝕜 (fun _ : Fin n ↦ 𝕜) (finCongr h)
-
-private theorem finCongrCLE_apply {m n : ℕ} (h : m = n) (v : Fin m → 𝕜) (i : Fin n) :
-    finCongrCLE (𝕜 := 𝕜) h v i = v (Fin.cast h.symm i) :=
-  (rfl)
-
-private theorem finCongrCLE_symm_apply {m n : ℕ} (h : m = n) (v : Fin n → 𝕜) (i : Fin m) :
-    (finCongrCLE (𝕜 := 𝕜) h).symm v i = v (Fin.cast h i) :=
-  (rfl)
-
-private theorem finCongrCLE_rfl (n : ℕ) :
-    finCongrCLE (𝕜 := 𝕜) (rfl : n = n) = ContinuousLinearEquiv.refl 𝕜 (Fin n → 𝕜) := by
-  ext v i
-  rfl
-
-private def finCongrLE {m n : ℕ} (h : m = n) : (Fin m → 𝕜) ≃ₗ[𝕜] (Fin n → 𝕜) where
-  toFun v i := v (Fin.cast h.symm i)
-  map_add' _ _ := rfl
-  map_smul' _ _ := rfl
-  invFun v i := v (Fin.cast h i)
-  left_inv v := funext fun _ ↦ congrArg v (Fin.ext rfl)
-  right_inv v := funext fun _ ↦ congrArg v (Fin.ext rfl)
-
-private theorem vectorBundleCore_eq {B F ι : Type*} [TopologicalSpace B]
-    [NormedAddCommGroup F] [NormedSpace 𝕜 F]
-    {Z₁ Z₂ : VectorBundleCore 𝕜 B F ι}
-    (hb : Z₁.baseSet = Z₂.baseSet) (hi : Z₁.indexAt = Z₂.indexAt)
-    (hc : Z₁.coordChange = Z₂.coordChange) : Z₁ = Z₂ := by
-  cases Z₁; cases Z₂
-  dsimp only at hb hi hc
-  subst hb hi hc
-  rfl
-
-private theorem core_mk_eq_mk {B : Type*} [TopologicalSpace B] {n : ℕ}
-    {c₁ c₂ : VectorBundleCore 𝕜 B (Fin n → 𝕜) B} {h₁ h₂}
-    (hc : c₁ = c₂) :
-    (⟨n, c₁, h₁⟩ : FiniteRankBundleCore 𝕜 B) = ⟨n, c₂, h₂⟩ := by
-  subst hc
-  rfl
-
-private theorem atlas_mk_eq_mk {r : LocallyConstant X ℕ}
-    {c₁ c₂ : ∀ n, VectorBundleCore 𝕜 {x : X // r x = n} (Fin n → 𝕜) {x : X // r x = n}}
-    {h₁ h₂} (hc : c₁ = c₂) :
-    (⟨r, c₁, h₁⟩ : FiniteRankAtlas 𝕜 X) = ⟨r, c₂, h₂⟩ := by
-  subst hc
-  rfl
-
 /-! ### Restriction to strata and constant-rank pieces -/
 
 /-- The constant-rank point-indexed bundle core on the `n`th clopen rank stratum of an atlas. -/
@@ -129,6 +80,22 @@ theorem core_stratumCore (A : FiniteRankAtlas 𝕜 X) (n : ℕ) :
     (A.stratumCore n).core = A.charts n :=
   (rfl)
 
+@[simp]
+theorem stratumCore_ofBundles (r : LocallyConstant X ℕ)
+    (E : ∀ n : ℕ, {x : X // r x = n} → Type w)
+    [∀ n x, AddCommMonoid (E n x)] [∀ n x, Module 𝕜 (E n x)]
+    [∀ n x, TopologicalSpace (E n x)]
+    [∀ n, TopologicalSpace (TotalSpace (Fin n → 𝕜) (E n))]
+    [∀ n, FiberBundle (Fin n → 𝕜) (E n)]
+    [∀ n, VectorBundle 𝕜 (Fin n → 𝕜) (E n)] (n : ℕ) :
+    (ofBundles 𝕜 r E).stratumCore n = FiniteRankBundleCore.ofBundle 𝕜 n (E n) :=
+  (rfl)
+
+@[simp]
+theorem stratumCore_trivial (r : LocallyConstant X ℕ) (n : ℕ) :
+    (trivial 𝕜 X r).stratumCore n = FiniteRankBundleCore.trivial 𝕜 {x : X // r x = n} n :=
+  (rfl)
+
 /-- Pull back an atlas along a continuous map `g : C(Y, X)` on which `A.rank` takes a constant
 value `n`, producing a constant-rank `FiniteRankBundleCore` over `Y`. -/
 -- Expose the rank projection so fibre types reduce to `Fin n → 𝕜`.
@@ -138,15 +105,39 @@ def pullCore {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
     FiniteRankBundleCore 𝕜 Y :=
   (A.stratumCore n).pullback ⟨fun y ↦ ⟨g y, hg y⟩, g.continuous.subtype_mk hg⟩
 
+theorem pullCore_def {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
+    (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n) :
+    A.pullCore g n hg =
+      (A.stratumCore n).pullback ⟨fun y ↦ ⟨g y, hg y⟩, g.continuous.subtype_mk hg⟩ :=
+  (rfl)
+
 @[simp]
 theorem rank_pullCore {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
     (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n) :
     (A.pullCore g n hg).rank = n :=
   (rfl)
 
-/-- The canonical lift from the total space of `A.pullCore g n hg` into the reconstructed total
-space of `A` is continuous. -/
-theorem continuous_pullCoreLift {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
+@[simp]
+theorem localTriv_baseSet_pullCore {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
+    (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n) (i : Y) :
+    ((A.pullCore g n hg).core.localTriv i).baseSet =
+      {y : Y | ⟨g y, hg y⟩ ∈ ((A.charts n).localTriv ⟨g i, hg i⟩).baseSet} :=
+  (rfl)
+
+@[simp]
+theorem coordChange_pullCore {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
+    (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n) (i j y : Y) :
+    (A.pullCore g n hg).core.coordChange i j y =
+      (A.charts n).coordChange ⟨g i, hg i⟩ ⟨g j, hg j⟩ ⟨g y, hg y⟩ :=
+  (rfl)
+
+@[simp]
+theorem pullCore_trivial {Y : Type*} [TopologicalSpace Y] (r : LocallyConstant X ℕ)
+    (g : C(Y, X)) (n : ℕ) (hg : ∀ y, r (g y) = n) :
+    (trivial 𝕜 X r).pullCore g n hg = FiniteRankBundleCore.trivial 𝕜 Y n :=
+  (rfl)
+
+private theorem continuous_pullCoreLift {Y : Type*} [TopologicalSpace Y] (A : FiniteRankAtlas 𝕜 X)
     (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n) :
     Continuous (fun p : (A.pullCore g n hg).core.TotalSpace ↦
       (⟨g p.proj, fun i ↦ p.2 (Fin.cast (hg p.proj) i)⟩ : TotalSpace Unit A.Fiber)) := by
@@ -166,7 +157,7 @@ theorem continuous_pullCoreLift {Y : Type*} [TopologicalSpace Y] (A : FiniteRank
 
 /-- A map into the total space of `A.pullCore g n hg` is continuous whenever its base projection
 and its lift into the reconstructed total space of `A` are continuous. -/
-theorem continuous_into_pullCore {Z Y : Type*} [TopologicalSpace Z] [TopologicalSpace Y]
+theorem continuous_mk_pullCore {Z Y : Type*} [TopologicalSpace Z] [TopologicalSpace Y]
     (A : FiniteRankAtlas 𝕜 X) (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n)
     {b : Z → Y} (hb : Continuous b) {s : Z → Fin n → 𝕜}
     (hs : Continuous (fun z ↦
@@ -187,6 +178,24 @@ theorem continuous_into_pullCore {Z Y : Type*} [TopologicalSpace Z] [Topological
   exact congrArg (TotalSpace.mk' (E := (A.charts n).Fiber) (Fin n → 𝕜) ⟨g (b z), hg (b z)⟩)
     (funext fun i ↦ congrArg (s z) (Fin.ext rfl))
 
+/-- Lift a continuous map into `TotalSpace Unit A.Fiber` whose base projection factors through `g`
+into the total space of `A.pullCore g n hg`. -/
+theorem continuous_mk_pullCore_of_proj_eq {Z Y : Type*} [TopologicalSpace Z] [TopologicalSpace Y]
+    (A : FiniteRankAtlas 𝕜 X) (g : C(Y, X)) (n : ℕ) (hg : ∀ y, A.rank (g y) = n)
+    {b : Z → Y} (hb : Continuous b) {t : Z → TotalSpace Unit A.Fiber} (ht : Continuous t)
+    (hproj : ∀ z, (t z).proj = g (b z)) {hrank : ∀ z, n = A.rank (t z).proj} :
+    Continuous (fun z ↦
+      (⟨b z, fun i ↦ (t z).2 (Fin.cast (hrank z) i)⟩ :
+        (A.pullCore g n hg).core.TotalSpace)) := by
+  refine A.continuous_mk_pullCore g n hg hb (ht.congr fun z ↦ ?_)
+  have hpt : ∀ (p : TotalSpace Unit A.Fiber) (y : Y) (_ : p.proj = g y)
+      (hr : n = A.rank p.proj),
+      p = ⟨g y, fun i ↦ p.2 (Fin.cast hr (Fin.cast (hg y) i))⟩ := by
+    rintro ⟨x, v⟩ y rfl hr
+    exact congrArg (TotalSpace.mk' (E := A.Fiber) Unit _)
+      (funext fun _ ↦ congrArg v (Fin.ext rfl))
+  exact hpt (t z) (b z) (hproj z) (hrank z)
+
 /-- Extract a constant-rank `FiniteRankBundleCore` over `X` from an atlas of constant rank `n`. -/
 -- Expose the rank projection so fibre types reduce to `Fin n → 𝕜`.
 @[expose, implicit_reducible]
@@ -194,9 +203,33 @@ def toCore (A : FiniteRankAtlas 𝕜 X) (n : ℕ) (h : ∀ x, A.rank x = n) :
     FiniteRankBundleCore 𝕜 X :=
   A.pullCore (ContinuousMap.id X) n h
 
+theorem toCore_def (A : FiniteRankAtlas 𝕜 X) (n : ℕ) (h : ∀ x, A.rank x = n) :
+    A.toCore n h = A.pullCore (ContinuousMap.id X) n h :=
+  (rfl)
+
 @[simp]
 theorem rank_toCore (A : FiniteRankAtlas 𝕜 X) (n : ℕ) (h : ∀ x, A.rank x = n) :
     (A.toCore n h).rank = n :=
+  (rfl)
+
+@[simp]
+theorem localTriv_baseSet_toCore (A : FiniteRankAtlas 𝕜 X) (n : ℕ) (h : ∀ x, A.rank x = n)
+    (i : X) :
+    ((A.toCore n h).core.localTriv i).baseSet =
+      {x : X | ⟨x, h x⟩ ∈ ((A.charts n).localTriv ⟨i, h i⟩).baseSet} :=
+  (rfl)
+
+@[simp]
+theorem coordChange_toCore (A : FiniteRankAtlas 𝕜 X) (n : ℕ) (h : ∀ x, A.rank x = n)
+    (i j x : X) :
+    (A.toCore n h).core.coordChange i j x =
+      (A.charts n).coordChange ⟨i, h i⟩ ⟨j, h j⟩ ⟨x, h x⟩ :=
+  (rfl)
+
+@[simp]
+theorem toCore_trivial (n : ℕ) :
+    (trivial 𝕜 X (LocallyConstant.const X n)).toCore n (fun _ ↦ rfl) =
+      FiniteRankBundleCore.trivial 𝕜 X n :=
   (rfl)
 
 /-! ### Gluing constant-rank cores over a clopen partition -/
@@ -322,11 +355,39 @@ theorem clopenStratumCharts_indexAt (C : ∀ a : α, FiniteRankBundleCore 𝕜 {
   (rfl)
 
 @[simp]
+theorem mem_clopenStratumCharts_localTriv_baseSet
+    (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a})
+    (n : ℕ) (i y : {x : X // (C (c x)).rank = n}) :
+    y ∈ ((clopenStratumCharts c C n).localTriv i).baseSet ↔
+      ∃ hy : c y.1 = c i.1,
+        ⟨y.1, hy⟩ ∈ ((C (c i.1)).core.localTriv ⟨i.1, rfl⟩).baseSet :=
+  Iff.rfl
+
+theorem mem_clopenStratumCharts_baseSet_of_eq
+    {C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
+    {n : ℕ} {a : α} {i y : {x : X // (C (c x)).rank = n}}
+    (hi : c i.1 = a) (hy : c y.1 = a) :
+    y ∈ (clopenStratumCharts c C n).baseSet i ↔
+      ⟨y.1, hy⟩ ∈ (C a).core.baseSet ⟨i.1, hi⟩ :=
+  mem_clopenChartBaseSet_of_eq c hi hy
+
+@[simp]
 private theorem clopenStratumCharts_coordChange
     (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a})
     (n : ℕ) (i j x : {x : X // (C (c x)).rank = n}) :
     (clopenStratumCharts c C n).coordChange i j x = clopenCoordChange c C n i j x :=
   (rfl)
+
+theorem clopenStratumCharts_coordChange_of_eq
+    (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a})
+    {n : ℕ} {a : α} (ha : (C a).rank = n)
+    {i j x : {x : X // (C (c x)).rank = n}}
+    (hi : c i.1 = a) (hj : c j.1 = a) (hx : c x.1 = a) :
+    (clopenStratumCharts c C n).coordChange i j x =
+      (finCongrCLE (𝕜 := 𝕜) ha).toContinuousLinearMap.comp
+        (((C a).core.coordChange ⟨i.1, hi⟩ ⟨j.1, hj⟩ ⟨x.1, hx⟩).comp
+          (finCongrCLE (𝕜 := 𝕜) ha).symm.toContinuousLinearMap) :=
+  clopenCoordChange_eq_of_eq c C ha hi hj hx
 
 /-- Assemble constant-rank point-indexed bundle cores on the clopen fibres of a locally constant
 function `c : LocallyConstant X α` into a single `FiniteRankAtlas 𝕜 X`. -/
@@ -353,7 +414,7 @@ atlas on the nose. -/
 @[simp]
 theorem ofClopenCores_stratumCore (A : FiniteRankAtlas 𝕜 X) :
     ofClopenCores A.rank A.stratumCore = A := by
-  refine atlas_mk_eq_mk (funext fun n ↦ vectorBundleCore_eq ?_
+  refine mk_eq_mk (funext fun n ↦ VectorBundleCore.ext ?_
     (funext fun x ↦ (A.indexAt_eq n x).symm) ?_)
   · funext ⟨xi, hxi⟩
     subst hxi
@@ -361,8 +422,8 @@ theorem ofClopenCores_stratumCore (A : FiniteRankAtlas 𝕜 X) :
     exact ⟨fun ⟨_, hm⟩ ↦ hm, fun hm ↦ ⟨hy, hm⟩⟩
   · funext ⟨xi, hxi⟩ j x
     subst hxi
-    rw [clopenStratumCharts_coordChange,
-      clopenCoordChange_eq_of_eq A.rank A.stratumCore rfl rfl j.2 x.2, finCongrCLE_rfl]
+    rw [clopenStratumCharts_coordChange_of_eq A.rank A.stratumCore rfl rfl j.2 x.2,
+      finCongrCLE_rfl]
     ext v k
     rfl
 
@@ -449,7 +510,9 @@ private theorem continuous_clopenGluedEquiv_symm
   rcases q with ⟨⟨⟨x, hx_rank⟩, v⟩, hx_a⟩
   have hx_a' : c x = a := hx_a
   subst hx_a'
-  rfl
+  exact congrArg (Sigma.mk (c x))
+    (congrArg (TotalSpace.mk' (E := (C (c x)).core.Fiber) (Fin (C (c x)).rank → 𝕜) ⟨x, rfl⟩)
+      (finCongrCLE_symm_apply (𝕜 := 𝕜) ha v))
 
 /-- The reconstructed total space of `ofClopenCores c C` is homeomorphic over `X` to the disjoint
 union of the constituent core total spaces. -/
@@ -481,7 +544,7 @@ theorem clopenTotalSpaceHomeomorph_symm_apply
 
 /-- A map into `ofClopenCores c C` is continuous if and only if its restriction to each clopen
 piece `{y : Y // c (b y) = a}` into `(C a).core.TotalSpace` is continuous. -/
-theorem continuous_mk_iff_clopenCores {Y : Type*} [TopologicalSpace Y] {b : Y → X}
+theorem continuous_mk_ofClopenCores_iff {Y : Type*} [TopologicalSpace Y] {b : Y → X}
     (hb : Continuous b) (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a})
     (s : ∀ y, (ofClopenCores c C).Fiber (b y)) :
     Continuous (fun y ↦ (⟨b y, s y⟩ : TotalSpace Unit (ofClopenCores c C).Fiber)) ↔
@@ -617,10 +680,69 @@ def clopenPullCore (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ) (hr : ∀ x, A.
   A.pullCore ⟨Subtype.val, continuous_subtype_val⟩ (r a)
     fun x ↦ (hr x.1).trans (congrArg r x.2)
 
+theorem clopenPullCore_def (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
+    (hr : ∀ x, A.rank x = r (c x)) (a : α) :
+    A.clopenPullCore c r hr a =
+      A.pullCore ⟨Subtype.val, continuous_subtype_val⟩ (r a)
+        (fun x ↦ (hr x.1).trans (congrArg r x.2)) :=
+  (rfl)
+
 @[simp]
 theorem rank_clopenPullCore (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
     (hr : ∀ x, A.rank x = r (c x)) (a : α) :
     (A.clopenPullCore c r hr a).rank = r a :=
+  (rfl)
+
+@[simp]
+theorem localTriv_baseSet_clopenPullCore (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
+    (hr : ∀ x, A.rank x = r (c x)) (a : α) (i : {x : X // c x = a}) :
+    ((A.clopenPullCore c r hr a).core.localTriv i).baseSet =
+      {x : {x : X // c x = a} |
+        ⟨x.1, (hr x.1).trans (congrArg r x.2)⟩ ∈
+          ((A.charts (r a)).localTriv ⟨i.1, (hr i.1).trans (congrArg r i.2)⟩).baseSet} :=
+  (rfl)
+
+@[simp]
+theorem coordChange_clopenPullCore (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
+    (hr : ∀ x, A.rank x = r (c x)) (a : α) (i j x : {x : X // c x = a}) :
+    (A.clopenPullCore c r hr a).core.coordChange i j x =
+      (A.charts (r a)).coordChange
+        ⟨i.1, (hr i.1).trans (congrArg r i.2)⟩
+        ⟨j.1, (hr j.1).trans (congrArg r j.2)⟩
+        ⟨x.1, (hr x.1).trans (congrArg r x.2)⟩ :=
+  (rfl)
+
+/-- Pulling back a clopen-glued atlas to its defining clopen fibres recovers the constituent cores
+strictly. -/
+@[simp]
+theorem clopenPullCore_ofClopenCores
+    (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}) (a : α) :
+    (ofClopenCores c C).clopenPullCore c (fun b ↦ (C b).rank) (fun _ ↦ rfl) a = C a := by
+  refine FiniteRankBundleCore.mk_eq_mk
+    (VectorBundleCore.ext ?_ (funext fun x ↦ ((C a).indexAt_eq x).symm) ?_)
+  · funext i
+    ext x
+    exact mem_clopenStratumCharts_baseSet_of_eq c i.2 x.2
+  · funext i j x
+    dsimp only [clopenPullCore, pullCore]
+    rw [core_stratumCore, charts_ofClopenCores,
+      clopenStratumCharts_coordChange_of_eq c C (a := a) rfl i.2 j.2 x.2, finCongrCLE_rfl]
+    ext v k
+    rfl
+
+@[simp]
+theorem clopenPullCore_rank_id (A : FiniteRankAtlas 𝕜 X) (n : ℕ) :
+    A.clopenPullCore A.rank id (fun _ ↦ rfl) n = A.stratumCore n := by
+  refine FiniteRankBundleCore.mk_eq_mk (VectorBundleCore.ext (funext fun _ ↦ rfl)
+    (funext fun x ↦ (A.indexAt_eq n x).symm) ?_)
+  funext i j x
+  rfl
+
+@[simp]
+theorem clopenPullCore_trivial (r₀ : LocallyConstant X ℕ) (r : α → ℕ)
+    (hr : ∀ x, r₀ x = r (c x)) (a : α) :
+    (trivial 𝕜 X r₀).clopenPullCore c r hr a =
+      FiniteRankBundleCore.trivial 𝕜 {x : X // c x = a} (r a) :=
   (rfl)
 
 /-- Refining an atlas along a finer clopen partition `c` on whose fibres its rank is constant gives
@@ -628,7 +750,7 @@ an isomorphic atlas, by coordinate reindexing along `hr` on every fibre. -/
 noncomputable def clopenPullIso (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
     (hr : ∀ x, A.rank x = r (c x)) :
     ofClopenCores c (A.clopenPullCore c r hr) ≅ A :=
-  isoMk (fun x ↦ finCongrLE (𝕜 := 𝕜) (hr x).symm)
+  isoMk (fun x ↦ (finCongrCLE (𝕜 := 𝕜) (hr x).symm).toLinearEquiv)
     (by
       have hsigma : Continuous (fun p : Σ a : α, (A.clopenPullCore c r hr a).core.TotalSpace ↦
           (⟨p.2.proj.1, fun i ↦
@@ -639,33 +761,35 @@ noncomputable def clopenPullIso (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
       exact (hsigma.comp (clopenTotalSpaceHomeomorph c _).symm.continuous).congr fun p ↦ by
         rcases p with ⟨x, v⟩
         dsimp only [Function.comp_apply]
-        rw [clopenTotalSpaceHomeomorph_symm_apply]
-        rfl)
+        rw [clopenTotalSpaceHomeomorph_symm_apply, ContinuousLinearEquiv.coe_toLinearEquiv,
+          finCongrCLE_apply])
     (by
-      rw [continuous_mk_iff_clopenCores c A.continuous_proj]
+      rw [continuous_mk_ofClopenCores_iff c A.continuous_proj]
       intro a
-      refine A.continuous_into_pullCore ⟨Subtype.val, continuous_subtype_val⟩ (r a)
+      exact (A.continuous_mk_pullCore_of_proj_eq ⟨Subtype.val, continuous_subtype_val⟩ (r a)
         (fun x ↦ (hr x.1).trans (congrArg r x.2))
-        ((A.continuous_proj.comp continuous_subtype_val).subtype_mk _) ?_
-      refine continuous_subtype_val.congr fun q ↦ ?_
-      rcases q with ⟨⟨x, v⟩, hx⟩
-      dsimp only [finCongrLE, LinearEquiv.coe_symm_mk] at hx ⊢
-      exact congrArg (TotalSpace.mk' (E := A.Fiber) Unit x)
-        (funext fun i ↦ congrArg v (Fin.ext rfl)))
+        ((A.continuous_proj.comp continuous_subtype_val).subtype_mk fun y ↦ y.2)
+        continuous_subtype_val (fun _ ↦ rfl)
+        (hrank := fun y ↦ ((hr y.1.proj).trans (congrArg r y.2)).symm)).congr fun y ↦
+          congrArg (TotalSpace.mk' (E := (A.clopenPullCore c r hr a).core.Fiber) _ _)
+            (funext fun i ↦ by
+              rw [ContinuousLinearEquiv.coe_symm_toLinearEquiv, finCongrCLE_symm_apply]
+              exact congrArg y.1.2 (Fin.ext rfl)))
 
 @[simp]
-theorem fiberMap_clopenPullIso_hom (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
+theorem fiberMap_clopenPullIso_hom_apply (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
     (hr : ∀ x, A.rank x = r (c x)) (x : X)
     (v : (ofClopenCores c (A.clopenPullCore c r hr)).Fiber x) :
     (A.clopenPullIso c r hr).hom.fiberMap x v = fun i ↦ v (Fin.cast (hr x) i) := by
-  simp [clopenPullIso, finCongrLE]
+  rw [clopenPullIso, fiberMap_isoMk_hom, LinearEquiv.coe_toLinearMap,
+    ContinuousLinearEquiv.coe_toLinearEquiv, finCongrCLE_apply]
 
 @[simp]
-theorem fiberMap_clopenPullIso_inv (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
+theorem fiberMap_clopenPullIso_inv_apply (A : FiniteRankAtlas 𝕜 X) (r : α → ℕ)
     (hr : ∀ x, A.rank x = r (c x)) (x : X) (v : A.Fiber x) :
     (A.clopenPullIso c r hr).inv.fiberMap x v = fun i ↦ v (Fin.cast (hr x).symm i) := by
-  simp [clopenPullIso, finCongrLE]
-  rfl
+  rw [clopenPullIso, fiberMap_isoMk_inv, LinearEquiv.coe_toLinearMap,
+    ContinuousLinearEquiv.coe_symm_toLinearEquiv, finCongrCLE_symm_apply]
 
 end ClopenRefinement
 
@@ -694,7 +818,7 @@ noncomputable def unmapClopenCores
         subst hx
         dsimp only [Function.comp_apply]
         rw [clopenTotalSpaceHomeomorph_apply, Hom.totalSpaceMap_mk]
-      have hsub := (continuous_mk_iff_clopenCores c
+      have hsub := (continuous_mk_ofClopenCores_iff c
         (continuous_subtype_val.comp (C a).core.continuous_proj) D
         (fun p : (C a).core.TotalSpace ↦ g.fiberMap p.proj.1
           (fun i ↦ p.2 (Fin.cast (congrArg (fun b ↦ (C b).rank) p.proj.2) i)))).1 htot a
@@ -704,7 +828,8 @@ noncomputable def unmapClopenCores
       simp only [Function.comp_apply, ϕ, finCongrCLE_rfl]
       rfl
 
-private theorem fiberMap_unmapClopenCores
+@[simp]
+theorem fiberMap_unmapClopenCores
     {C D : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
     (g : ofClopenCores c C ⟶ ofClopenCores c D) (a : α) (x : {x : X // c x = a}) :
     (unmapClopenCores c g a).fiberMap x =
@@ -713,7 +838,6 @@ private theorem fiberMap_unmapClopenCores
           (finCongrCLE (𝕜 := 𝕜) (congrArg (fun b ↦ (C b).rank) x.2)).symm.toContinuousLinearMap) :=
   congrFun (CoordinateHom.fiberMap_ofContinuous _ _) x
 
-@[simp]
 theorem fiberMap_unmapClopenCores_apply
     {C D : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
     (g : ofClopenCores c C ⟶ ofClopenCores c D) (a : α) (x : {x : X // c x = a})
@@ -721,7 +845,7 @@ theorem fiberMap_unmapClopenCores_apply
     (unmapClopenCores c g a).fiberMap x v i =
       g.fiberMap x.1 (fun j ↦ v (Fin.cast (congrArg (fun b ↦ (C b).rank) x.2) j))
         (Fin.cast (congrArg (fun b ↦ (D b).rank) x.2).symm i) := by
-  rw [fiberMap_unmapClopenCores]
+  simp [fiberMap_unmapClopenCores]
   rfl
 
 @[simp]
@@ -742,6 +866,40 @@ theorem unmapClopenCores_mapClopenCores
     (f : ∀ a : α, C a ⟶ D a) :
     unmapClopenCores c (mapClopenCores c f) = f :=
   mapClopenCores_injective c (mapClopenCores_unmapClopenCores c _)
+
+@[simp]
+theorem unmapClopenCores_id (C : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}) :
+    unmapClopenCores c (𝟙 (ofClopenCores c C)) = fun a ↦ 𝟙 (C a) := by
+  rw [← mapClopenCores_id c C, unmapClopenCores_mapClopenCores]
+
+@[simp]
+theorem unmapClopenCores_comp
+    {C D E : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
+    (f : ofClopenCores c C ⟶ ofClopenCores c D)
+    (g : ofClopenCores c D ⟶ ofClopenCores c E) :
+    unmapClopenCores c (f ≫ g) =
+      fun a ↦ unmapClopenCores c f a ≫ unmapClopenCores c g a :=
+  mapClopenCores_injective c (by simp)
+
+@[simp]
+theorem unmapClopenCores_zero
+    (C D : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}) :
+    unmapClopenCores c (0 : ofClopenCores c C ⟶ ofClopenCores c D) = 0 := by
+  rw [Pi.zero_def, ← mapClopenCores_zero c C D, unmapClopenCores_mapClopenCores]
+
+@[simp]
+theorem unmapClopenCores_add
+    {C D : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
+    (f g : ofClopenCores c C ⟶ ofClopenCores c D) :
+    unmapClopenCores c (f + g) = unmapClopenCores c f + unmapClopenCores c g :=
+  mapClopenCores_injective c (by rw [Pi.add_def, mapClopenCores_add]; simp)
+
+@[simp]
+theorem unmapClopenCores_neg
+    {C D : ∀ a : α, FiniteRankBundleCore 𝕜 {x : X // c x = a}}
+    (f : ofClopenCores c C ⟶ ofClopenCores c D) :
+    unmapClopenCores c (-f) = -unmapClopenCores c f :=
+  mapClopenCores_injective c (by rw [Pi.neg_def, mapClopenCores_neg]; simp)
 
 /-- Over a complete scalar field, morphisms between clopen-glued atlases correspond additively to
 families of compatible chart-matrix morphisms `CoordinateHom` on each clopen piece. -/
@@ -826,7 +984,7 @@ noncomputable def ofCoreTotalSpaceHomeomorph (B : FiniteRankBundleCore 𝕜 X) :
   continuous_toFun := by
     let sub : C({x : X // LocallyConstant.const X () x = ()}, X) :=
       ⟨Subtype.val, continuous_subtype_val⟩
-    apply (continuous_mk_iff_clopenCores (LocallyConstant.const X ()) B.core.continuous_proj
+    apply (continuous_mk_ofClopenCores_iff (LocallyConstant.const X ()) B.core.continuous_proj
       (fun _ : Unit ↦ B.pullback sub) (fun p ↦ p.2)).2
     rintro ⟨⟩
     apply (B.pullbackHomeomorph sub).isInducing.continuous_iff.2
@@ -875,13 +1033,12 @@ instance [CompleteSpace 𝕜] : (ofCore (𝕜 := 𝕜) (X := X)).Full where
         (⟨p.proj, ϕ p.proj p.2⟩ : B'.core.TotalSpace)) :=
       ((ofCoreTotalSpaceHomeomorph B').symm.continuous.comp
         (g.totalSpaceMap.continuous.comp (ofCoreTotalSpaceHomeomorph B).continuous)).congr
-          fun p ↦ by
-            rcases p with ⟨x, v⟩
-            let v' : (ofCore.obj B).Fiber x := v
-            -- Normalize `v` to `(ofCore.obj B).Fiber x` before rewriting `Hom.totalSpaceMap_mk`.
-            change (ofCoreTotalSpaceHomeomorph B').symm (g.totalSpaceMap ⟨x, v'⟩) = ⟨x, ϕ x v'⟩
-            rw [Hom.totalSpaceMap_mk, ofCoreTotalSpaceHomeomorph_symm_apply]
-            rfl
+          fun p ↦
+            (congrArg (fun q ↦ (ofCoreTotalSpaceHomeomorph B').symm (g.totalSpaceMap q))
+              (ofCoreTotalSpaceHomeomorph_apply B p)).trans <|
+              (congrArg (ofCoreTotalSpaceHomeomorph B').symm
+                (Hom.totalSpaceMap_mk g p.proj p.2)).trans <|
+                ofCoreTotalSpaceHomeomorph_symm_apply B' _
     refine ⟨CoordinateHom.ofContinuous ϕ
       ((continuous_hom_bundle_iff (E₁ := B.core.Fiber) (E₂ := B'.core.Fiber) ϕ).2 hcont), ?_⟩
     apply hom_ext
@@ -895,18 +1052,15 @@ instance [CompleteSpace 𝕜] : (ofCore (𝕜 := 𝕜) (X := X)).Full where
 @[simp]
 theorem toCore_ofCore_obj (B : FiniteRankBundleCore 𝕜 X) :
     (ofCore.obj B).toCore B.rank (fun _ ↦ rfl) = B := by
-  refine core_mk_eq_mk (vectorBundleCore_eq ?_ (funext fun x ↦ (B.indexAt_eq x).symm) ?_)
+  refine FiniteRankBundleCore.mk_eq_mk
+    (VectorBundleCore.ext ?_ (funext fun x ↦ (B.indexAt_eq x).symm) ?_)
   · funext i
     ext x
     exact ⟨fun ⟨_, hm⟩ ↦ hm, fun hm ↦ ⟨rfl, hm⟩⟩
   · funext i j x
-    -- Unfold `toCore` and `pullCore` to `pullback` without unfolding `ContinuousMap.id`.
-    change (((ofCore.obj B).stratumCore B.rank).pullback _).core.coordChange i j x =
-      B.core.coordChange i j x
-    rw [FiniteRankBundleCore.coordChange_pullback, core_stratumCore]
     dsimp only [ofCore]
-    rw [charts_ofClopenCores, clopenStratumCharts_coordChange,
-      clopenCoordChange_eq_of_eq (LocallyConstant.const X ()) _ (a := ())
+    rw [core_stratumCore, charts_ofClopenCores,
+      clopenStratumCharts_coordChange_of_eq (LocallyConstant.const X ()) _ (a := ())
         (B.rank_pullback _) rfl rfl rfl,
       finCongrCLE_rfl]
     ext v k
@@ -916,38 +1070,41 @@ theorem toCore_ofCore_obj (B : FiniteRankBundleCore 𝕜 X) :
 under `ofCore`. -/
 noncomputable def ofCoreToCoreIso (A : FiniteRankAtlas 𝕜 X) (n : ℕ)
     (h : ∀ x, A.rank x = n) : ofCore.obj (A.toCore n h) ≅ A :=
-  isoMk (fun x ↦ finCongrLE (𝕜 := 𝕜) (h x).symm)
-    (((A.continuous_pullCoreLift (ContinuousMap.id X) n h).comp
-      (ofCoreTotalSpaceHomeomorph (A.toCore n h)).symm.continuous).congr fun p ↦ by
-        rcases p with ⟨x, v⟩
-        rw [Function.comp_apply, ofCoreTotalSpaceHomeomorph_symm_apply]
-        rfl)
-    (by
-      have hin : Continuous (fun z : TotalSpace Unit A.Fiber ↦
-          (⟨z.proj, fun i ↦ z.2 (Fin.cast (h z.proj).symm i)⟩ :
-            (A.toCore n h).core.TotalSpace)) := by
-        refine A.continuous_into_pullCore (ContinuousMap.id X) n h A.continuous_proj ?_
-        refine continuous_id.congr fun q ↦ ?_
-        rcases q with ⟨x, v⟩
-        exact congrArg (TotalSpace.mk' (E := A.Fiber) Unit x)
-          (funext fun i ↦ congrArg v (Fin.ext rfl))
-      refine ((ofCoreTotalSpaceHomeomorph (A.toCore n h)).continuous.comp hin).congr fun q ↦ ?_
-      rcases q with ⟨x, v⟩
-      rw [Function.comp_apply, ofCoreTotalSpaceHomeomorph_apply]
-      rfl)
+  A.clopenPullIso (LocallyConstant.const X ()) (fun _ ↦ n) h
 
 @[simp]
-theorem fiberMap_ofCoreToCoreIso_hom (A : FiniteRankAtlas 𝕜 X) (n : ℕ)
+theorem fiberMap_ofCoreToCoreIso_hom_apply (A : FiniteRankAtlas 𝕜 X) (n : ℕ)
     (h : ∀ x, A.rank x = n) (x : X) (v : (ofCore.obj (A.toCore n h)).Fiber x) :
-    (A.ofCoreToCoreIso n h).hom.fiberMap x v = fun i ↦ v (Fin.cast (h x) i) := by
-  simp [ofCoreToCoreIso, finCongrLE]
+    (A.ofCoreToCoreIso n h).hom.fiberMap x v = fun i ↦ v (Fin.cast (h x) i) :=
+  A.fiberMap_clopenPullIso_hom_apply (LocallyConstant.const X ()) (fun _ ↦ n) h x v
 
 @[simp]
-theorem fiberMap_ofCoreToCoreIso_inv (A : FiniteRankAtlas 𝕜 X) (n : ℕ)
+theorem fiberMap_ofCoreToCoreIso_inv_apply (A : FiniteRankAtlas 𝕜 X) (n : ℕ)
     (h : ∀ x, A.rank x = n) (x : X) (v : A.Fiber x) :
-    (A.ofCoreToCoreIso n h).inv.fiberMap x v = fun i ↦ v (Fin.cast (h x).symm i) := by
-  simp [ofCoreToCoreIso, finCongrLE]
-  rfl
+    (A.ofCoreToCoreIso n h).inv.fiberMap x v = fun i ↦ v (Fin.cast (h x).symm i) :=
+  A.fiberMap_clopenPullIso_inv_apply (LocallyConstant.const X ()) (fun _ ↦ n) h x v
+
+/-- A constant-rank trivial core embeds via `ofCore` as the constant-rank trivial atlas. -/
+noncomputable def ofCoreTrivialIso (n : ℕ) :
+    ofCore.obj (FiniteRankBundleCore.trivial 𝕜 X n) ≅
+      trivial 𝕜 X (LocallyConstant.const X n) :=
+  (trivial 𝕜 X (LocallyConstant.const X n)).ofCoreToCoreIso n (fun _ ↦ rfl)
+
+@[simp]
+theorem fiberMap_ofCoreTrivialIso_hom (n : ℕ) (x : X) :
+    (ofCoreTrivialIso (𝕜 := 𝕜) (X := X) n).hom.fiberMap x = LinearMap.id := by
+  apply LinearMap.ext
+  intro v
+  exact (trivial 𝕜 X (LocallyConstant.const X n)).fiberMap_ofCoreToCoreIso_hom_apply n
+    (fun _ ↦ rfl) x v
+
+@[simp]
+theorem fiberMap_ofCoreTrivialIso_inv (n : ℕ) (x : X) :
+    (ofCoreTrivialIso (𝕜 := 𝕜) (X := X) n).inv.fiberMap x = LinearMap.id := by
+  apply LinearMap.ext
+  intro v
+  exact (trivial 𝕜 X (LocallyConstant.const X n)).fiberMap_ofCoreToCoreIso_inv_apply n
+    (fun _ ↦ rfl) x v
 
 /-! ### Compatible matrix morphisms on joint rank bi-strata and isomorphisms -/
 
@@ -961,6 +1118,16 @@ noncomputable def ofBistratumHoms (A D : FiniteRankAtlas 𝕜 X)
   (A.clopenPullIso (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl)).inv ≫
     mapClopenCores (A.rank.prodMk D.rank) f ≫
     (D.clopenPullIso (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl)).hom
+
+theorem ofBistratumHoms_def (A D : FiniteRankAtlas 𝕜 X)
+    (f : ∀ p : ℕ × ℕ,
+      A.clopenPullCore (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl) p ⟶
+        D.clopenPullCore (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl) p) :
+    ofBistratumHoms A D f =
+      (A.clopenPullIso (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl)).inv ≫
+        mapClopenCores (A.rank.prodMk D.rank) f ≫
+        (D.clopenPullIso (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl)).hom :=
+  (rfl)
 
 @[simp]
 theorem fiberMap_ofBistratumHoms (A D : FiniteRankAtlas 𝕜 X)
@@ -976,6 +1143,27 @@ theorem fiberMap_ofBistratumHoms (A D : FiniteRankAtlas 𝕜 X)
   simp
   rfl
 
+@[simp]
+theorem ofBistratumHoms_zero (A D : FiniteRankAtlas 𝕜 X) :
+    ofBistratumHoms A D 0 = 0 :=
+  hom_ext fun _ ↦ LinearMap.ext fun _ ↦ by simp
+
+@[simp]
+theorem ofBistratumHoms_add (A D : FiniteRankAtlas 𝕜 X)
+    (f g : ∀ p : ℕ × ℕ,
+      A.clopenPullCore (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl) p ⟶
+        D.clopenPullCore (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl) p) :
+    ofBistratumHoms A D (f + g) = ofBistratumHoms A D f + ofBistratumHoms A D g :=
+  hom_ext fun _ ↦ LinearMap.ext fun _ ↦ by simp
+
+@[simp]
+theorem ofBistratumHoms_neg (A D : FiniteRankAtlas 𝕜 X)
+    (f : ∀ p : ℕ × ℕ,
+      A.clopenPullCore (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl) p ⟶
+        D.clopenPullCore (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl) p) :
+    ofBistratumHoms A D (-f) = -ofBistratumHoms A D f :=
+  hom_ext fun _ ↦ LinearMap.ext fun _ ↦ by simp
+
 /-- Extract the compatible chart-matrix morphisms on each joint rank bi-stratum from a variable-rank
 morphism `g : A ⟶ D`. -/
 noncomputable def toBistratumHoms [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X}
@@ -986,6 +1174,24 @@ noncomputable def toBistratumHoms [CompleteSpace 𝕜] {A D : FiniteRankAtlas �
   unmapClopenCores (A.rank.prodMk D.rank)
     ((A.clopenPullIso (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl)).hom ≫ g ≫
       (D.clopenPullIso (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl)).inv)
+
+theorem toBistratumHoms_def [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X} (g : A ⟶ D) :
+    toBistratumHoms g =
+      unmapClopenCores (A.rank.prodMk D.rank)
+        ((A.clopenPullIso (A.rank.prodMk D.rank) Prod.fst (fun _ ↦ rfl)).hom ≫ g ≫
+          (D.clopenPullIso (A.rank.prodMk D.rank) Prod.snd (fun _ ↦ rfl)).inv) :=
+  (rfl)
+
+@[simp]
+theorem fiberMap_toBistratumHoms [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X}
+    (g : A ⟶ D) (p : ℕ × ℕ) (x : {x : X // A.rank.prodMk D.rank x = p}) :
+    (toBistratumHoms g p).fiberMap x =
+      (finCongrCLE (𝕜 := 𝕜) (congrArg Prod.snd x.2)).toContinuousLinearMap.comp
+        ((g.fiberMap x.1).toContinuousLinearMap.comp
+          (finCongrCLE (𝕜 := 𝕜) (congrArg Prod.fst x.2)).symm.toContinuousLinearMap) := by
+  ext v i
+  simp [toBistratumHoms]
+  rfl
 
 @[simp]
 theorem ofBistratumHoms_toBistratumHoms [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X}
@@ -1012,9 +1218,7 @@ noncomputable def bistratumHomAddEquiv [CompleteSpace 𝕜] (A D : FiniteRankAtl
   invFun := toBistratumHoms
   left_inv := toBistratumHoms_ofBistratumHoms A D
   right_inv := ofBistratumHoms_toBistratumHoms
-  map_add' f g := by
-    rw [Pi.add_def]
-    simp only [ofBistratumHoms, mapClopenCores_add, Preadditive.add_comp, Preadditive.comp_add]
+  map_add' := ofBistratumHoms_add A D
 
 @[simp]
 theorem bistratumHomAddEquiv_apply [CompleteSpace 𝕜] (A D : FiniteRankAtlas 𝕜 X)
@@ -1030,21 +1234,11 @@ theorem bistratumHomAddEquiv_symm_apply [CompleteSpace 𝕜] (A D : FiniteRankAt
     (bistratumHomAddEquiv A D).symm g = toBistratumHoms g :=
   (rfl)
 
-/-- Every categorical isomorphism of bundle atlases is bijective on each fibre. -/
-theorem bijective_fiberMap_of_isIso {A D : FiniteRankAtlas 𝕜 X} (f : A ⟶ D) [IsIso f]
-    (x : X) : Function.Bijective (f.fiberMap x) := by
-  refine ⟨Function.HasLeftInverse.injective ⟨(inv f).fiberMap x, fun v ↦ ?_⟩,
-    Function.HasRightInverse.surjective ⟨(inv f).fiberMap x, fun v ↦ ?_⟩⟩
-  · have h := congrArg (fun k : A ⟶ A ↦ k.fiberMap x v) (IsIso.hom_inv_id f)
-    simpa only [fiberMap_comp, fiberMap_id, LinearMap.comp_apply, LinearMap.id_apply] using h
-  · have h := congrArg (fun k : D ⟶ D ↦ k.fiberMap x v) (IsIso.inv_hom_id f)
-    simpa only [fiberMap_comp, fiberMap_id, LinearMap.comp_apply, LinearMap.id_apply] using h
-
 /-- Over a complete scalar field, a morphism of variable-rank bundle atlases is an isomorphism
 if and only if it is bijective on every fibre. -/
 theorem isIso_iff_bijective [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X} (f : A ⟶ D) :
     IsIso f ↔ ∀ x, Function.Bijective (f.fiberMap x) := by
-  refine ⟨fun _ ↦ bijective_fiberMap_of_isIso f, fun hf ↦ ?_⟩
+  refine ⟨fun _ ↦ fiberMap_bijective_of_isIso f, fun hf ↦ ?_⟩
   have hr : ∀ x, D.rank x = A.rank x := fun x ↦ by
     have hlin := LinearEquiv.ofBijective (f.fiberMap x) (hf x)
     simpa only [Module.finrank_fin_fun] using hlin.finrank_eq.symm
@@ -1060,8 +1254,8 @@ theorem isIso_iff_bijective [CompleteSpace 𝕜] {A D : FiniteRankAtlas 𝕜 X} 
     rw [LinearMap.coe_toContinuousLinearMap']
     dsimp only [f']
     rw [fiberMap_comp, fiberMap_comp, LinearMap.coe_comp, LinearMap.coe_comp]
-    exact (bijective_fiberMap_of_isIso eD.inv x.1).comp
-      ((hf x.1).comp (bijective_fiberMap_of_isIso eA.hom x.1))
+    exact (fiberMap_bijective_of_isIso eD.inv x.1).comp
+      ((hf x.1).comp (fiberMap_bijective_of_isIso eA.hom x.1))
   let gIso : ofClopenCores A.rank (A.clopenPullCore A.rank id (fun _ ↦ rfl)) ≅
       ofClopenCores A.rank (D.clopenPullCore A.rank id hr) :=
     isoClopenCores A.rank fun n ↦ asIso (unmapClopenCores A.rank f' n)
