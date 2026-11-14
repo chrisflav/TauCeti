@@ -47,7 +47,9 @@ counting the countable models of an infinitary sentence.
   equivalence of tuples, and hence each level, has Borel graph;
 * `TauCeti.RelationalConfiguration.exists_limit_of_bfEquiv_chain` — a chain of configurations on
   `ℕ` whose consecutive members are equivalent at depth `α i + ω`, for a monotone `α`, has a limit
-  configuration equivalent to its `i`-th member at depth `α i`.
+  configuration equivalent to its `i`-th member at depth `α i`;
+* `Equiv.bfEquivSetoid_encodeVia_iff` — encodings along bijections onto `V` are `α`-equivalent
+  exactly when the empty tuples of the structures are back-and-forth equivalent at depth `α`.
 
 ## References
 
@@ -191,5 +193,29 @@ theorem exists_limit_of_bfEquiv_chain {c : ℕ → RelationalConfiguration L ℕ
   refine ⟨@ofStructure L ℕ S, fun i => bfEquivSetoid_apply.mpr ?_⟩
   rw [toStructure_ofStructure]
   exact hS i
+
+/-- Encodings of two structures along bijections onto `V` are `bfEquivSetoid`-equivalent at depth
+`α` exactly when the empty tuples of the structures are back-and-forth equivalent at depth `α`. -/
+theorem _root_.Equiv.bfEquivSetoid_encodeVia_iff {M : Type*} {N : Type*}
+    [L.Structure M] [L.Structure N] (e : M ≃ V) (f : N ≃ V) {α : Ordinal.{o}} :
+    bfEquivSetoid L V α (e.encodeVia (L := L)) (f.encodeVia (L := L)) ↔
+      BFEquiv (L := L) α 0 (Fin.elim0 : Fin 0 → M) (Fin.elim0 : Fin 0 → N) := by
+  let c := e.encodeVia (L := L)
+  let d := f.encodeVia (L := L)
+  obtain ⟨E⟩ := e.nonempty_equiv_encodeVia (L := L)
+  obtain ⟨F⟩ := f.nonempty_equiv_encodeVia (L := L)
+  have hE : @BFEquiv L _ M V _ c.toStructure α 0 Fin.elim0 Fin.elim0 := by
+    have h := @Language.Equiv.bfEquiv L _ M V _ c.toStructure E α 0 Fin.elim0
+    rwa [Subsingleton.elim (E ∘ Fin.elim0) Fin.elim0] at h
+  have hF : @BFEquiv L _ N V _ d.toStructure α 0 Fin.elim0 Fin.elim0 := by
+    have h := @Language.Equiv.bfEquiv L _ N V _ d.toStructure F α 0 Fin.elim0
+    rwa [Subsingleton.elim (F ∘ Fin.elim0) Fin.elim0] at h
+  have hEsymm := @BFEquiv.symm L _ M V _ c.toStructure 0 Fin.elim0 Fin.elim0 α hE
+  have hFsymm := @BFEquiv.symm L _ N V _ d.toStructure 0 Fin.elim0 Fin.elim0 α hF
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · exact @BFEquiv.trans L _ M V N _ d.toStructure _ 0 _ _ _ α
+      (@BFEquiv.trans L _ M V V _ c.toStructure d.toStructure 0 _ _ _ α hE h) hFsymm
+  · exact @BFEquiv.trans L _ V N V c.toStructure _ d.toStructure 0 _ _ _ α
+      (@BFEquiv.trans L _ V M N c.toStructure _ _ 0 _ _ _ α hEsymm h) hF
 
 end TauCeti.RelationalConfiguration

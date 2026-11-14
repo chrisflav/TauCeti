@@ -22,7 +22,8 @@ and is below `ω₁` for every countable structure. No countability assumption o
 relational language is needed for these rank comparisons.
 
 For a countable structure, the back-and-forth class of a tuple at any orbit-stable level, in
-particular at its orbit rank, is exactly its automorphism orbit.
+particular at its orbit rank, is exactly its automorphism orbit. Language isomorphisms preserve
+orbit stability and tuple orbit ranks, and hence `selfStabilizationOrdinal` and `internalScottRank`.
 
 The all-levels condition in `orbitStable` is essential: a single tuple's class can
 agree at two consecutive levels and still split later. Simultaneous stabilization
@@ -220,3 +221,60 @@ theorem internalScottRank_lt_omega_one [Countable M] :
       (selfStabilizationOrdinal_lt_omega_one (L := L) M))
 
 end TauCeti
+
+namespace FirstOrder.Language.Equiv
+
+open TauCeti
+
+variable {L : Language.{u, v}} [L.IsRelational]
+variable {M N : Type w} [L.Structure M] [L.Structure N] {n : ℕ}
+
+private theorem mem_orbitStable_of_equiv (e : M ≃[L] N) {a : Fin n → M} {α : Ordinal.{w}}
+    (hα : α ∈ orbitStable (L := L) a) : α ∈ orbitStable (L := L) (e ∘ a) := by
+  rw [mem_orbitStable_iff] at hα ⊢
+  intro b hab β
+  have hM : BFEquiv (L := L) α n a (e.symm ∘ b) :=
+    ((e.bfEquiv α a).trans hab).trans (e.symm.bfEquiv α b)
+  have hβ : BFEquiv (L := L) β n a (e.symm ∘ b) := hα (e.symm ∘ b) hM β
+  have he : e ∘ (e.symm ∘ b) = b := funext fun i => e.apply_symm_apply (b i)
+  simpa only [he] using (e.bfEquiv β a).symm.trans (hβ.trans (e.bfEquiv β (e.symm ∘ b)))
+
+/-- Orbit stability at a level is preserved and reflected along an isomorphism. -/
+theorem mem_orbitStable_iff (e : M ≃[L] N) (a : Fin n → M) (α : Ordinal.{w}) :
+    α ∈ orbitStable (L := L) (e ∘ a) ↔ α ∈ orbitStable (L := L) a := by
+  refine ⟨fun h => ?_, mem_orbitStable_of_equiv e⟩
+  have h' := mem_orbitStable_of_equiv e.symm h
+  have he : e.symm ∘ (e ∘ a) = a := funext fun i => e.symm_apply_apply (a i)
+  rwa [he] at h'
+
+/-- An isomorphism preserves the orbit rank of every finite tuple. -/
+@[simp]
+theorem orbitRank_comp (e : M ≃[L] N) (a : Fin n → M) :
+    orbitRank (L := L) (e ∘ a) = orbitRank (L := L) a := by
+  simp only [orbitRank_def, Set.ext_iff.mpr (e.mem_orbitStable_iff a)]
+
+/-- The least internal stabilization ordinal is an isomorphism invariant. -/
+theorem selfStabilizationOrdinal_eq (e : M ≃[L] N) :
+    selfStabilizationOrdinal (L := L) M = selfStabilizationOrdinal (L := L) N := by
+  rw [selfStabilizationOrdinal_eq_iSup_orbitRank, selfStabilizationOrdinal_eq_iSup_orbitRank]
+  let E : (Σ n, Fin n → M) ≃ Σ n, Fin n → N :=
+    _root_.Equiv.sigmaCongrRight fun n =>
+      _root_.Equiv.arrowCongr (_root_.Equiv.refl (Fin n)) e.toEquiv
+  refine (iSup_congr fun p => ?_).trans
+    (E.iSup_comp (g := fun q : Σ n, Fin n → N => orbitRank (L := L) q.2))
+  rcases p with ⟨n, a⟩
+  exact (e.orbitRank_comp a).symm
+
+/-- The internal Scott rank is an isomorphism invariant. -/
+theorem internalScottRank_eq (e : M ≃[L] N) :
+    internalScottRank (L := L) M = internalScottRank (L := L) N := by
+  rw [internalScottRank_def, internalScottRank_def]
+  let E : (Σ n, Fin n → M) ≃ Σ n, Fin n → N :=
+    _root_.Equiv.sigmaCongrRight fun n =>
+      _root_.Equiv.arrowCongr (_root_.Equiv.refl (Fin n)) e.toEquiv
+  refine (iSup_congr fun p => ?_).trans
+    (E.iSup_comp (g := fun q : Σ n, Fin n → N => orbitRank (L := L) q.2 + 1))
+  rcases p with ⟨n, a⟩
+  exact congrArg (· + 1) (e.orbitRank_comp a).symm
+
+end FirstOrder.Language.Equiv
