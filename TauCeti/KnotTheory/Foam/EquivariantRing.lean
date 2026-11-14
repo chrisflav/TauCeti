@@ -8,6 +8,7 @@ module
 public import TauCeti.Algebra.Category.GradedModuleCat.Retract
 public import TauCeti.RingTheory.MvPolynomial.WeightedHomogeneous
 import Mathlib.Algebra.EuclideanDomain.Int
+import TauCeti.Algebra.Module.GradedModule.Generated
 
 /-!
 # The `gl(N)` equivariant coefficient ring and graded idempotent splittings
@@ -26,32 +27,34 @@ that:
 * every graded retract of a finite graded free `EquivariantRing N`-module decomposes as a finite
   biproduct of shifted copies of the regular module with explicit summand inclusions and
   projections satisfying both biproduct identities;
-* every degree-zero `EquivariantRing N`-linear idempotent `p` on `(Fin m → EquivariantRing N)`
-  splits homogeneously through `(Fin n → EquivariantRing N)`, and its image `LinearMap.range p`
-  admits a finite `EquivariantRing N`-basis of homogeneous vectors.
+* every degree-zero `EquivariantRing N`-linear idempotent `p` on `(J → EquivariantRing N)` for
+  finite `J` splits homogeneously through `(Fin n → EquivariantRing N)`, and on `(Fin m →
+  EquivariantRing N)` its image `LinearMap.range p` admits a finite `EquivariantRing N`-basis of
+  homogeneous vectors.
 
 ## Main definitions and results
 
 * `TauCeti.EquivariantRing`: the polynomial ring `ℤ[e₁, …, e_N]` (`MvPolynomial (Fin N) ℤ`).
 * `TauCeti.EquivariantRing.grading`: the `ℤ`-grading with `deg(X i) = 2(i + 1)`.
-* `TauCeti.EquivariantRing.grading_eq_bot_of_lt_zero`,
+* `TauCeti.EquivariantRing.grading_eq_bot_of_neg`,
   `TauCeti.EquivariantRing.grading_eq_bot_of_odd`,
   `TauCeti.EquivariantRing.grading_zero_eq_one`: nonnegativity, evenness, and scalar degree-zero
   piece of `EquivariantRing.grading N`.
 * `TauCeti.EquivariantRing.exists_iso_fin_free_of_retract`: biproduct decomposition of any graded
   retract of a finite graded free `EquivariantRing N`-module into shifted regular summands.
-* `TauCeti.EquivariantRing.exists_homogeneous_matrix_retract_of_idempotent`: homogeneous matrix
+* `TauCeti.EquivariantRing.exists_homogeneous_pi_retract_of_idempotent`: homogeneous Pi-module
   factorization `ι ∘ₗ π = p`, `π ∘ₗ ι = id` of a degree-zero idempotent on
-  `(Fin m → EquivariantRing N)`.
+  `(J → EquivariantRing N)`.
 * `TauCeti.exists_homogeneous_basis_range_idempotent`: existence of a finite homogeneous
   `EquivariantRing N`-basis of `LinearMap.range p`.
 
 ## References
 
-* L.-H. Robert and E. Wagner, *Symmetric Khovanov-Rozansky link homologies*, J. Éc. polytech.
-  Math. 7 (2020), Section 3.3 and Theorem 3.30.
-* H. Wu, *Colored sl(N)-link homology via matrix factorizations*, Algebr. Geom. Topol. 14 (2014),
-  Section 2.
+* L.-H. Robert and E. Wagner, *A closed formula for the evaluation of sl(N)-foams*, Quantum
+  Topol. 11 (2020), no. 3, 411–487 (arXiv:1702.04140v3), Section 2.1 (Definitions 2.11–2.12)
+  and Section 3.3 (Theorem 3.30).
+* H. Wu, *Equivariant colored sl(N)-homology for links*, J. Knot Theory Ramifications 21 (2012),
+  no. 2, 1250012 (arXiv:1002.2662v2), Section 2.
 -/
 
 public section
@@ -98,6 +101,7 @@ theorem even_weight (N : ℕ) (i : Fin N) : Even (weight N i) :=
   ⟨(i : ℕ) + 1, by dsimp [weight]; ring⟩
 
 /-- The `ℤ`-grading on `EquivariantRing N` assigning degree `2(i + 1)` to `MvPolynomial.X i`. -/
+@[expose]
 def grading (N : ℕ) : ℤ → Submodule ℤ (EquivariantRing N) :=
   MvPolynomial.weightedHomogeneousSubmodule ℤ (fun i : Fin N => 2 * ((i : ℕ) + 1 : ℤ))
 
@@ -106,9 +110,16 @@ theorem grading_def (N : ℕ) (d : ℤ) :
     grading N d = MvPolynomial.weightedHomogeneousSubmodule ℤ (weight N) d :=
   (rfl)
 
-instance (N : ℕ) : GradedAlgebra (grading N) := by
-  rw [funext (grading_def N)]
-  exact MvPolynomial.weightedGradedAlgebra ℤ (weight N)
+instance (N : ℕ) : GradedAlgebra (grading N) :=
+  MvPolynomial.weightedGradedAlgebra ℤ (weight N)
+
+/-- Decomposing `f : EquivariantRing N` along `grading N` extracts its `weight N`-weighted
+homogeneous component in each degree. -/
+@[simp]
+theorem coe_decompose_grading (N : ℕ) (f : EquivariantRing N) (d : ℤ) :
+    (DirectSum.decompose (grading N) f d : EquivariantRing N) =
+      MvPolynomial.weightedHomogeneousComponent (weight N) d f :=
+  MvPolynomial.weightedDecomposition.decompose'_apply ℤ (weight N) f d
 
 /-- Membership in `grading N d` is weighted homogeneity of degree `d` for `weight N`. -/
 theorem mem_grading_iff (N : ℕ) (d : ℤ) (f : EquivariantRing N) :
@@ -122,9 +133,9 @@ theorem X_mem_grading (N : ℕ) (i : Fin N) :
   (mem_grading_iff N _ _).mpr (MvPolynomial.isWeightedHomogeneous_X ℤ (weight N) i)
 
 /-- `EquivariantRing N` vanishes in all negative degrees. -/
-theorem grading_eq_bot_of_lt_zero (N : ℕ) {d : ℤ} (hd : d < 0) :
+theorem grading_eq_bot_of_neg (N : ℕ) {d : ℤ} (hd : d < 0) :
     grading N d = ⊥ :=
-  MvPolynomial.weightedHomogeneousSubmodule_eq_bot_of_lt_zero ℤ
+  MvPolynomial.weightedHomogeneousSubmodule_eq_bot_of_neg ℤ
     (fun i ↦ (weight_pos N i).le) hd
 
 /-- `EquivariantRing N` is supported in even degrees: every odd homogeneous piece vanishes. -/
@@ -144,7 +155,7 @@ theorem grading_zero_eq_one (N : ℕ) :
   MvPolynomial.weightedHomogeneousSubmodule_zero_eq_one ℤ (weight_pos N)
 
 /-- For `N = 0`, `EquivariantRing 0` vanishes in every nonzero degree. -/
-theorem grading_zero_vars_eq_bot_of_ne_zero {d : ℤ} (hd : d ≠ 0) :
+theorem grading_zero_apply_eq_bot_of_ne_zero {d : ℤ} (hd : d ≠ 0) :
     grading 0 d = ⊥ :=
   (Submodule.eq_bot_iff _).mpr fun f hf ↦
     ((mem_grading_iff 0 d f).mp hf).eq_zero_of_no_monomials fun m hm ↦ by
@@ -163,7 +174,7 @@ theorem exists_fin_free_retract_of_idempotent (N : ℕ) {J : Type} [Finite J] (s
       (π : GradedModuleCat.free (grading N) s ⟶ GradedModuleCat.free (grading N) d),
       π ≫ ι = e ∧ ι ≫ π = 𝟙 (GradedModuleCat.free (grading N) d) :=
   GradedModuleCat.exists_fin_free_retract_of_idempotent (grading N)
-    (fun _ hd ↦ grading_eq_bot_of_lt_zero N hd) (grading_zero_eq_one N).le s e he
+    (fun _ hd ↦ grading_eq_bot_of_neg N hd) (grading_zero_eq_one N).le s e he
 
 /-- Any graded retract `W` of a finite graded free `EquivariantRing N`-module is graded-isomorphic
 to `GradedModuleCat.free (grading N) d` and decomposes into `n` shifted copies of the regular
@@ -180,26 +191,26 @@ theorem exists_iso_fin_free_of_retract (N : ℕ) {J : Type} [Finite J] (s : J �
       (∀ i j, i ≠ j → ι i ≫ π j = 0) ∧
       ∑ i : Fin n, π i ≫ ι i = 𝟙 W :=
   GradedModuleCat.exists_iso_fin_free_of_retract (grading N)
-    (fun _ hd ↦ grading_eq_bot_of_lt_zero N hd) (grading_zero_eq_one N).le s u v huv
+    (fun _ hd ↦ grading_eq_bot_of_neg N hd) (grading_zero_eq_one N).le s u v huv
 
-/-- Every degree-zero `EquivariantRing N`-linear idempotent `p` on `(Fin m → EquivariantRing N)`
+/-- Every degree-zero `EquivariantRing N`-linear idempotent `p` on `(J → EquivariantRing N)`
 factors as `ι ∘ₗ π = p` with `π ∘ₗ ι = id` through `(Fin n → EquivariantRing N)` via homogeneous
-matrices `ι` and `π` respecting shifts `d : Fin n → ℤ`. -/
-theorem exists_homogeneous_matrix_retract_of_idempotent (N m : ℕ) (s : Fin m → ℤ)
-    (p : (Fin m → EquivariantRing N) →ₗ[EquivariantRing N] (Fin m → EquivariantRing N))
+`EquivariantRing N`-linear maps `ι` and `π` respecting shifts `d : Fin n → ℤ`. -/
+theorem exists_homogeneous_pi_retract_of_idempotent (N : ℕ) {J : Type*} [Finite J] (s : J → ℤ)
+    (p : (J → EquivariantRing N) →ₗ[EquivariantRing N] (J → EquivariantRing N))
     (hp : p.comp p = p)
-    (hhom : ∀ (q : ℤ) (v : Fin m → EquivariantRing N),
+    (hhom : ∀ (q : ℤ) (v : J → EquivariantRing N),
       (∀ j, v j ∈ grading N (q - s j)) → ∀ j, p v j ∈ grading N (q - s j)) :
     ∃ (n : ℕ) (d : Fin n → ℤ)
-      (ι : (Fin n → EquivariantRing N) →ₗ[EquivariantRing N] (Fin m → EquivariantRing N))
-      (π : (Fin m → EquivariantRing N) →ₗ[EquivariantRing N] (Fin n → EquivariantRing N)),
+      (ι : (Fin n → EquivariantRing N) →ₗ[EquivariantRing N] (J → EquivariantRing N))
+      (π : (J → EquivariantRing N) →ₗ[EquivariantRing N] (Fin n → EquivariantRing N)),
       ι.comp π = p ∧ π.comp ι = LinearMap.id ∧
       (∀ (q : ℤ) (w : Fin n → EquivariantRing N),
         (∀ i, w i ∈ grading N (q - d i)) → ∀ j, ι w j ∈ grading N (q - s j)) ∧
-      (∀ (q : ℤ) (v : Fin m → EquivariantRing N),
+      (∀ (q : ℤ) (v : J → EquivariantRing N),
         (∀ j, v j ∈ grading N (q - s j)) → ∀ i, π v i ∈ grading N (q - d i)) :=
-  GradedModuleCat.exists_homogeneous_matrix_retract_of_idempotent (grading N)
-    (fun _ hd ↦ grading_eq_bot_of_lt_zero N hd) (grading_zero_eq_one N).le s p hp hhom
+  GradedModuleCat.exists_homogeneous_pi_retract_of_idempotent (grading N)
+    (fun _ hd ↦ grading_eq_bot_of_neg N hd) (grading_zero_eq_one N).le s p hp hhom
 
 end EquivariantRing
 
@@ -220,10 +231,34 @@ theorem exists_homogeneous_basis_range_idempotent (N m : ℕ) (s : Fin m → ℤ
       (d : Fin n → ℤ),
       ∀ i j, (b i).val j ∈ EquivariantRing.grading N (d i - s j) :=
   GradedModuleCat.exists_homogeneous_basis_range_idempotent (EquivariantRing.grading N)
-    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_lt_zero N hd)
+    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_neg N hd)
     (EquivariantRing.grading_zero_eq_one N).le s p hp hhom
 
 section Examples
+
+private theorem rank_one_example_eq {N m : ℕ} {s : Fin (m + 1) → ℤ}
+    {p : (Fin (m + 1) → EquivariantRing N) →ₗ[EquivariantRing N]
+      (Fin (m + 1) → EquivariantRing N)}
+    (v₀ : LinearMap.range p) (hv₀0 : v₀.val 0 = 1)
+    (hspan : ∀ x : LinearMap.range p, x = x.val 0 • v₀)
+    {n : ℕ} (b : Module.Basis (Fin n) (EquivariantRing N) (LinearMap.range p))
+    {d : Fin n → ℤ}
+    (hb : ∀ i j, (b i).val j ∈ EquivariantRing.grading N (d i - s j)) :
+    n = 1 ∧ ∀ i, d i = s 0 := by
+  let e : LinearMap.range p ≃ₗ[EquivariantRing N] EquivariantRing N :=
+    LinearEquiv.ofLinearMap ((LinearMap.proj 0).comp (LinearMap.range p).subtype)
+      (LinearMap.toSpanSingleton _ _ v₀)
+      (LinearMap.ext fun c ↦ by simp [hv₀0])
+      (LinearMap.ext fun x ↦ (hspan x).symm)
+  let G := (GradedModuleCat.regular (𝒜 := EquivariantRing.grading N)).grading
+  let _ := (GradedModuleCat.regular (𝒜 := EquivariantRing.grading N)).gradedSMul
+  have ⟨hn, hd⟩ := InternalGrading.eq_one_and_forall_eq_of_span_singleton_eq_top
+    (EquivariantRing.grading N) (G := G)
+    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_neg N hd)
+    (v₀ := (1 : EquivariantRing N)) one_ne_zero Ideal.span_singleton_one
+    (d₀ := 0) (by simpa [G] using SetLike.one_mem_graded (EquivariantRing.grading N))
+    (b.map e) (d := fun i ↦ d i - s 0) (fun i ↦ by simpa [G, e] using hb i 0)
+  exact ⟨hn, fun i ↦ sub_eq_zero.mp (hd i)⟩
 
 -- For `p = 0`, `exists_homogeneous_basis_range_idempotent` produces the empty basis (`n = 0`).
 example (N m : ℕ) (s : Fin m → ℤ) :
@@ -253,18 +288,9 @@ example (N : ℕ) :
   let v₀ : LinearMap.range (LinearMap.id :
       (Fin 1 → EquivariantRing N) →ₗ[EquivariantRing N] (Fin 1 → EquivariantRing N)) :=
     ⟨![1], ⟨![1], rfl⟩⟩
-  have hv₀_ne : v₀ ≠ 0 := fun h ↦ one_ne_zero (congr_fun (congr_arg Subtype.val h) 0)
-  have hv₀_span : Submodule.span (EquivariantRing N) {v₀} = ⊤ := top_unique fun x _ ↦ by
-    rw [Submodule.mem_span_singleton]
-    refine ⟨x.1 0, Subtype.ext (funext fun j ↦ ?_)⟩
-    fin_cases j
-    simp [v₀]
-  have hv₀_hom : ∀ j, v₀.val j ∈ EquivariantRing.grading N (3 - ![3] j) := fun j ↦ by
-    fin_cases j
-    simpa [v₀] using SetLike.one_mem_graded (EquivariantRing.grading N)
-  refine ⟨n, b, d, ?_, hb⟩
-  exact GradedModuleCat.rank_one_homogeneous_basis_eq (EquivariantRing.grading N)
-    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_lt_zero N hd) hv₀_ne hv₀_span hv₀_hom b hb
+  refine ⟨n, b, d, rank_one_example_eq v₀ rfl (fun x ↦ Subtype.ext (funext fun j ↦ ?_)) b hb, hb⟩
+  fin_cases j
+  simp [v₀]
 
 -- For `p = diag(1, 0)` on shifts `(a, b)`, the image basis has degree `a` independently of `b`.
 example (N : ℕ) (a b : ℤ) :
@@ -287,20 +313,12 @@ example (N : ℕ) (a b : ℤ) :
     · simp [p]
   obtain ⟨n, bas, d, hbas⟩ := exists_homogeneous_basis_range_idempotent N 2 ![a, b] p hp hhom
   let v₀ : LinearMap.range p := ⟨![1, 0], ⟨![1, 0], funext fun j ↦ by fin_cases j <;> simp [p]⟩⟩
-  have hv₀_ne : v₀ ≠ 0 := fun h ↦ one_ne_zero (congr_fun (congr_arg Subtype.val h) 0)
-  have hv₀_span : Submodule.span (EquivariantRing N) {v₀} = ⊤ := top_unique fun x _ ↦ by
-    obtain ⟨w, hw⟩ := x.2
-    rw [Submodule.mem_span_singleton]
-    refine ⟨w 0, Subtype.ext (funext fun j ↦ ?_)⟩
-    rw [← hw]
-    fin_cases j <;> simp [v₀, p]
-  have hv₀_hom : ∀ j, v₀.val j ∈ EquivariantRing.grading N (a - ![a, b] j) := fun j ↦ by
-    fin_cases j
-    · simpa [v₀] using SetLike.one_mem_graded (EquivariantRing.grading N)
-    · simp [v₀]
-  refine ⟨hp, n, bas, d, ?_, hbas⟩
-  exact GradedModuleCat.rank_one_homogeneous_basis_eq (EquivariantRing.grading N)
-    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_lt_zero N hd) hv₀_ne hv₀_span hv₀_hom bas hbas
+  refine ⟨hp, n, bas, d,
+    rank_one_example_eq v₀ rfl (fun x ↦ ?_) bas hbas, hbas⟩
+  obtain ⟨w, hw⟩ := x.2
+  refine Subtype.ext (funext fun j ↦ ?_)
+  rw [← hw]
+  fin_cases j <;> simp [v₀, p]
 
 -- For `N + 1` variables, shifts `(2, 0)`, and `p (x, y) = (x, e₁ x)`, `p` is a degree-zero
 -- idempotent whose image has basis `(1, e₁)` of degree `2` (with second coordinate in degree
@@ -338,21 +356,12 @@ example (N : ℕ) :
     exists_homogeneous_basis_range_idempotent (N + 1) 2 ![2, 0] p hp hhom
   let v₀ : LinearMap.range p :=
     ⟨![1, e₁], ⟨![1, 0], funext fun j ↦ by fin_cases j <;> simp [p]⟩⟩
-  have hv₀_ne : v₀ ≠ 0 := fun h ↦ one_ne_zero (congr_fun (congr_arg Subtype.val h) 0)
-  have hv₀_span : Submodule.span (EquivariantRing (N + 1)) {v₀} = ⊤ := top_unique fun x _ ↦ by
-    obtain ⟨w, hw⟩ := x.2
-    rw [Submodule.mem_span_singleton]
-    refine ⟨w 0, Subtype.ext (funext fun j ↦ ?_)⟩
-    rw [← hw]
-    fin_cases j <;> simp [v₀, p, mul_comm]
-  have hv₀_hom : ∀ j, v₀.val j ∈ EquivariantRing.grading (N + 1) (2 - ![2, 0] j) := fun j ↦ by
-    fin_cases j
-    · simpa [v₀] using SetLike.one_mem_graded (EquivariantRing.grading (N + 1))
-    · simpa [v₀] using he₁
-  refine ⟨hp, by simpa using he₁, n, bas, d, ?_, hbas⟩
-  exact GradedModuleCat.rank_one_homogeneous_basis_eq (EquivariantRing.grading (N + 1))
-    (fun _ hd ↦ EquivariantRing.grading_eq_bot_of_lt_zero (N + 1) hd)
-    hv₀_ne hv₀_span hv₀_hom bas hbas
+  refine ⟨hp, by simpa using he₁, n, bas, d,
+    rank_one_example_eq v₀ rfl (fun x ↦ ?_) bas hbas, hbas⟩
+  obtain ⟨w, hw⟩ := x.2
+  refine Subtype.ext (funext fun j ↦ ?_)
+  rw [← hw]
+  fin_cases j <;> simp [v₀, p, mul_comm]
 
 end Examples
 

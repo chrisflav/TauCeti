@@ -33,6 +33,8 @@ that divides it produces a homogeneous polynomial of one degree less.
   `a * b ∈ 𝒜 (i + j)`, then `b ∈ 𝒜 j`.
 * `TauCeti.GradedAlgebra.isScalarTower_gradeZero`: the scalars act on a graded algebra through its
   degree-zero part.
+* `TauCeti.GradedAlgebra.gradeZeroEquiv`: when `𝒜 0 ≤ 1` and `R` acts faithfully on `A`, the
+  algebra map identifies `R` `R`-linearly with `𝒜 0`.
 -/
 
 public section
@@ -150,6 +152,8 @@ end Regular
 
 section GradeZero
 
+section ScalarTower
+
 variable {R A ι : Type*} [AddMonoid ι] [CommSemiring R] [CommSemiring A] [Algebra R A]
   (𝒜 : ι → Submodule R A) [SetLike.GradedMonoid 𝒜]
 
@@ -159,6 +163,36 @@ instance isScalarTower_gradeZero : IsScalarTower R (𝒜 0) A :=
   ⟨fun r a b ↦ by
     simp only [Algebra.smul_def (A := A) (R := 𝒜 0), SetLike.GradeZero.algebraMap_apply,
       Submodule.coe_smul, smul_mul_assoc]⟩
+
+end ScalarTower
+
+section ScalarEquiv
+
+variable {R A ι : Type*} [Zero ι] [CommSemiring R] [Semiring A] [Algebra R A] [FaithfulSMul R A]
+  (𝒜 : ι → Submodule R A) [SetLike.GradedOne 𝒜]
+
+/-- When `𝒜 0 ≤ 1` and `R` acts faithfully on `A`, the algebra map identifies `R` `R`-linearly with
+the degree-zero piece `𝒜 0`. -/
+noncomputable def gradeZeroEquiv (h₀ : 𝒜 0 ≤ 1) : R ≃ₗ[R] 𝒜 0 :=
+  (LinearEquiv.ofInjective (Algebra.linearMap R A) (FaithfulSMul.algebraMap_injective R A)).trans <|
+    LinearEquiv.ofEq _ _ <|
+      Submodule.one_eq_range.symm.trans
+        (le_antisymm (Submodule.one_le.mpr (SetLike.one_mem_graded 𝒜)) h₀)
+
+/-- Evaluating `gradeZeroEquiv` embeds a scalar into `𝒜 0` via `algebraMap`. -/
+@[simp]
+theorem coe_gradeZeroEquiv_apply (h₀ : 𝒜 0 ≤ 1) (r : R) :
+    (gradeZeroEquiv 𝒜 h₀ r : A) = algebraMap R A r :=
+  (rfl)
+
+/-- Applying `algebraMap` to `(gradeZeroEquiv 𝒜 h₀).symm a` recovers `(a : A)`. -/
+@[simp]
+theorem algebraMap_gradeZeroEquiv_symm (h₀ : 𝒜 0 ≤ 1) (a : 𝒜 0) :
+    algebraMap R A ((gradeZeroEquiv 𝒜 h₀).symm a) = (a : A) := by
+  simpa only [← coe_gradeZeroEquiv_apply 𝒜 h₀] using
+    congr_arg Subtype.val ((gradeZeroEquiv 𝒜 h₀).apply_symm_apply a)
+
+end ScalarEquiv
 
 end GradeZero
 

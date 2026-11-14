@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Algebra.Algebra.Operations
+public import Mathlib.LinearAlgebra.Basis.Defs
 public import TauCeti.Algebra.Module.GradedModule.DirectSum
 public import TauCeti.Algebra.Module.GradedModule.Shift
 
@@ -50,6 +51,9 @@ semiring suffices; multiplicative grading laws and a commutative base semiring a
 * `TauCeti.InternalGrading.apply_mem_smul_top_of_isGeneratedInDegree`: over a nonnegatively graded
   scalar semiring, a degree-`δ` map from a module generated in degree `d'` to a module generated
   in degree `d < d' + δ` lands in `A₊ M`.
+* `TauCeti.InternalGrading.eq_one_and_forall_eq_of_span_singleton_eq_top`: over a nonnegatively
+  graded commutative scalar semiring, any `Fin n`-indexed homogeneous basis of an internally graded
+  module spanned by a nonzero element of degree `d₀` has `n = 1` and degree `d₀`.
 
 ## References
 
@@ -298,6 +302,52 @@ theorem apply_mem_smul_top_of_isGeneratedInDegree (h𝒜 : ∀ i < 0, 𝒜 i = �
   · rw [(Submodule.eq_bot_iff _).1 (hG'.piece_eq_bot_of_lt 𝒜 h𝒜 hp) _ hx, map_zero]
     exact Submodule.zero_mem _
   · exact hG.piece_le_smul_top 𝒜 (p := p + δ) (by omega) (hf.map_mem hx)
+
+/-- Over a nonnegatively graded commutative scalar semiring, if an internally graded module `M` is
+spanned over `A` by a nonzero homogeneous element `v₀` of degree `d₀`, then any `Fin n`-indexed
+homogeneous `A`-basis `(b, d)` of `M` has `n = 1` and `d i = d₀` for all `i`. -/
+theorem eq_one_and_forall_eq_of_span_singleton_eq_top
+    {k : Type u} {A : Type u'} {M : Type v}
+    [Semiring k] [CommSemiring A] [Module k A]
+    [AddCommMonoid M] [Module k M] [Module A M]
+    (𝒜 : ℤ → Submodule k A) [DirectSum.Decomposition 𝒜]
+    {G : InternalGrading k M ℤ} [SetLike.GradedSMul 𝒜 G.piece]
+    (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) {v₀ : M} (hv₀ : v₀ ≠ 0)
+    (hspan : Submodule.span A {v₀} = ⊤) {d₀ : ℤ} (hv₀_mem : v₀ ∈ G.piece d₀)
+    {n : ℕ} (b : Module.Basis (Fin n) A M) {d : Fin n → ℤ}
+    (hb_mem : ∀ i, b i ∈ G.piece (d i)) :
+    n = 1 ∧ ∀ i, d i = d₀ := by
+  have h10 : (1 : A) ≠ 0 := fun h10 ↦ hv₀ (by rw [← one_smul A v₀, h10, zero_smul])
+  have hn : n = 1 := by
+    rcases eq_or_ne n 0 with rfl | hn0
+    · exact False.elim (hv₀ (b.repr.injective (Subsingleton.elim _ _)))
+    · by_contra hn1
+      let i₀ : Fin n := ⟨0, by omega⟩
+      let i₁ : Fin n := ⟨1, by omega⟩
+      obtain ⟨c₀, hc₀⟩ := Submodule.mem_span_singleton.mp (hspan ▸ Submodule.mem_top : b i₀ ∈ _)
+      obtain ⟨c₁, hc₁⟩ := Submodule.mem_span_singleton.mp (hspan ▸ Submodule.mem_top : b i₁ ∈ _)
+      have hrel : c₁ • b i₀ = c₀ • b i₁ := by
+        rw [← hc₀, ← hc₁, smul_smul, smul_smul, mul_comm]
+      have hc₁_zero : c₁ = 0 :=
+        by simpa [i₀, i₁, b.repr_self] using congr_arg (fun x ↦ b.repr x i₀) hrel
+      have hb₁ : b i₁ = 0 := by rw [← hc₁, hc₁_zero, zero_smul]
+      exact h10 (by simpa [b.repr_self] using congr_arg (fun x ↦ b.repr x i₁) hb₁)
+  refine ⟨hn, fun i ↦ ?_⟩
+  subst hn
+  rw [Fin.eq_zero i]
+  have hGd₀ : G.IsGeneratedInDegree A d₀ := top_unique <|
+    hspan ▸ Submodule.span_mono (Set.singleton_subset_iff.mpr hv₀_mem)
+  have hGd0 : G.IsGeneratedInDegree A (d 0) := top_unique fun x _ ↦ by
+    have hx : b.repr x 0 • b 0 ∈ Submodule.span A (G.piece (d 0) : Set M) :=
+      Submodule.smul_mem _ _ (Submodule.subset_span (hb_mem 0))
+    rwa [show b.repr x 0 • b 0 = x by simpa using b.sum_repr x] at hx
+  have hb0_ne : b 0 ≠ 0 := fun h0 ↦
+    hv₀ (by rw [show v₀ = b.repr v₀ 0 • b 0 by simpa using (b.sum_repr v₀).symm, h0, smul_zero])
+  have hle₁ : d₀ ≤ d 0 := not_lt.mp fun hlt ↦
+    hb0_ne ((Submodule.eq_bot_iff _).mp (hGd₀.piece_eq_bot_of_lt 𝒜 h𝒜 hlt) _ (hb_mem 0))
+  have hle₂ : d 0 ≤ d₀ := not_lt.mp fun hlt ↦
+    hv₀ ((Submodule.eq_bot_iff _).mp (hGd0.piece_eq_bot_of_lt 𝒜 h𝒜 hlt) _ hv₀_mem)
+  omega
 
 end InternalGrading
 

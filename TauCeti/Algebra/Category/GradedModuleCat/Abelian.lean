@@ -111,6 +111,12 @@ theorem mem_kernelCone_pt_piece_iff {p : ℤ} {z : (kernelCone f).pt} :
     z ∈ (kernelCone f).pt.grading.piece p ↔ (kernelCone f).ι.hom z ∈ M.grading.piece p :=
   InternalGrading.mem_ker_piece _ _
 
+/-- Vanishing of a homogeneous piece of the source implies vanishing of the same piece of any
+graded kernel. -/
+theorem kernelObj_piece_eq_bot_of_piece_eq_bot {p : ℤ} (hM : M.grading.piece p = ⊥) :
+    (kernelObj f).grading.piece p = ⊥ :=
+  piece_eq_bot_of_injective (kernelι f) Subtype.val_injective hM
+
 /-- The kernel of a morphism of graded modules is a limit. -/
 noncomputable def kernelIsLimit : IsLimit (kernelCone f) :=
   KernelFork.IsLimit.ofι (kernelι f) (kernelι_comp f)

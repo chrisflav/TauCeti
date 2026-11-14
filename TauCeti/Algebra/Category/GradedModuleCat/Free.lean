@@ -10,6 +10,8 @@ public import Mathlib.LinearAlgebra.Finsupp.LinearCombination
 public import Mathlib.RingTheory.GradedAlgebra.Basic
 public import Mathlib.RingTheory.Noetherian.Basic
 public import TauCeti.Algebra.Category.GradedModuleCat.Projective
+import Mathlib.Data.Fintype.Order
+import TauCeti.Algebra.Module.GradedModule.Nakayama
 
 /-!
 # Graded free modules and projective presentations
@@ -28,7 +30,10 @@ projective terms needed to construct graded resolutions; they do not assert mini
 Over a left Noetherian algebra, the kernel is again finitely generated, giving a two-term
 presentation by finite graded free modules.
 
-No positivity, semisimplicity, or finite-dimensionality assumption on the graded algebra is needed.
+For the free construction and presentations, no positivity, semisimplicity, or
+finite-dimensionality assumption on the graded algebra is needed; when the algebra is nonnegatively
+graded, a finite graded free module is bounded below and its positive-degree submodule
+`A₊ (free 𝒜 s)` is characterized coordinatewise.
 
 ## References
 
@@ -271,5 +276,101 @@ theorem exists_finite_free_presentation [IsNoetherianRing A]
   refine ⟨I, J, hI, hJ, d, e, g ≫ kernelι f, f, ?_, hf⟩
   rw [hom_comp, hom_kernelι]
   exact hg.comp_exact_iff_exact.mpr (LinearMap.exact_subtype_ker_map f.hom)
+
+/-! ### Basis reindexing and bounded-below properties -/
+
+variable (𝒜) in
+/-- Reindexing the basis of a graded free module along an equivalence `e : I ≃ J` gives a graded
+isomorphism `free 𝒜 (d ∘ e) ≅ free 𝒜 d`. -/
+def freeCongr {I J : Type uI} (e : I ≃ J) (d : J → ℤ) :
+    free 𝒜 (d ∘ e) ≅ free 𝒜 d where
+  hom := freeLift (d := d ∘ e) (M := free 𝒜 d)
+    fun i ↦ ⟨freeGenerator (e i), freeGenerator_mem_free_piece (e i)⟩
+  inv := freeLift (d := d) (M := free 𝒜 (d ∘ e))
+    fun j ↦ ⟨freeGenerator (e.symm j), by
+      simpa [Function.comp_apply] using
+        freeGenerator_mem_free_piece (𝒜 := 𝒜) (d := d ∘ e) (e.symm j)⟩
+  hom_inv_id := free_hom_ext fun i ↦ by
+    rw [hom_comp, LinearMap.comp_apply, freeLift_generator, freeLift_generator,
+      Subtype.coe_mk, Equiv.symm_apply_apply, hom_id, LinearMap.id_apply]
+  inv_hom_id := free_hom_ext fun j ↦ by
+    rw [hom_comp, LinearMap.comp_apply, freeLift_generator, freeLift_generator,
+      Subtype.coe_mk, Equiv.apply_symm_apply, hom_id, LinearMap.id_apply]
+
+variable (𝒜) in
+/-- `freeCongr` sends the `i`-th generator to the `e i`-th generator. -/
+@[simp]
+theorem freeCongr_hom_generator {I J : Type uI} (e : I ≃ J) (d : J → ℤ) (i : I) :
+    dsimp% only ((freeCongr 𝒜 e d).hom.hom (freeGenerator (𝒜 := 𝒜) i)) =
+      freeGenerator (𝒜 := 𝒜) (d := d) (e i) :=
+  freeLift_generator _ i
+
+variable (𝒜) in
+/-- The inverse of `freeCongr` sends the `j`-th generator to the `e.symm j`-th generator. -/
+@[simp]
+theorem freeCongr_inv_generator {I J : Type uI} (e : I ≃ J) (d : J → ℤ) (j : J) :
+    dsimp% only ((freeCongr 𝒜 e d).inv.hom (freeGenerator (𝒜 := 𝒜) j)) =
+      freeGenerator (𝒜 := 𝒜) (d := d ∘ e) (e.symm j) :=
+  freeLift_generator _ j
+
+variable (𝒜) in
+/-- Over a nonnegatively graded algebra, a graded free module whose shifts are bounded below by `b`
+vanishes in degrees strictly below `b`. -/
+theorem free_piece_eq_bot_of_lt {J : Type uI} (s : J → ℤ) (hneg : ∀ i < 0, 𝒜 i = ⊥)
+    {b : ℤ} (hb : ∀ j, b ≤ s j) {p : ℤ} (hp : p < b) :
+    (free 𝒜 s).grading.piece p = ⊥ := by
+  refine (Submodule.eq_bot_iff _).mpr fun x hx ↦ DirectSum.ext fun j ↦ ?_
+  rw [DirectSum.zero_apply]
+  have hxj : x j ∈ 𝒜 (p - s j) := (mem_free_piece_iff 𝒜 s p x).mp hx j
+  have hlt : p - s j < 0 := by have := hb j; omega
+  rwa [hneg _ hlt, Submodule.mem_bot] at hxj
+
+variable (𝒜) in
+/-- Over a nonnegatively graded algebra, every finite graded free module is bounded below. -/
+theorem exists_free_piece_eq_bot_of_lt {J : Type uI} [Finite J] (s : J → ℤ)
+    (hneg : ∀ i < 0, 𝒜 i = ⊥) :
+    ∃ b : ℤ, ∀ p < b, (free 𝒜 s).grading.piece p = ⊥ :=
+  let ⟨b, hb⟩ := Finite.exists_ge s
+  ⟨b, fun _ ↦ free_piece_eq_bot_of_lt 𝒜 s hneg hb⟩
+
+variable (𝒜) in
+/-- Over a nonnegatively graded algebra, a degree-`p` element of `free 𝒜 s` lies in the
+positive-degree submodule `A₊ (free 𝒜 s)` if and only if its coordinates vanish at every summand
+of shift `p`. -/
+theorem free_mem_positive_smul_top_iff {J : Type uI} (s : J → ℤ) (hneg : ∀ i < 0, 𝒜 i = ⊥)
+    {p : ℤ} {x : free 𝒜 s} (hx : x ∈ (free 𝒜 s).grading.piece p) :
+    x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k (free 𝒜 s)) ↔
+      ∀ j, s j = p → x j = 0 := by
+  let _ := (free 𝒜 s).gradedSMul
+  constructor
+  · intro hxI j hsj
+    have hdec := InternalGrading.decompose_mem_span_of_mem_positive_smul_top
+      (G := (free 𝒜 s).grading) 𝒜 hxI p
+    rw [DirectSum.decompose_of_mem_same _ hx] at hdec
+    rw [DirectSum.apply_eq_component k, ← LinearMap.mem_ker]
+    refine (Submodule.span_le (p := LinearMap.ker (DirectSum.component k J (fun _ ↦ A) j))).mpr
+      ?_ hdec
+    rintro _ ⟨i, hi, a, -, y, hy, rfl⟩
+    have hyj : y j ∈ 𝒜 (p - i - s j) := (mem_free_piece_iff 𝒜 s (p - i) y).mp hy j
+    have hlt : p - i - s j < 0 := by omega
+    rw [hneg _ hlt, Submodule.mem_bot] at hyj
+    rw [SetLike.mem_coe, LinearMap.mem_ker, ← DirectSum.apply_eq_component, DirectSum.smul_apply,
+      hyj, smul_zero]
+  · intro h
+    classical
+    rw [← DirectSum.sum_support_of x]
+    refine Submodule.sum_mem _ fun j _ ↦ ?_
+    have hlof : DirectSum.of (fun _ : J ↦ A) j (x j) =
+        (x j) • freeGenerator (𝒜 := 𝒜) (d := s) j := by
+      rw [freeGenerator_eq_lof, ← map_smul, smul_eq_mul, mul_one, DirectSum.lof_eq_of]
+    rw [hlof]
+    have hxj : x j ∈ 𝒜 (p - s j) := (mem_free_piece_iff 𝒜 s p x).mp hx j
+    rcases lt_trichotomy (s j) p with hlt | heq | hgt
+    · exact Submodule.smul_mem_smul
+        (Submodule.mem_iSup_of_mem (p - s j) (Submodule.mem_iSup_of_mem (by omega) hxj))
+        Submodule.mem_top
+    · simp [h j heq]
+    · have h0 : x j = 0 := by rwa [hneg _ (by omega), Submodule.mem_bot] at hxj
+      simp [h0]
 
 end TauCeti.GradedModuleCat

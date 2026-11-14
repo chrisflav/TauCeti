@@ -153,6 +153,14 @@ theorem piece_eq_bot_of_surjective (f : M ⟶ N)
   rw [add_zero, _root_.DirectSum.decompose_of_mem_same N.grading.piece hy, hx, map_zero] at h
   exact h.symm
 
+/-- A graded injection reflects vanishing of a homogeneous piece. In particular, a graded
+submodule of a module vanishing in degree `p` also vanishes in degree `p`. -/
+theorem piece_eq_bot_of_injective (f : M ⟶ N)
+    (hf : Function.Injective f.hom) {p : ℤ} (hp : N.grading.piece p = ⊥) :
+    M.grading.piece p = ⊥ :=
+  (Submodule.eq_bot_iff _).mpr fun x hx ↦
+    hf <| ((Submodule.eq_bot_iff _).mp hp (f.hom x) (map_mem f hx)).trans (map_zero f.hom).symm
+
 end Hom
 
 section Linear
