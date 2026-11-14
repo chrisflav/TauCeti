@@ -6,6 +6,8 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Algebra.Homology.Additive
+public import Mathlib.Algebra.Homology.Embedding.CochainComplex
+public import Mathlib.Algebra.Homology.Embedding.RestrictionHomology
 public import Mathlib.Algebra.Homology.HomologicalComplexAbelian
 public import Mathlib.CategoryTheory.ObjectProperty.ClosedUnderIsomorphisms
 public import TauCeti.Algebra.Homology.HomologicalComplex.Basic
@@ -20,9 +22,15 @@ and `B` in `P` also `C` lies in `P`, and `F` sends such a sequence to a short ex
 (`HomologicalComplex.Acyclic.map_of_shortExact`). The cycles `Zⁿ` lie in `P` by induction, using
 the short exact sequences `0 ⟶ Zⁿ ⟶ Qⁿ ⟶ Zⁿ⁺¹ ⟶ 0`, and `F` keeps these exact.
 
+Restricting a cochain complex `Q : CochainComplex C ℤ` which is strictly `≥ b` along
+`ComplexShape.embeddingUpIntGE b` preserves and reflects acyclicity
+(`CochainComplex.acyclic_restriction_embeddingUpIntGE_iff`), so `F` likewise preserves acyclicity
+of bounded-below `ℤ`-indexed cochain complexes whose terms in degrees `≥ b` lie in `P`
+(`HomologicalComplex.Acyclic.map_of_shortExact_of_isStrictlyGE`).
+
 ## References
 
-* The Stacks Project, Derived Categories, Lemma 13.15.6 (tag 05T8).
+* The Stacks Project, Derived Categories, Lemma 13.15.6 (tag 05T8) and Lemma 13.16.7 (tag 015E).
 * M. Kashiwara, P. Schapira, *Categories and Sheaves*, Grundlehren 332, Springer, 2006,
   Definition 13.3.4, where such classes are called `F`-injective.
 -/
@@ -34,6 +42,54 @@ noncomputable section
 open CategoryTheory Limits HomologicalComplex
 
 universe v₁ v₂ u₁ u₂
+
+namespace CochainComplex
+
+variable {C : Type u₁} [Category.{v₁} C] [HasZeroMorphisms C]
+
+/-- For a cochain complex `Q` indexed by `ℤ` that vanishes in degrees `< b`, its restriction to
+`ℕ` starting in degree `b` is acyclic if and only if `Q` is acyclic. -/
+theorem acyclic_restriction_embeddingUpIntGE_iff (Q : CochainComplex C ℤ) (b : ℤ)
+    [Q.IsStrictlyGE b] :
+    (Q.restriction (ComplexShape.embeddingUpIntGE b)).Acyclic ↔ Q.Acyclic := by
+  let e := ComplexShape.embeddingUpIntGE b
+  have hzero : (Q.restriction e).ExactAt 0 ↔ Q.ExactAt b := by
+    rw [exactAt_iff' (Q.restriction e) 0 0 1 (by simp) (by simp),
+      exactAt_iff' Q (b - 1) b (b + 1) (by simp) (by simp)]
+    -- In degree `0`, compare `Q^b ⟶ Q^b ⟶ Q^{b+1}` (first map `0`) with `Q^{b-1} ⟶ Q^b ⟶ Q^{b+1}`,
+    -- using that `Q^{b-1}` is zero so `0 : Q^b ⟶ Q^{b-1}` is an epimorphism.
+    have hf0 : e.f 0 = b := by simp [e]
+    have hf1 : e.f 1 = b + 1 := by simp [e]
+    let ψ : (Q.restriction e).sc' 0 0 1 ⟶ Q.sc' (b - 1) b (b + 1) :=
+      { τ₁ := 0
+        τ₂ := (Q.restrictionXIso e hf0).hom
+        τ₃ := (Q.restrictionXIso e hf1).hom
+        comm₁₂ := by simp
+        comm₂₃ := by
+          rw [← cancel_mono (Q.restrictionXIso e hf1).inv]
+          simpa using (Q.restriction_d_eq e hf0 hf1).symm }
+    have : Epi ψ.τ₁ := (Q.isZero_of_isStrictlyGE b (b - 1)).epi _
+    have : IsIso ψ.τ₂ := by dsimp [ψ]; infer_instance
+    have : Mono ψ.τ₃ := by dsimp [ψ]; infer_instance
+    exact ShortComplex.exact_iff_of_epi_of_isIso_of_mono ψ
+  have hsucc (n : ℕ) : (Q.restriction e).ExactAt (n + 1) ↔ Q.ExactAt (b + (n + 1 : ℕ)) := by
+    rw [exactAt_iff' (Q.restriction e) n (n + 1) (n + 2) (by simp)
+        (by simp only [CochainComplex.next]; rfl),
+      exactAt_iff' Q (b + n) (b + (n + 1 : ℕ)) (b + (n + 2 : ℕ)) (by simp; lia) (by simp; lia)]
+    exact ShortComplex.exact_iff_of_iso (restriction.sc'Iso Q e n (n + 1) (n + 2)
+      (by simp [e]) (by simp [e]) (by simp [e]) (by simp; lia) (by simp; lia))
+  refine ⟨fun h i ↦ ?_, fun h n ↦ ?_⟩
+  · by_cases hi : b ≤ i
+    · obtain ⟨k, rfl⟩ := Int.exists_add_of_le hi
+      rcases k with _ | n
+      · simpa using hzero.1 (h 0)
+      · exact (hsucc n).1 (h (n + 1))
+    · exact ShortComplex.exact_of_isZero_X₂ _ (Q.isZero_of_isStrictlyGE b i (by lia))
+  · rcases n with _ | n
+    · exact hzero.2 (h b)
+    · exact (hsucc n).2 (h (b + (n + 1 : ℕ)))
+
+end CochainComplex
 
 namespace HomologicalComplex.Acyclic
 
@@ -119,5 +175,18 @@ theorem map_of_shortExact (hQ : Q.Acyclic) (hQP : ∀ n, P (Q.X n)) :
     exact (ShortComplex.exact_iff_of_epi_of_isIso_of_mono φ').1
       ((ShortComplex.exact_iff_of_epi_of_isIso_of_mono φ).2
         (shortExact_map_cyclesSequence F P hP hF hQ hQP n).exact)
+
+include hP hF in
+/-- **`F` preserves acyclicity of bounded-below complexes in an adapted class.** Let `P` be a class
+of objects closed under isomorphisms and under cokernels of monomorphisms, on whose short exact
+sequences `F` is exact. If `Q : CochainComplex C ℤ` vanishes below degree `b`, is acyclic, and has
+all terms in degrees `≥ b` in `P`, then `F(Q)` is acyclic. -/
+theorem map_of_shortExact_of_isStrictlyGE {Q : CochainComplex C ℤ} (b : ℤ) [Q.IsStrictlyGE b]
+    (hQ : Q.Acyclic) (hQP : ∀ n : ℤ, b ≤ n → P (Q.X n)) :
+    ((F.mapHomologicalComplex (.up ℤ)).obj Q).Acyclic := by
+  rw [← CochainComplex.acyclic_restriction_embeddingUpIntGE_iff _ b]
+  exact map_of_shortExact F P hP hF
+    ((CochainComplex.acyclic_restriction_embeddingUpIntGE_iff Q b).2 hQ)
+    (fun k ↦ hQP (b + k) (by lia))
 
 end HomologicalComplex.Acyclic
