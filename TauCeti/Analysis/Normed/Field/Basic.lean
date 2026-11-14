@@ -13,6 +13,7 @@ import Mathlib.Algebra.Order.BigOperators.GroupWithZero.Multiset
 import Mathlib.Analysis.Normed.Module.Seminorm.Norm
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Topology.Order.IntermediateValue
+import TauCeti.Analysis.Normed.Group.Basic
 
 /-!
 # Separating radii by norms of a nontrivially normed field, and solving norm equations
@@ -34,7 +35,8 @@ side is the Gauss norm at radius `‖d‖` of the polynomial with roots `s`, so 
 which that Gauss norm equals `‖c‖`.
 
 A normed field whose norm takes every positive real value is densely normed
-(`DenselyNormedField.ofForallExistsNormEq`).
+(`DenselyNormedField.ofForallExistsNormEq`), and in any densely normed field the closure of the
+nonzero norms is `[0, ∞)` (`NormedField.closure_range_norm_sdiff_singleton_zero`).
 
 Finally, `TauCeti.norm_sub_div_le_of_dist_div_le` turns a bound on the ratio `F / w` near `c⁻¹`
 into a relative error bound for `F - w / c`.
@@ -189,6 +191,12 @@ def DenselyNormedField.ofForallExistsNormEq {𝕜 : Type*} [h' : NormedField �
   lt_norm_lt r₁ r₂ h₀ hr := by
     obtain ⟨x, hx⟩ := h ((r₁ + r₂) / 2) (by linarith)
     exact ⟨x, by linarith, by linarith⟩
+
+/-- In a densely normed field, the closure of the nonzero norms is `[0, ∞)`. -/
+theorem NormedField.closure_range_norm_sdiff_singleton_zero (𝕜 : Type*) [DenselyNormedField 𝕜] :
+    closure (Set.range (norm : 𝕜 → ℝ) \ {0}) = Set.Ici 0 :=
+  TauCeti.closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_lt_norm_lt fun _ _ ↦
+    DenselyNormedField.lt_norm_lt _ _
 
 namespace TauCeti
 

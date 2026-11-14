@@ -31,7 +31,8 @@ For a normed `ℚ_[p]`-algebra `K`, the composite structure map
 `TauCeti.padicIntAlgebraMap p K : ℤ_[p] →+* K` is continuous. When `‖1‖ = 1` in `K` it is an
 isometry, so it maps `ℤ_[p]` into the closed unit ball of `K`, and it is injective when `K` is
 nontrivial. When `‖1‖ = 1` in `K`, the norm of a natural number in `K` is also its `p`-adic norm
-(`TauCeti.norm_natCast_eq_norm_padic`).
+(`TauCeti.norm_natCast_eq_norm_padic`). The nonzero norms of `ℚ_[p]` are the integer powers of `p`
+(`Padic.range_norm_sdiff_singleton_zero`).
 -/
 
 public section
@@ -119,3 +120,20 @@ theorem continuous_padicIntAlgebraMap : Continuous (padicIntAlgebraMap p K) :=
 end Algebra
 
 end TauCeti
+
+namespace Padic
+
+/-- **Nonzero norms of `ℚ_[p]`.** The nonzero norms of `ℚ_[p]` are the integer powers of `p`. -/
+theorem range_norm_sdiff_singleton_zero (p : ℕ) [Fact p.Prime] :
+    Set.range (norm : ℚ_[p] → ℝ) \ {0} = Set.range fun m : ℤ ↦ (p : ℝ) ^ m := by
+  ext r
+  simp only [Set.mem_sdiff, Set.mem_range, Set.mem_singleton_iff]
+  constructor
+  · rintro ⟨⟨x, rfl⟩, hx⟩
+    exact ⟨-x.valuation, (Padic.norm_eq_zpow_neg_valuation (norm_ne_zero_iff.mp hx)).symm⟩
+  · rintro ⟨m, rfl⟩
+    have hp0 : (0 : ℝ) < p := Nat.cast_pos.mpr (Fact.out : p.Prime).pos
+    refine ⟨⟨(p : ℚ_[p]) ^ (-m), ?_⟩, (zpow_pos hp0 m).ne'⟩
+    rw [norm_zpow, Padic.norm_p, inv_zpow, zpow_neg, inv_inv]
+
+end Padic

@@ -121,6 +121,26 @@ theorem radius_coe (p : Polynomial R) : (p : R⟦X⟧).radius = ⊤ :=
 theorem radius_zero : (0 : R⟦X⟧).radius = ⊤ :=
   radius_eq_top_iff.mpr isEntire_zero
 
+/-- The constant series `1` has infinite radius. -/
+@[simp]
+theorem radius_one : (1 : R⟦X⟧).radius = ⊤ :=
+  radius_eq_top_iff.mpr isEntire_one
+
+/-- Constant series have infinite radius. -/
+@[simp]
+theorem radius_C (a : R) : (C a).radius = ⊤ :=
+  radius_eq_top_iff.mpr (isEntire_C a)
+
+/-- The variable `X` has infinite radius. -/
+@[simp]
+theorem radius_X : (X : R⟦X⟧).radius = ⊤ :=
+  radius_eq_top_iff.mpr isEntire_X
+
+/-- Monomials have infinite radius. -/
+@[simp]
+theorem radius_monomial (n : ℕ) (a : R) : (monomial n a).radius = ⊤ :=
+  radius_eq_top_iff.mpr (isEntire_monomial n a)
+
 /-- The radius is positive exactly when the series is restricted at some positive radius. -/
 theorem radius_pos_iff : 0 < f.radius ↔ ∃ r : ℝ, 0 < r ∧ f.IsRestricted r := by
   refine ⟨fun h ↦ ?_, fun ⟨r, hr, hf⟩ ↦ ?_⟩
@@ -153,6 +173,12 @@ theorem radius_le_radius_of_norm_coeff_le {g : S⟦X⟧} (h : ∀ n, ‖coeff n 
     f.radius ≤ g.radius := by
   rw [radius_eq_radius_ofScalars_norm f, radius_eq_radius_ofScalars_norm g]
   exact FormalMultilinearSeries.radius_le_of_le fun n ↦ by simpa using h n
+
+/-- Negating a power series preserves its radius. -/
+@[simp]
+theorem radius_neg (f : R⟦X⟧) : (-f).radius = f.radius :=
+  le_antisymm (radius_le_radius_of_norm_coeff_le fun n ↦ by simp)
+    (radius_le_radius_of_norm_coeff_le fun n ↦ by simp)
 
 /-- Coefficient maps preserving norms preserve the radius. -/
 theorem radius_map (φ : R →+* S) (hφ : ∀ x, ‖φ x‖ = ‖x‖) :

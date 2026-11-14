@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import TauCeti.Analysis.Normed.Ring.LogGauge.Basic
+import TauCeti.Analysis.Normed.Group.Basic
 import TauCeti.Analysis.SpecialFunctions.Pow.Real
 
 /-!
@@ -309,17 +310,9 @@ theorem exists_lt_norm_lt_of_forall_exists_ratAddValuation
 norms of `R` is `[0, ∞)`. -/
 theorem closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_ratAddValuation
     (hsurj : ∀ q : ℚ, ∃ x : R, ϖ.ratAddValuation hϖ x = q) :
-    closure (Set.range (norm : R → ℝ) \ {0}) = Set.Ici 0 := by
-  refine Set.Subset.antisymm (closure_minimal ?_ isClosed_Ici) fun r hr ↦ ?_
-  · rintro _ ⟨⟨x, rfl⟩, -⟩
-    exact norm_nonneg x
-  · rw [Metric.mem_closure_iff]
-    intro ε hε
-    obtain ⟨x, hr₁, hr₂⟩ := exists_lt_norm_lt_of_forall_exists_ratAddValuation hϖ hsurj hr
-      (lt_add_of_pos_right r hε)
-    refine ⟨‖x‖, ⟨⟨x, rfl⟩, (hr.trans_lt hr₁).ne'⟩, ?_⟩
-    rw [Real.dist_eq, abs_sub_lt_iff]
-    exact ⟨by linarith, by linarith⟩
+    closure (Set.range (norm : R → ℝ) \ {0}) = Set.Ici 0 :=
+  TauCeti.closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_lt_norm_lt
+    fun _ _ ↦ exists_lt_norm_lt_of_forall_exists_ratAddValuation hϖ hsurj
 
 end RatAddValuation
 

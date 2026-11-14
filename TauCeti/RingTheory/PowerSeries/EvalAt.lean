@@ -470,12 +470,11 @@ section Restricted
 open Filter
 open scoped Topology
 
-variable {R A : Type*} [NormedCommRing R] [NormedRing A] [Algebra R A] [IsBoundedSMul R A]
-  {c : ℝ} {f g : R⟦X⟧} {b : A}
-
 /-- At a point `b` with `‖b‖ ≤ c`, the terms `aₙ • bⁿ` of a series restricted at the radius `c`
 tend to zero. -/
-theorem IsRestricted.tendsto_smul_pow (hf : f.IsRestricted c) (hb : ‖b‖ ≤ c) :
+theorem IsRestricted.tendsto_smul_pow {R A : Type*} [NormedRing R] [SeminormedRing A]
+    [SMulZeroClass R A] [IsBoundedSMul R A] {c : ℝ} {f : R⟦X⟧} {b : A}
+    (hf : f.IsRestricted c) (hb : ‖b‖ ≤ c) :
     Tendsto (fun n ↦ coeff n f • b ^ n) cofinite (𝓝 0) := by
   refine squeeze_zero_norm' ?_ ((isRestricted_iff c f).mp hf)
   -- `‖bⁿ‖ ≤ ‖b‖ⁿ` only holds for `n ≥ 1`, so the term of index `0` is set aside
@@ -484,16 +483,19 @@ theorem IsRestricted.tendsto_smul_pow (hf : f.IsRestricted c) (hb : ‖b‖ ≤ 
     ((norm_pow_le' b (Nat.pos_of_ne_zero (Set.mem_compl_singleton_iff.mp hn))).trans
       (pow_le_pow_left₀ (norm_nonneg b) hb n)) (norm_nonneg _)
 
-variable [IsUltrametricDist A] [CompleteSpace A]
-
-/-- **Evaluation of restricted series.** In a complete ultrametric normed algebra, for a series
+/-- **Evaluation of restricted series.** In a complete ultrametric seminormed algebra, for a series
 `f = ∑ aₙ Xⁿ` restricted at the radius `c` and a point `b` with `‖b‖ ≤ c`, the series
 `∑ aₙ • bⁿ` converges to `f(b)`. -/
-theorem IsRestricted.hasSum_evalAt (hf : f.IsRestricted c) (hb : ‖b‖ ≤ c) :
+theorem IsRestricted.hasSum_evalAt {R A : Type*} [NormedCommRing R] [SeminormedRing A]
+    [Algebra R A] [IsBoundedSMul R A] [IsUltrametricDist A] [CompleteSpace A]
+    {c : ℝ} {f : R⟦X⟧} {b : A} (hf : f.IsRestricted c) (hb : ‖b‖ ≤ c) :
     HasSum (fun n ↦ coeff n f • b ^ n) (f.evalAt b) := by
   rw [evalAt_def]
   exact (NonarchimedeanAddGroup.summable_of_tendsto_cofinite_zero
     (hf.tendsto_smul_pow hb)).hasSum
+
+variable {R A : Type*} [NormedCommRing R] [NormedRing A] [Algebra R A] [IsBoundedSMul R A]
+  [IsUltrametricDist A] [CompleteSpace A] {c : ℝ} {f g : R⟦X⟧} {b : A}
 
 /-- Evaluation at a point of norm at most `c` is additive on series restricted at `c`. -/
 theorem IsRestricted.evalAt_add (hf : f.IsRestricted c) (hg : g.IsRestricted c) (hb : ‖b‖ ≤ c) :

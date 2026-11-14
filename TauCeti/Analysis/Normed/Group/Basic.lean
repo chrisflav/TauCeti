@@ -36,6 +36,10 @@ A sum `z + a` with `‖a‖ < ‖z‖` is nonzero.
 A constant bound on `‖f x‖` over a ball of positive radius is nonnegative, since the ball
 contains `0`.
 
+If the norms of `E` separate any two radii `0 ≤ r₁ < r₂`, the closure of the nonzero norms of `E`
+is `[0, ∞)`; conversely, when the nonzero norms of `E` lie in `{b ^ m | m : ℤ}` with `b > 1`, no
+element has extended norm strictly between `b ^ m` and `b ^ (m + 1)`.
+
 ## Main declarations
 
 * `TauCeti.norm_sub_sq_le_two_mul` -- the squared triangle inequality through an intermediate
@@ -55,6 +59,10 @@ contains `0`.
 * `TauCeti.add_ne_zero_of_norm_lt` -- `z + a ≠ 0` when `‖a‖ < ‖z‖`.
 * `TauCeti.nonneg_of_forall_norm_lt` -- a constant bound on `‖f x‖` over a ball of positive radius
   is nonnegative.
+* `TauCeti.closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_lt_norm_lt` -- the
+  closure of the nonzero norms is `[0, ∞)` when norms separate any `0 ≤ r₁ < r₂`.
+* `TauCeti.ofReal_zpow_add_one_le_eNorm_of_lt` -- discrete integer-power norms admit no extended
+  norm strictly between `b ^ m` and `b ^ (m + 1)`.
 -/
 
 public section
@@ -144,5 +152,38 @@ theorem nonneg_of_forall_norm_lt {E F 𝓕 : Type*} [SeminormedAddGroup E] [Semi
     [FunLike 𝓕 E F] (f : 𝓕) {δ B : ℝ} (hδ : 0 < δ) (hf : ∀ x : E, ‖x‖ < δ → ‖f x‖ ≤ B) :
     0 ≤ B :=
   (norm_nonneg _).trans <| hf 0 (by simpa using hδ)
+
+/-- When the norms of `E` separate any two radii `0 ≤ r₁ < r₂`, the closure of the nonzero norms of
+`E` is `[0, ∞)`. -/
+theorem closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_lt_norm_lt {E : Type*}
+    [SeminormedAddGroup E] (h : ∀ r₁ r₂ : ℝ, 0 ≤ r₁ → r₁ < r₂ → ∃ x : E, r₁ < ‖x‖ ∧ ‖x‖ < r₂) :
+    closure (Set.range (norm : E → ℝ) \ {0}) = Set.Ici 0 := by
+  refine Set.Subset.antisymm (closure_minimal ?_ isClosed_Ici) fun r hr ↦ ?_
+  · rintro _ ⟨⟨x, rfl⟩, -⟩
+    exact norm_nonneg x
+  · rw [Metric.mem_closure_iff]
+    intro ε hε
+    obtain ⟨x, hr₁, hr₂⟩ := h r (r + ε) hr (lt_add_of_pos_right r hε)
+    refine ⟨‖x‖, ⟨⟨x, rfl⟩, (hr.trans_lt hr₁).ne'⟩, ?_⟩
+    rw [Real.dist_eq, abs_sub_lt_iff]
+    exact ⟨by linarith, by linarith⟩
+
+/-- When every nonzero norm in `E` is an integer power of `b > 1`, no element of `E` has extended
+norm strictly between `b ^ m` and `b ^ (m + 1)`. -/
+theorem ofReal_zpow_add_one_le_eNorm_of_lt {E : Type*} [SeminormedAddGroup E] {b : ℝ} (hb : 1 < b)
+    (hdisc : Set.range (norm : E → ℝ) \ {0} ⊆ Set.range fun m : ℤ ↦ b ^ m) {m : ℤ} {x : E}
+    (hx : ENNReal.ofReal (b ^ m) < ‖x‖ₑ) :
+    ENNReal.ofReal (b ^ (m + 1)) ≤ ‖x‖ₑ := by
+  have hx0 : ‖x‖ ≠ 0 := by
+    intro h0
+    rw [← ofReal_norm, h0, ENNReal.ofReal_zero] at hx
+    exact not_lt_zero hx
+  obtain ⟨k, hk⟩ := hdisc ⟨⟨x, rfl⟩, hx0⟩
+  dsimp only at hk
+  have heq : ‖x‖ₑ = ENNReal.ofReal (b ^ k) := by rw [← ofReal_norm, hk]
+  rw [heq] at hx ⊢
+  have hmk : m < k := (zpow_lt_zpow_iff_right₀ hb).mp
+    ((ENNReal.ofReal_lt_ofReal_iff (zpow_pos (zero_lt_one.trans hb) k)).mp hx)
+  exact ENNReal.ofReal_le_ofReal (zpow_le_zpow_right₀ hb.le (Int.add_one_le_iff.mpr hmk))
 
 end TauCeti

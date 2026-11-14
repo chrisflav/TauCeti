@@ -26,8 +26,7 @@ field a sufficiently close approximation of a nonzero element has the same norm.
 On `ℚ_[p]` it restricts to Mathlib's `Padic.addValuation`. Since `ℂ_[p]` is algebraically closed,
 every rational number is a value: a root `x` of `x ^ n = p ^ m` with `n > 0` has `v(x) = m / n`.
 For example a cube root of `p` has valuation `1 / 3`. Consequently the nonzero norms of `ℂ_[p]`
-are the rational powers `p ^ q`, so `ℂ_[p]` is densely normed and the closure of its nonzero norms
-is `[0, ∞)`.
+are the rational powers `p ^ q`, so `ℂ_[p]` is densely normed.
 
 ## Main definitions
 
@@ -44,9 +43,8 @@ is `[0, ∞)`.
 * `PadicComplex.addValuation_algebraMap`: on `ℚ_[p]` the valuation is `Padic.addValuation`.
 * `PadicComplex.addValuation_eq_of_pow_eq_zpow`: a root of `x ^ n = p ^ m` has valuation `m / n`.
 * `PadicComplex.addValuation_surjective`: every rational number is a value.
-* `PadicComplex.range_norm_sdiff_singleton_zero`, `PadicComplex.denselyNormedField`, and
-  `PadicComplex.closure_range_norm_sdiff_singleton_zero`: the nonzero norms of `ℂ_[p]` are the
-  rational powers of `p`, making `ℂ_[p]` densely normed.
+* `PadicComplex.range_norm_sdiff_singleton_zero` and `PadicComplex.denselyNormedField`: the nonzero
+  norms of `ℂ_[p]` are the rational powers of `p`, making `ℂ_[p]` densely normed.
 
 ## References
 
@@ -182,12 +180,5 @@ noncomputable instance denselyNormedField : DenselyNormedField ℂ_[p] where
   lt_norm_lt _ _ hr₀ hr := by
     exact PseudoUniformizer.exists_lt_norm_lt_of_forall_exists_ratAddValuation (isCommensurable p _)
       forall_exists_ratAddValuation hr₀ hr
-
-variable (p) in
-/-- The closure of the nonzero norms of `ℂ_[p]` is `[0, ∞)`. -/
-theorem closure_range_norm_sdiff_singleton_zero :
-    closure (Set.range (norm : ℂ_[p] → ℝ) \ {0}) = Set.Ici 0 :=
-  PseudoUniformizer.closure_range_norm_sdiff_singleton_zero_eq_Ici_of_forall_exists_ratAddValuation
-    (isCommensurable p _) forall_exists_ratAddValuation
 
 end PadicComplex
