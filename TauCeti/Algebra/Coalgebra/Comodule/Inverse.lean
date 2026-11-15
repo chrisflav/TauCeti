@@ -29,8 +29,9 @@ two comodules is a comodule morphism `TauCeti.Comodule.Hom.inverse f`.
 
 ## Main results
 
-* `TauCeti.Comodule.Hom.map_coact_of_comp_eq_id`: a two-sided linear inverse of a comodule
-  morphism commutes with the coactions.
+* `TauCeti.Comodule.Hom.map_coact_of_comp_eq_id` and
+  `TauCeti.Comodule.leftCoact_comp_of_comp_eq_id`: a two-sided linear inverse of a map intertwining
+  right or left coactions again intertwines the coactions.
 * `TauCeti.Comodule.Hom.ringInverse_comp_self` and `TauCeti.Comodule.Hom.comp_ringInverse`: it is
   a two-sided inverse of `f` when the underlying linear map of `f` is invertible.
 * `TauCeti.Comodule.Hom.ringInverse_of_not_isUnit`: it is zero otherwise.
@@ -140,6 +141,22 @@ theorem comp_inverse (f : Hom R C M N) (hf : Function.Bijective f) :
   ext fun n ↦ (LinearEquiv.ofBijective f.toLinearMap hf).apply_symm_apply n
 
 end Hom
+
+/-- A two-sided linear inverse `V` of a linear map `F` intertwining two left coactions `δX` and
+`δY` again intertwines the left coactions. -/
+theorem leftCoact_comp_of_comp_eq_id {R C X Y : Type*} [CommSemiring R]
+    [AddCommMonoid C] [Module R C] [AddCommMonoid X] [Module R X] [AddCommMonoid Y] [Module R Y]
+    {δX : X →ₗ[R] C ⊗[R] X} {δY : Y →ₗ[R] C ⊗[R] Y} {F : X →ₗ[R] Y} {V : Y →ₗ[R] X}
+    (hF : δY ∘ₗ F = F.lTensor C ∘ₗ δX) (hVF : V ∘ₗ F = LinearMap.id)
+    (hFV : F ∘ₗ V = LinearMap.id) :
+    δX ∘ₗ V = V.lTensor C ∘ₗ δY := by
+  refine LinearMap.ext fun y ↦ ?_
+  have h1 := LinearMap.congr_fun hFV y
+  have h2 := LinearMap.congr_fun hF (V y)
+  rw [LinearMap.comp_apply, LinearMap.id_apply] at h1
+  rw [LinearMap.comp_apply, LinearMap.comp_apply] at h2
+  rw [LinearMap.comp_apply, LinearMap.comp_apply, ← h1, h2, ← LinearMap.comp_apply (V.lTensor C),
+    ← LinearMap.lTensor_comp, hVF, LinearMap.lTensor_id, LinearMap.id_apply, h1]
 
 end Comodule
 

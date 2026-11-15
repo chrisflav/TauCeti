@@ -29,11 +29,20 @@ This is the input of homological transfer for right `A∞` modules, where `C` is
 bar construction of the algebra and `b` its bar differential: the higher module operations are
 then a perturbation of the tensored contraction.
 
+Symmetrically, if `C` is graded and `b` has degree one, tensoring on the left gives a contraction
+`(1 ⊗ i, 1 ⊗ p, τ ⊗ h)` of `C ⊗ M` onto `C ⊗ N` for the endomorphisms `b ⊗ 1 + τ ⊗ d`, where
+`τ` is the Koszul twist of `C` (`TauCeti.LinearSpecialContraction.lTensor`): `b` anticommutes with
+`τ`, so the cross terms `(b τ + τ b) ⊗ h` cancel, and no grading on `M` or `N` is needed.  Together
+with `rTensor`, this builds the two-sided bar contraction used in homological transfer for `A∞`
+bimodules.
+
 ## Main definitions
 
-* `TauCeti.LinearContraction.rTensor`: the contraction `(i ⊗ 1, p ⊗ 1, h ⊗ 1)` without side
-  conditions, with homogeneity lemmas for its three maps.
-* `TauCeti.LinearSpecialContraction.rTensor`: the special contraction `(i ⊗ 1, p ⊗ 1, h ⊗ 1)`.
+* `TauCeti.LinearContraction.rTensor` and `TauCeti.LinearContraction.lTensor`: the contractions
+  `(i ⊗ 1, p ⊗ 1, h ⊗ 1)` and `(1 ⊗ i, 1 ⊗ p, τ ⊗ h)` without side conditions, with homogeneity
+  lemmas for their three maps.
+* `TauCeti.LinearSpecialContraction.rTensor` and `TauCeti.LinearSpecialContraction.lTensor`: the
+  corresponding special contractions.
 
 ## References
 
@@ -56,7 +65,10 @@ variable {R : Type uR} [CommRing R]
   [AddCommGroup M] [Module R M] [AddCommGroup N] [Module R N]
   [AddCommGroup C] [Module R C]
   {dM : Module.End R M} {dN : Module.End R N}
-  (G : InternalGrading R M ℤ) (H : InternalGrading R N ℤ) (b : Module.End R C)
+
+section Right
+
+variable (G : InternalGrading R M ℤ) (H : InternalGrading R N ℤ) (b : Module.End R C)
   (c : LinearContraction dM dN)
   (hh : LinearMap.IsHomogeneous c.homotopy G.piece G.piece (-1))
   (hi : LinearMap.IsHomogeneous c.incl H.piece G.piece 0)
@@ -132,6 +144,81 @@ theorem isHomogeneous_rTensor_homotopy (K : InternalGrading R C ℤ) :
   rw [rTensor_homotopy]
   exact hh.rTensor K
 
+end Right
+
+section Left
+
+variable {b : Module.End R C} {K : InternalGrading R C ℤ} (c : LinearContraction dM dN)
+  (hb : LinearMap.IsHomogeneous b K.piece K.piece 1)
+
+/-- Tensor a contraction on the left with a graded module carrying a degree-one endomorphism `b`.
+The homotopy twists the left factor by the Koszul sign `K.koszulTwist 1` of passing `C`. -/
+noncomputable def lTensor :
+    LinearContraction
+      (b.rTensor M + TensorProduct.map (K.koszulTwist 1) dM)
+      (b.rTensor N + TensorProduct.map (K.koszulTwist 1) dN) where
+  incl := c.incl.lTensor C
+  proj := c.proj.lTensor C
+  homotopy := TensorProduct.map (K.koszulTwist 1) c.homotopy
+  dM_comp_incl := TensorProduct.ext' fun x y ↦ by simp
+  proj_comp_dM := TensorProduct.ext' fun x y ↦ by simp
+  proj_comp_incl := TensorProduct.ext' fun x y ↦ by simp
+  dM_comp_homotopy_add_homotopy_comp_dM := by
+    apply TensorProduct.ext'
+    intro x y
+    have hbτ : K.koszulTwist 1 (b x) = -b (K.koszulTwist 1 x) := by
+      simpa using hb.koszulTwist_apply 1 x
+    have hc := LinearMap.congr_fun c.dM_comp_homotopy_add_homotopy_comp_dM y
+    simp only [LinearMap.add_apply, LinearMap.comp_apply, LinearMap.sub_apply,
+      LinearMap.id_apply] at hc
+    simp only [LinearMap.add_apply, LinearMap.comp_apply, LinearMap.rTensor_tmul,
+      LinearMap.lTensor_tmul, TensorProduct.map_tmul, LinearMap.id_apply, map_add,
+      LinearMap.sub_apply, K.koszulTwist_koszulTwist, hbτ, TensorProduct.neg_tmul]
+    calc
+      _ = x ⊗ₜ[R] (dM (c.homotopy y) + c.homotopy (dM y)) := by
+        rw [TensorProduct.tmul_add]
+        abel
+      _ = _ := by rw [hc, TensorProduct.tmul_sub]
+
+@[simp]
+theorem lTensor_incl : (c.lTensor hb).incl = c.incl.lTensor C := (rfl)
+
+@[simp]
+theorem lTensor_proj : (c.lTensor hb).proj = c.proj.lTensor C := (rfl)
+
+@[simp]
+theorem lTensor_homotopy :
+    (c.lTensor hb).homotopy = TensorProduct.map (K.koszulTwist 1) c.homotopy := (rfl)
+
+/-- The left tensor extension's inclusion has degree zero when the original inclusion does. -/
+theorem isHomogeneous_lTensor_incl {G : InternalGrading R M ℤ} {H : InternalGrading R N ℤ}
+    (hi : LinearMap.IsHomogeneous c.incl H.piece G.piece 0) :
+    LinearMap.IsHomogeneous (c.lTensor hb).incl
+      (K.tensorProduct H).piece (K.tensorProduct G).piece 0 := by
+  rw [lTensor_incl, LinearMap.lTensor_def]
+  simpa only [zero_add] using (LinearMap.isHomogeneous_id (R := R) K.piece).tensorProduct hi
+
+/-- The left tensor extension's projection has degree zero when the original projection does. -/
+theorem isHomogeneous_lTensor_proj {G : InternalGrading R M ℤ} {H : InternalGrading R N ℤ}
+    (hp : LinearMap.IsHomogeneous c.proj G.piece H.piece 0) :
+    LinearMap.IsHomogeneous (c.lTensor hb).proj
+      (K.tensorProduct G).piece (K.tensorProduct H).piece 0 := by
+  rw [lTensor_proj, LinearMap.lTensor_def]
+  simpa only [zero_add] using (LinearMap.isHomogeneous_id (R := R) K.piece).tensorProduct hp
+
+/-- The left tensor extension's homotopy has degree `-1` when the original homotopy does. -/
+theorem isHomogeneous_lTensor_homotopy {G : InternalGrading R M ℤ}
+    (hh : LinearMap.IsHomogeneous c.homotopy G.piece G.piece (-1)) :
+    LinearMap.IsHomogeneous (c.lTensor hb).homotopy
+      (K.tensorProduct G).piece (K.tensorProduct G).piece (-1) := by
+  have hτ : LinearMap.IsHomogeneous (K.koszulTwist 1) K.piece K.piece 0 :=
+    LinearMap.isHomogeneous_def.2 fun _ _ hx ↦ by
+      simpa only [add_zero] using K.koszulTwist_mem_piece hx 1
+  rw [lTensor_homotopy]
+  simpa only [zero_add] using hτ.tensorProduct hh
+
+end Left
+
 end LinearContraction
 
 namespace LinearSpecialContraction
@@ -139,13 +226,16 @@ namespace LinearSpecialContraction
 variable {R : Type uR} {M : Type uM} {N : Type uN} {C : Type uC} [CommRing R]
   [AddCommGroup M] [Module R M] [AddCommGroup N] [Module R N] [AddCommGroup C] [Module R C]
   {dM : Module.End R M} {dN : Module.End R N} (c : LinearSpecialContraction dM dN)
-  {GM : InternalGrading R M ℤ} {GN : InternalGrading R N ℤ}
+
+section Right
+
+variable {GM : InternalGrading R M ℤ} {GN : InternalGrading R N ℤ}
   (hh : LinearMap.IsHomogeneous c.homotopy GM.piece GM.piece (-1))
   (hincl : LinearMap.IsHomogeneous c.incl GN.piece GM.piece 0)
   (hproj : LinearMap.IsHomogeneous c.proj GM.piece GN.piece 0)
   (b : Module.End R C)
 
-/-- **Tensoring a special contraction with a module carrying an operator.**  A special
+/-- **Tensoring a special contraction on the right with a module carrying an operator.**  A special
 contraction `(i, p, h)` of `(M, d_M)` onto `(N, d_N)`, by maps of degrees `0`, `0` and `-1`,
 induces the special contraction `(i ⊗ 1, p ⊗ 1, h ⊗ 1)` of `M ⊗ C` onto `N ⊗ C` for the
 endomorphisms `d ⊗ 1 + (1 ⊗ b) ∘ (τ ⊗ 1)`, with `τ` the Koszul twists. -/
@@ -163,23 +253,70 @@ noncomputable def rTensor :
     rw [LinearContraction.rTensor_homotopy, ← LinearMap.rTensor_comp,
       c.homotopy_comp_homotopy, LinearMap.rTensor_zero]
 
-/-- Forgetting the side conditions commutes with tensoring a special contraction. -/
+/-- Forgetting the side conditions commutes with tensoring a special contraction on the right. -/
 @[simp]
 theorem toLinearContraction_rTensor :
     (c.rTensor hh hincl hproj b).toLinearContraction =
       c.toLinearContraction.rTensor GM GN b hh hincl hproj := (rfl)
 
-/-- The inclusion of the tensored contraction is `i ⊗ 1`. -/
+/-- The inclusion of the right-tensored contraction is `i ⊗ 1`. -/
 @[simp↓]
 theorem rTensor_incl : (c.rTensor hh hincl hproj b).incl = c.incl.rTensor C := (rfl)
 
-/-- The projection of the tensored contraction is `p ⊗ 1`. -/
+/-- The projection of the right-tensored contraction is `p ⊗ 1`. -/
 @[simp↓]
 theorem rTensor_proj : (c.rTensor hh hincl hproj b).proj = c.proj.rTensor C := (rfl)
 
-/-- The homotopy of the tensored contraction is `h ⊗ 1`. -/
+/-- The homotopy of the right-tensored contraction is `h ⊗ 1`. -/
 @[simp↓]
 theorem rTensor_homotopy : (c.rTensor hh hincl hproj b).homotopy = c.homotopy.rTensor C := (rfl)
+
+end Right
+
+section Left
+
+variable {b : Module.End R C} {K : InternalGrading R C ℤ}
+  (hb : LinearMap.IsHomogeneous b K.piece K.piece 1)
+
+/-- **Tensoring a special contraction on the left with a graded module carrying a degree-one
+operator.**  A special contraction `(i, p, h)` of `(M, d_M)` onto `(N, d_N)` induces the special
+contraction `(1 ⊗ i, 1 ⊗ p, τ ⊗ h)` of `C ⊗ M` onto `C ⊗ N` for the endomorphisms `b ⊗ 1 + τ ⊗ d`,
+where `τ` is the Koszul twist of `C`. -/
+noncomputable def lTensor :
+    LinearSpecialContraction (b.rTensor M + TensorProduct.map (K.koszulTwist 1) dM)
+      (b.rTensor N + TensorProduct.map (K.koszulTwist 1) dN) where
+  toLinearContraction := c.toLinearContraction.lTensor hb
+  homotopy_comp_incl := by
+    rw [LinearContraction.lTensor_homotopy, LinearContraction.lTensor_incl,
+      LinearMap.lTensor_def, ← TensorProduct.map_comp, c.homotopy_comp_incl,
+      TensorProduct.map_zero_right]
+  proj_comp_homotopy := by
+    rw [LinearContraction.lTensor_proj, LinearContraction.lTensor_homotopy,
+      LinearMap.lTensor_def, ← TensorProduct.map_comp, c.proj_comp_homotopy,
+      TensorProduct.map_zero_right]
+  homotopy_comp_homotopy := by
+    rw [LinearContraction.lTensor_homotopy, ← TensorProduct.map_comp,
+      c.homotopy_comp_homotopy, TensorProduct.map_zero_right]
+
+/-- Forgetting the side conditions commutes with tensoring a special contraction on the left. -/
+@[simp]
+theorem toLinearContraction_lTensor :
+    (c.lTensor hb).toLinearContraction = c.toLinearContraction.lTensor hb := (rfl)
+
+/-- The inclusion of the left-tensored contraction is `1 ⊗ i`. -/
+@[simp↓]
+theorem lTensor_incl : (c.lTensor hb).incl = c.incl.lTensor C := (rfl)
+
+/-- The projection of the left-tensored contraction is `1 ⊗ p`. -/
+@[simp↓]
+theorem lTensor_proj : (c.lTensor hb).proj = c.proj.lTensor C := (rfl)
+
+/-- The homotopy of the left-tensored contraction is `τ ⊗ h`. -/
+@[simp↓]
+theorem lTensor_homotopy :
+    (c.lTensor hb).homotopy = TensorProduct.map (K.koszulTwist 1) c.homotopy := (rfl)
+
+end Left
 
 end LinearSpecialContraction
 

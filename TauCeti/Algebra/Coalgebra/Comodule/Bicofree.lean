@@ -168,4 +168,15 @@ theorem Hom.eq_zero_of_bicofree_counit_eq_zero
   apply Hom.toLinearMap_injective
   simp [Hom.cofreeLift_toLinearMap]
 
+omit [Coalgebra R D] in
+/-- A linear map `f : M → N` tensored with identities on both factors commutes with the extended
+left coaction `(C ⊗ M) ⊗ D → C ⊗ ((C ⊗ M) ⊗ D)`. -/
+theorem leftCoactRTensor_comp_lTensor_rTensor (f : M →ₗ[R] N) :
+    leftCoactRTensor D (leftCofreeCoact R C N) ∘ₗ (f.lTensor C).rTensor D =
+      ((f.lTensor C).rTensor D).lTensor C ∘ₗ leftCoactRTensor D (leftCofreeCoact R C M) := by
+  simpa only [LinearMap.lTensor_id, LinearMap.id_comp, LinearMap.lTensor_def,
+    TensorProduct.map_id] using
+    leftCoactRTensor_comp_lTensor_comp_rTensor_map (R := R) (C := C) (N := D) (N' := D)
+      (τ := LinearMap.id) (by simp [TensorProduct.map_id]) f LinearMap.id
+
 end TauCeti.Comodule
