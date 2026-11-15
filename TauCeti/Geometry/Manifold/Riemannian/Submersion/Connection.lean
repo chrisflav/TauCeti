@@ -70,6 +70,22 @@ theorem contMDiffAt_horizontalLift {X : Π y : N, TangentSpace J y} {x : M}
   simpa only [h.horizontalLift_apply, Function.comp_def] using
     hf.mfderiv_adjoint_apply (hX.comp x (hf.of_le le_self_add))
 
+/-- Horizontal lifting of a `C^n` base vector field is `C^n` on the total space, for `C^n`
+metrics and `n + 1 ≤ ∞`. -/
+theorem contMDiff_horizontalLift {X : Π y : N, TangentSpace J y}
+    (hX : ContMDiff J (J.prod 𝓘(ℝ, F)) n (T% X)) (hn : n + 1 ≤ ∞) :
+    ContMDiff I (I.prod 𝓘(ℝ, E)) n
+      (T% (fun y ↦ h.horizontalLift y (X (f y)))) :=
+  fun x ↦ h.contMDiffAt_horizontalLift (hX (f x)) hn
+
+/-- Horizontal lifting of a base vector field that is `C^n` on an open set `s` is `C^n` on
+`f ⁻¹' s`, for `C^n` metrics and `n + 1 ≤ ∞`. -/
+theorem contMDiffOn_horizontalLift {X : Π y : N, TangentSpace J y} {s : Set N}
+    (hs : IsOpen s) (hX : ContMDiffOn J (J.prod 𝓘(ℝ, F)) n (T% X) s) (hn : n + 1 ≤ ∞) :
+    ContMDiffOn I (I.prod 𝓘(ℝ, E)) n
+      (T% (fun y ↦ h.horizontalLift y (X (f y)))) (f ⁻¹' s) :=
+  fun _ hx ↦ (h.contMDiffAt_horizontalLift (hX.contMDiffAt (hs.mem_nhds hx)) hn).contMDiffWithinAt
+
 end Regularity
 
 section Connection
@@ -177,6 +193,34 @@ theorem starProjection_covariantDerivative_horizontalLift
         (covM (fun y ↦ h.horizontalLift y (Y (f y))) x (h.horizontalLift x v)) =
       h.horizontalLift x (covN Y (f x) v) := by
   rw [← h.horizontalLift_mfderiv, h.mfderiv_covariantDerivative_horizontalLift hM hN hY]
+
+/-- Along a horizontal tangent vector `u`, the horizontal component of a total-space Levi-Civita
+derivative of a basic horizontal field is the horizontal lift of the base Levi-Civita derivative
+along `df u`. -/
+theorem starProjection_orthogonal_ker_covariantDerivative_horizontalLift_of_mem_orthogonal_ker
+    (hM : covM.IsLeviCivitaConnection) (hN : covN.IsLeviCivitaConnection)
+    (hY : CMDiffAt 1 (T% Y) (f x)) {u : TangentSpace I x}
+    (hu : u ∈ (mfderiv I J f x).kerᗮ) :
+    (mfderiv I J f x).kerᗮ.starProjection
+        (covM (fun y ↦ h.horizontalLift y (Y (f y))) x u) =
+      h.horizontalLift x (covN Y (f x) (mfderiv I J f x u)) := by
+  conv_lhs => rw [← h.horizontalLift_mfderiv_of_mem x hu]
+  exact h.starProjection_covariantDerivative_horizontalLift hM hN hY (mfderiv I J f x u)
+
+/-- Along a horizontal tangent vector `u`, the horizontal component of `leviCivitaConnection` of a
+basic horizontal field is the horizontal lift of the base `leviCivitaConnection` along `df u`. -/
+theorem starProjection_orthogonal_ker_leviCivitaConnection_horizontalLift_of_mem_orthogonal_ker
+    (hY : CMDiffAt 1 (T% Y) (f x)) {u : TangentSpace I x}
+    (hu : u ∈ (mfderiv I J f x).kerᗮ) :
+    (mfderiv I J f x).kerᗮ.starProjection
+        (CovariantDerivative.leviCivitaConnection I M
+          (fun y ↦ h.horizontalLift y (Y (f y))) x u) =
+      h.horizontalLift x
+        (CovariantDerivative.leviCivitaConnection J N Y (f x) (mfderiv I J f x u)) :=
+  h.starProjection_orthogonal_ker_covariantDerivative_horizontalLift_of_mem_orthogonal_ker
+    (CovariantDerivative.isLeviCivitaConnection_leviCivitaConnection (I := I) (M := M))
+    (CovariantDerivative.isLeviCivitaConnection_leviCivitaConnection (I := J) (M := N))
+    hY hu
 
 end Connection
 

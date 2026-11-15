@@ -230,6 +230,46 @@ theorem horizontalLift_fst (p : M × N) (v : TangentSpace I p.1) :
     Manifold.tangentSpaceProdEquiv_apply]
   erw [ContinuousLinearMap.coe_fst']
 
+/-- For the first product projection, the horizontal orthogonal projection zeroes the second
+tangent component. -/
+theorem starProjection_orthogonal_ker_fst (p : M × N) (v : TangentSpace (I.prod J) p) :
+    (mfderiv (I.prod J) I (@Prod.fst M N) p).kerᗮ.starProjection v =
+      (Manifold.tangentSpaceProdEquiv p).symm ((Manifold.tangentSpaceProdEquiv p v).1, 0) := by
+  have hsplit : v =
+      (Manifold.tangentSpaceProdEquiv p).symm ((Manifold.tangentSpaceProdEquiv p v).1, 0) +
+        (Manifold.tangentSpaceProdEquiv p).symm (0, (Manifold.tangentSpaceProdEquiv p v).2) := by
+    apply (Manifold.tangentSpaceProdEquiv p).injective
+    rw [map_add, ContinuousLinearEquiv.apply_symm_apply, ContinuousLinearEquiv.apply_symm_apply]
+    ext <;> simp
+  have h₁ : (Manifold.tangentSpaceProdEquiv p).symm ((Manifold.tangentSpaceProdEquiv p v).1, 0) ∈
+      (mfderiv (I.prod J) I (@Prod.fst M N) p).kerᗮ := by
+    rw [← horizontalLift_fst]
+    exact (isRiemannianSubmersion_fst (I := I) (J := J)).horizontalLift_mem_orthogonal_ker p _
+  have h₂ : (Manifold.tangentSpaceProdEquiv p).symm (0, (Manifold.tangentSpaceProdEquiv p v).2) ∈
+      (mfderiv (I.prod J) I (@Prod.fst M N) p).kerᗮᗮ := by
+    rw [Submodule.mem_orthogonal]
+    intro u hu
+    rw [← (isRiemannianSubmersion_fst (I := I) (J := J)).range_horizontalLift p] at hu
+    rcases hu with ⟨w, rfl⟩
+    rw [LinearIsometry.coe_toLinearMap, horizontalLift_fst, Manifold.inner_tangentSpace_prod]
+    simp only [ContinuousLinearEquiv.apply_symm_apply, inner_zero_right, inner_zero_left, add_zero]
+  conv_lhs => rw [hsplit]
+  rw [map_add, Submodule.starProjection_eq_self_iff.mpr h₁,
+    (Submodule.starProjection_apply_eq_zero_iff _).mpr h₂, add_zero]
+
+/-- For the first product projection, the vertical orthogonal projection zeroes the first tangent
+component. -/
+theorem starProjection_ker_fst (p : M × N) (v : TangentSpace (I.prod J) p) :
+    (mfderiv (I.prod J) I (@Prod.fst M N) p).ker.starProjection v =
+      (Manifold.tangentSpaceProdEquiv p).symm (0, (Manifold.tangentSpaceProdEquiv p v).2) := by
+  rw [eq_sub_of_add_eq
+      ((mfderiv (I.prod J) I (@Prod.fst M N) p).ker.starProjection_add_starProjection_orthogonal v),
+    starProjection_orthogonal_ker_fst]
+  apply (Manifold.tangentSpaceProdEquiv p).injective
+  rw [map_sub, ContinuousLinearEquiv.apply_symm_apply, ContinuousLinearEquiv.apply_symm_apply]
+  rcases Manifold.tangentSpaceProdEquiv p v with ⟨v₁, v₂⟩
+  simp
+
 end Product
 
 end TauCeti

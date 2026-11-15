@@ -8,7 +8,9 @@ module
 public import TauCeti.Geometry.Manifold.Riemannian.Submersion.Smoothness
 public import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.Hom
 public import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.LeviCivita.Regularity
+import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.LeviCivita.Prod
 import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.Metric.Basic
+import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.Metric.Hom
 import TauCeti.Geometry.Manifold.VectorBundle.CovariantDerivative.Regularity
 
 /-!
@@ -22,10 +24,13 @@ not differential operators on freely chosen extensions of tangent vectors.
 
 The construction uses the induced endomorphism connection to differentiate the
 native horizontal orthogonal projection. The evaluation theorems identify it with
-O'Neill's formulas on differentiable vector fields. For a fixed first argument, both tensors are
-skew-adjoint, by metric compatibility of the Levi-Civita connection. Both tensors are smooth
-sections of the native iterated Hom bundle, so smooth vector fields give smooth
-evaluations.
+O'Neill's formulas on differentiable vector fields. For a fixed first argument, both tensors—and
+their covariant derivatives under the iterated induced connection—are skew-adjoint, by metric
+compatibility of the Levi-Civita connection (`inner_oneillA`, `inner_oneillT`,
+`inner_hom_hom_oneillA`, `inner_hom_hom_oneillT`). Both tensors are smooth sections of the native
+iterated Hom bundle, with covariant-derivative evaluation formulas `hom_hom_oneillA_apply` and
+`hom_hom_oneillT_apply`, and both vanish identically for the first projection of a Riemannian
+product (`TauCeti.oneillA_fst`, `TauCeti.oneillT_fst`).
 
 ## References
 
@@ -58,6 +63,8 @@ variable
   [IsContMDiffRiemannianBundle I ∞ E (fun x : M ↦ TangentSpace I x)]
   [IsContMDiffRiemannianBundle J ∞ F (fun y : N ↦ TangentSpace J y)]
   {f : M → N} (h : IsRiemannianSubmersion I J f)
+
+local notation "∇" => CovariantDerivative.leviCivitaConnection I M
 
 private def exchangeTensor (x : M) :
     TangentSpace I x →L[ℝ] TangentSpace I x →L[ℝ] TangentSpace I x :=
@@ -208,6 +215,22 @@ theorem inner_oneillT (x : M) (u v w : TangentSpace I x) :
   simpa only [FiberBundle.extend_apply_self, oneillT, h.id_sub_horizontalLift_comp_mfderiv,
     ContinuousLinearMap.comp_apply] using hskew
 
+/-- The covariant derivative of O'Neill's `A`-tensor remains skew-adjoint in its last two
+arguments. -/
+theorem inner_hom_hom_oneillA (x : M) (w u v z : TangentSpace I x) :
+    ⟪∇.hom (∇.hom ∇) h.oneillA x w u v, z⟫_ℝ =
+      -⟪v, ∇.hom (∇.hom ∇) h.oneillA x w u z⟫_ℝ :=
+  (CovariantDerivative.isMetricCompatible_leviCivitaConnection I).inner_hom_hom_of_skew
+    h.inner_oneillA w u v z
+
+/-- The covariant derivative of O'Neill's `T`-tensor remains skew-adjoint in its last two
+arguments. -/
+theorem inner_hom_hom_oneillT (x : M) (w u v z : TangentSpace I x) :
+    ⟪∇.hom (∇.hom ∇) h.oneillT x w u v, z⟫_ℝ =
+      -⟪v, ∇.hom (∇.hom ∇) h.oneillT x w u z⟫_ℝ :=
+  (CovariantDerivative.isMetricCompatible_leviCivitaConnection I).inner_hom_hom_of_skew
+    h.inner_oneillT w u v z
+
 section Smoothness
 
 private theorem contMDiff_exchangeTensor_apply
@@ -219,9 +242,8 @@ private theorem contMDiff_exchangeTensor_apply
   let : IsManifold I (∞ + 1) M := by simpa using (inferInstance : IsManifold I ∞ M)
   have hP := h.contMDiff_starProjection_orthogonal_ker (n := ∞) (by simp)
   have hQ := h.contMDiff_starProjection_ker (n := ∞) (by simp)
-  let cov := CovariantDerivative.leviCivitaConnection I M
-  have hD₁ := cov.contMDiff_apply hX ((hP.clm_bundle_apply hY).of_le (by simp))
-  have hD₂ := cov.contMDiff_apply hX ((hQ.clm_bundle_apply hY).of_le (by simp))
+  have hD₁ := ∇.contMDiff_apply hX ((hP.clm_bundle_apply hY).of_le (by simp))
+  have hD₂ := ∇.contMDiff_apply hX ((hQ.clm_bundle_apply hY).of_le (by simp))
   refine ((hQ.clm_bundle_apply hD₁).add_section (hP.clm_bundle_apply hD₂)).congr ?_
   intro x
   exact congrArg (TotalSpace.mk' E x)
@@ -259,6 +281,44 @@ theorem contMDiff_oneillT :
   simpa only [oneillT, h.id_sub_horizontalLift_comp_mfderiv, ContinuousLinearMap.comp_apply] using
     h.contMDiff_exchangeTensor_apply hQX hY
 
+/-- O'Neill's horizontal fundamental tensor is pointwise differentiable as a section of the
+iterated Hom bundle. -/
+theorem mdifferentiableAt_oneillA {x : M} :
+    MDiffAt
+      (fun y ↦ TotalSpace.mk' (E →L[ℝ] E →L[ℝ] E)
+        (E := fun z ↦ TangentSpace I z →L[ℝ] TangentSpace I z →L[ℝ] TangentSpace I z) y
+        (h.oneillA y)) x := by
+  let : IsManifold I (∞ + 1) M := by simpa using (inferInstance : IsManifold I ∞ M)
+  exact (h.contMDiff_oneillA x).mdifferentiableAt (by simp)
+
+/-- O'Neill's vertical fundamental tensor is pointwise differentiable as a section of the iterated
+Hom bundle. -/
+theorem mdifferentiableAt_oneillT {x : M} :
+    MDiffAt
+      (fun y ↦ TotalSpace.mk' (E →L[ℝ] E →L[ℝ] E)
+        (E := fun z ↦ TangentSpace I z →L[ℝ] TangentSpace I z →L[ℝ] TangentSpace I z) y
+        (h.oneillT y)) x := by
+  let : IsManifold I (∞ + 1) M := by simpa using (inferInstance : IsManifold I ∞ M)
+  exact (h.contMDiff_oneillT x).mdifferentiableAt (by simp)
+
+/-- Evaluation of the covariant derivative of O'Neill's `A`-tensor on differentiable vector fields,
+with differentiation direction `w` preceding the tensor slots `U x` and `V x`. -/
+theorem hom_hom_oneillA_apply {U V : Π y : M, TangentSpace I y} {x : M}
+    (hU : MDiffAt (T% U) x) (hV : MDiffAt (T% V) x) (w : TangentSpace I x) :
+    ∇.hom (∇.hom ∇) h.oneillA x w (U x) (V x) =
+      ∇ (fun y ↦ h.oneillA y (U y) (V y)) x w -
+        h.oneillA x (∇ U x w) (V x) - h.oneillA x (U x) (∇ V x w) :=
+  CovariantDerivative.hom_hom_apply ∇ ∇ ∇ h.mdifferentiableAt_oneillA hU hV w
+
+/-- Evaluation of the covariant derivative of O'Neill's `T`-tensor on differentiable vector fields,
+with differentiation direction `w` preceding the tensor slots `U x` and `V x`. -/
+theorem hom_hom_oneillT_apply {U V : Π y : M, TangentSpace I y} {x : M}
+    (hU : MDiffAt (T% U) x) (hV : MDiffAt (T% V) x) (w : TangentSpace I x) :
+    ∇.hom (∇.hom ∇) h.oneillT x w (U x) (V x) =
+      ∇ (fun y ↦ h.oneillT y (U y) (V y)) x w -
+        h.oneillT x (∇ U x w) (V x) - h.oneillT x (U x) (∇ V x w) :=
+  CovariantDerivative.hom_hom_apply ∇ ∇ ∇ h.mdifferentiableAt_oneillT hU hV w
+
 end Smoothness
 
 omit [IsManifold J ∞ N]
@@ -292,4 +352,100 @@ omit [IsManifold J ∞ N]
   rw [Submodule.starProjection_eq_self_iff.mpr (Submodule.starProjection_apply_mem _ _)]
   simp
 
+/-- `A_v` vanishes when `v` is vertical. -/
+theorem oneillA_eq_zero_of_mem_ker {x : M} {v : TangentSpace I x}
+    (hv : v ∈ (mfderiv I J f x).ker) :
+    h.oneillA x v = 0 := by
+  rw [← Submodule.starProjection_eq_self_iff.mpr hv, h.oneillA_starProjection_ker]
+
+/-- `T_v` vanishes when `v` is horizontal. -/
+theorem oneillT_eq_zero_of_mem_orthogonal_ker {x : M} {v : TangentSpace I x}
+    (hv : v ∈ (mfderiv I J f x).kerᗮ) :
+    h.oneillT x v = 0 := by
+  rw [← Submodule.starProjection_eq_self_iff.mpr hv, h.oneillT_starProjection_orthogonal_ker]
+
 end TauCeti.IsRiemannianSubmersion
+
+section Product
+
+open Bundle Manifold
+open scoped ContDiff Manifold TauCeti
+
+namespace TauCeti
+
+variable
+  {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
+  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I ∞ M]
+  [RiemannianBundle (fun x : M ↦ TangentSpace I x)]
+  {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] [FiniteDimensional ℝ F]
+  {G : Type*} [TopologicalSpace G] {J : ModelWithCorners ℝ F G}
+  {N : Type*} [TopologicalSpace N] [ChartedSpace G N] [IsManifold J ∞ N]
+  [RiemannianBundle (fun y : N ↦ TangentSpace J y)]
+
+private theorem prodVectorField_extend_projections (p : M × N) (v : TangentSpace (I.prod J) p) :
+    let Y₁ := FiberBundle.extend E (Manifold.tangentSpaceProdEquiv p v).1
+    let Y₂ := FiberBundle.extend F (Manifold.tangentSpaceProdEquiv p v).2
+    Manifold.prodVectorField Y₁ Y₂ p = v ∧
+      (fun q ↦ (mfderiv (I.prod J) I (@Prod.fst M N) q).kerᗮ.starProjection
+        (Manifold.prodVectorField Y₁ Y₂ q)) = Manifold.prodVectorField Y₁ 0 ∧
+      (fun q ↦ (mfderiv (I.prod J) I (@Prod.fst M N) q).ker.starProjection
+        (Manifold.prodVectorField Y₁ Y₂ q)) = Manifold.prodVectorField 0 Y₂ := by
+  refine ⟨?_, funext fun q ↦ ?_, funext fun q ↦ ?_⟩
+  · apply (Manifold.tangentSpaceProdEquiv p).injective
+    rw [Manifold.tangentSpaceProdEquiv_prodVectorField, FiberBundle.extend_apply_self,
+      FiberBundle.extend_apply_self, Prod.mk.eta]
+  · rw [starProjection_orthogonal_ker_fst]
+    apply (Manifold.tangentSpaceProdEquiv q).injective
+    rw [ContinuousLinearEquiv.apply_symm_apply, Manifold.tangentSpaceProdEquiv_prodVectorField,
+      Manifold.tangentSpaceProdEquiv_prodVectorField, Pi.zero_apply]
+  · rw [starProjection_ker_fst]
+    apply (Manifold.tangentSpaceProdEquiv q).injective
+    rw [ContinuousLinearEquiv.apply_symm_apply, Manifold.tangentSpaceProdEquiv_prodVectorField,
+      Manifold.tangentSpaceProdEquiv_prodVectorField, Pi.zero_apply]
+
+variable
+  [IsContMDiffRiemannianBundle I ∞ E (fun x : M ↦ TangentSpace I x)]
+  [IsContMDiffRiemannianBundle J ∞ F (fun y : N ↦ TangentSpace J y)]
+
+private theorem exchangeTensor_fst (p : M × N) :
+    IsRiemannianSubmersion.exchangeTensor (I := I.prod J) (J := I) (f := @Prod.fst M N) p = 0 := by
+  ext u v
+  have ⟨hYp, hH, hV⟩ := prodVectorField_extend_projections p v
+  have hY₁ : MDiffAt (T% (FiberBundle.extend E (Manifold.tangentSpaceProdEquiv p v).1)) p.1 :=
+    FiberBundle.mdifferentiableAt_extend I E _
+  have hY₂ : MDiffAt (T% (FiberBundle.extend F (Manifold.tangentSpaceProdEquiv p v).2)) p.2 :=
+    FiberBundle.mdifferentiableAt_extend J F _
+  have h0M : MDiffAt (T% (0 : Π x : M, TangentSpace I x)) p.1 :=
+    mdifferentiableAt_zeroSection ℝ (TangentSpace I)
+  have h0N : MDiffAt (T% (0 : Π y : N, TangentSpace J y)) p.2 :=
+    mdifferentiableAt_zeroSection ℝ (TangentSpace J)
+  conv_lhs => rw [← hYp]
+  rw [(isRiemannianSubmersion_fst (I := I) (J := J)).exchangeTensor_apply
+      (Manifold.mdifferentiableAt_prodVectorField hY₁ hY₂) u,
+    hH, hV, starProjection_ker_fst, starProjection_orthogonal_ker_fst]
+  apply (Manifold.tangentSpaceProdEquiv p).injective
+  simp only [zero_apply, map_add, map_zero, ContinuousLinearEquiv.apply_symm_apply,
+    Manifold.tangentSpaceProdEquiv_leviCivitaConnection_prodVectorField hY₁ h0N,
+    Manifold.tangentSpaceProdEquiv_leviCivitaConnection_prodVectorField h0M hY₂,
+    (CovariantDerivative.leviCivitaConnection I M).zero,
+    (CovariantDerivative.leviCivitaConnection J N).zero, Pi.zero_apply]
+  ext <;> simp
+
+/-- O'Neill's horizontal tensor `A` vanishes identically for the first projection of a Riemannian
+product. -/
+@[simp]
+theorem oneillA_fst (p : M × N) :
+    (isRiemannianSubmersion_fst (I := I) (J := J)).oneillA p = 0 := by
+  simp [IsRiemannianSubmersion.oneillA, exchangeTensor_fst]
+
+/-- O'Neill's vertical tensor `T` vanishes identically for the first projection of a Riemannian
+product. -/
+@[simp]
+theorem oneillT_fst (p : M × N) :
+    (isRiemannianSubmersion_fst (I := I) (J := J)).oneillT p = 0 := by
+  simp [IsRiemannianSubmersion.oneillT, exchangeTensor_fst]
+
+end TauCeti
+
+end Product

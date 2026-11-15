@@ -190,6 +190,50 @@ theorem hom_eq_of_apply {A : Π x : M, V x →L[𝕜] W x} {x : M}
 
 end General
 
+section Iterated
+
+variable {𝕜 : Type*} [NontriviallyNormedField 𝕜] [CompleteSpace 𝕜]
+  {E : Type*} [NormedAddCommGroup E] [NormedSpace 𝕜 E]
+  {H : Type*} [TopologicalSpace H] {I : ModelWithCorners 𝕜 E H}
+  {M : Type*} [TopologicalSpace M] [ChartedSpace H M] [IsManifold I 1 M]
+  {F₁ : Type*} [NormedAddCommGroup F₁] [NormedSpace 𝕜 F₁] [FiniteDimensional 𝕜 F₁]
+  {V₁ : M → Type*} [TopologicalSpace (TotalSpace F₁ V₁)]
+  [∀ x, AddCommGroup (V₁ x)] [∀ x, Module 𝕜 (V₁ x)]
+  [∀ x, TopologicalSpace (V₁ x)] [∀ x, IsTopologicalAddGroup (V₁ x)]
+  [∀ x, ContinuousSMul 𝕜 (V₁ x)] [FiberBundle F₁ V₁] [VectorBundle 𝕜 F₁ V₁]
+  [ContMDiffVectorBundle 1 F₁ V₁ I]
+  {F₂ : Type*} [NormedAddCommGroup F₂] [NormedSpace 𝕜 F₂] [FiniteDimensional 𝕜 F₂]
+  {V₂ : M → Type*} [TopologicalSpace (TotalSpace F₂ V₂)]
+  [∀ x, AddCommGroup (V₂ x)] [∀ x, Module 𝕜 (V₂ x)]
+  [∀ x, TopologicalSpace (V₂ x)] [∀ x, IsTopologicalAddGroup (V₂ x)]
+  [∀ x, ContinuousSMul 𝕜 (V₂ x)] [FiberBundle F₂ V₂] [VectorBundle 𝕜 F₂ V₂]
+  [ContMDiffVectorBundle 1 F₂ V₂ I]
+  {G : Type*} [NormedAddCommGroup G] [NormedSpace 𝕜 G]
+  {W : M → Type*} [TopologicalSpace (TotalSpace G W)]
+  [∀ x, AddCommGroup (W x)] [∀ x, Module 𝕜 (W x)]
+  [∀ x, TopologicalSpace (W x)] [∀ x, IsTopologicalAddGroup (W x)]
+  [∀ x, ContinuousSMul 𝕜 (W x)] [FiberBundle G W] [VectorBundle 𝕜 G W]
+
+/-- Evaluation of the twice-iterated induced Hom connection on a differentiable curried bilinear
+bundle map and two differentiable sections, with differentiation direction `v` preceding the two
+bundle slots `s₁ x` and `s₂ x`. -/
+theorem hom_hom_apply
+    (cov₁ : CovariantDerivative I F₁ V₁) (cov₂ : CovariantDerivative I F₂ V₂)
+    (cov₃ : CovariantDerivative I G W)
+    {B : Π x : M, V₁ x →L[𝕜] V₂ x →L[𝕜] W x} {s₁ : Π x : M, V₁ x} {s₂ : Π x : M, V₂ x} {x : M}
+    (hB : MDiffAt
+      (fun y ↦ TotalSpace.mk' (F₁ →L[𝕜] F₂ →L[𝕜] G)
+        (E := fun z ↦ V₁ z →L[𝕜] V₂ z →L[𝕜] W z) y (B y)) x)
+    (hs₁ : MDiffAt (T% s₁) x) (hs₂ : MDiffAt (T% s₂) x) (v : TangentSpace I x) :
+    cov₁.hom (cov₂.hom cov₃) B x v (s₁ x) (s₂ x) =
+      cov₃ (fun y ↦ B y (s₁ y) (s₂ y)) x v - B x (cov₁ s₁ x v) (s₂ x) -
+        B x (s₁ x) (cov₂ s₂ x v) := by
+  rw [hom_apply cov₁ (cov₂.hom cov₃) hB hs₁ v, sub_apply,
+    hom_apply cov₂ cov₃ (hB.clm_bundle_apply hs₁) hs₂ v]
+  abel
+
+end Iterated
+
 section Smooth
 
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]

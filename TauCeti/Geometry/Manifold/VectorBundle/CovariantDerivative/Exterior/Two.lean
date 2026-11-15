@@ -81,12 +81,8 @@ private theorem hom_twoFormTensor_apply (α : SmoothBundleForm I F V 2)
     (covT.hom (covT.hom cov)) (twoFormTensor α) x u (X x) (Y x) =
       cov (fun y ↦ α.eval₂ y (X y) (Y y)) x u -
         α.eval₂ x (covT X x u) (Y x) - α.eval₂ x (X x) (covT Y x u) := by
-  have hα := contMDiff_twoFormTensor α
-  rw [hom_apply _ _ (hα.mdifferentiableAt (by simp)) hX,
-    sub_apply,
-    hom_apply _ _ ((hα.mdifferentiableAt (by simp)).clm_bundle_apply hX) hY]
-  simp only [twoFormTensor_apply]
-  abel
+  simpa only [twoFormTensor_apply] using
+    hom_hom_apply covT covT cov ((contMDiff_twoFormTensor α).mdifferentiableAt (by simp)) hX hY u
 
 private theorem hom_twoFormTensor_swap (α : SmoothBundleForm I F V 2) (x : M)
     (d u v : TangentSpace I x) :

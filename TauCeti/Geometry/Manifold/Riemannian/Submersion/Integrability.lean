@@ -100,14 +100,16 @@ section Fields
 
 variable {x : M}
 
-private theorem mdifferentiableAt_starProjection_orthogonal_ker_apply
+/-- Horizontal projection preserves pointwise differentiability of tangent vector fields. -/
+theorem mdifferentiableAt_starProjection_orthogonal_ker_apply
     {Y : Π x : M, TangentSpace I x} (hY : MDiffAt (T% Y) x) :
     MDiffAt (T% (fun y ↦ (mfderiv I J f y).kerᗮ.starProjection (Y y))) x := by
   let : IsManifold I (∞ + 1) M := by simpa using (inferInstance : IsManifold I ∞ M)
   exact ((h.contMDiff_starProjection_orthogonal_ker (n := ∞) (by simp)).mdifferentiableAt
     (by simp)).clm_bundle_apply hY
 
-private theorem mdifferentiableAt_starProjection_ker_apply
+/-- Vertical projection preserves pointwise differentiability of tangent vector fields. -/
+theorem mdifferentiableAt_starProjection_ker_apply
     {Y : Π x : M, TangentSpace I x} (hY : MDiffAt (T% Y) x) :
     MDiffAt (T% (fun y ↦ (mfderiv I J f y).ker.starProjection (Y y))) x := by
   let : IsManifold I (∞ + 1) M := by simpa using (inferInstance : IsManifold I ∞ M)
@@ -216,7 +218,7 @@ theorem oneillT_apply_of_eventually_mem_ker {V : Π x : M, TangentSpace I x}
 
 /-- A horizontal vector extends to a field which is horizontal everywhere and differentiable at
 the base point: the horizontal part of `FiberBundle.extend`. -/
-private theorem exists_horizontal_extension {w : TangentSpace I x}
+theorem exists_horizontal_extension {w : TangentSpace I x}
     (hw : w ∈ (mfderiv I J f x).kerᗮ) :
     ∃ Y : Π y : M, TangentSpace I y, MDiffAt (T% Y) x ∧ Y x = w ∧
       ∀ y, Y y ∈ (mfderiv I J f y).kerᗮ :=
@@ -228,7 +230,7 @@ private theorem exists_horizontal_extension {w : TangentSpace I x}
 
 /-- A vertical vector extends to a field which is vertical everywhere and differentiable at the
 base point: the vertical part of `FiberBundle.extend`. -/
-private theorem exists_vertical_extension {w : TangentSpace I x}
+theorem exists_vertical_extension {w : TangentSpace I x}
     (hw : w ∈ (mfderiv I J f x).ker) :
     ∃ V : Π y : M, TangentSpace I y, MDiffAt (T% V) x ∧ V x = w ∧
       ∀ y, V y ∈ (mfderiv I J f y).ker :=
@@ -268,6 +270,46 @@ theorem oneillT_apply_mem_orthogonal_ker (u : TangentSpace I x) {v : TangentSpac
   obtain ⟨V, hVd, rfl, hVv⟩ := h.exists_vertical_extension hv
   rw [h.oneillT_apply_of_eventually_mem_ker hVd (.of_forall hVv)]
   exact Submodule.starProjection_apply_mem _ _
+
+/-- The horizontal component of `A_a b` depends only on the vertical component of `b`. -/
+theorem starProjection_orthogonal_ker_oneillA (x : M) (a b : TangentSpace I x) :
+    (mfderiv I J f x).kerᗮ.starProjection (h.oneillA x a b) =
+      h.oneillA x a ((mfderiv I J f x).ker.starProjection b) := by
+  conv_lhs => rw [← (mfderiv I J f x).ker.starProjection_add_starProjection_orthogonal b]
+  rw [map_add, map_add,
+    Submodule.starProjection_eq_self_iff.mpr
+      (h.oneillA_apply_mem_orthogonal_ker a (Submodule.starProjection_apply_mem _ _)),
+    Submodule.starProjection_orthogonal_apply_eq_zero
+      (h.oneillA_apply_mem_ker a (Submodule.starProjection_apply_mem _ _)),
+    add_zero]
+
+/-- The horizontal component of `T_a b` depends only on the vertical component of `b`. -/
+theorem starProjection_orthogonal_ker_oneillT (x : M) (a b : TangentSpace I x) :
+    (mfderiv I J f x).kerᗮ.starProjection (h.oneillT x a b) =
+      h.oneillT x a ((mfderiv I J f x).ker.starProjection b) := by
+  conv_lhs => rw [← (mfderiv I J f x).ker.starProjection_add_starProjection_orthogonal b]
+  rw [map_add, map_add,
+    Submodule.starProjection_eq_self_iff.mpr
+      (h.oneillT_apply_mem_orthogonal_ker a (Submodule.starProjection_apply_mem _ _)),
+    Submodule.starProjection_orthogonal_apply_eq_zero
+      (h.oneillT_apply_mem_ker a (Submodule.starProjection_apply_mem _ _)),
+    add_zero]
+
+/-- Pairing `A_a b` against a horizontal vector `u` depends only on the vertical component of
+`b`. -/
+theorem inner_oneillA_starProjection_ker_of_mem_orthogonal_ker (a b : TangentSpace I x)
+    {u : TangentSpace I x} (hu : u ∈ (mfderiv I J f x).kerᗮ) :
+    ⟪h.oneillA x a ((mfderiv I J f x).ker.starProjection b), u⟫_ℝ = ⟪h.oneillA x a b, u⟫_ℝ := by
+  rw [← h.starProjection_orthogonal_ker_oneillA, Submodule.inner_starProjection_left_eq_right,
+    Submodule.starProjection_eq_self_iff.mpr hu]
+
+/-- Pairing `T_a b` against a horizontal vector `u` depends only on the vertical component of
+`b`. -/
+theorem inner_oneillT_starProjection_ker_of_mem_orthogonal_ker (a b : TangentSpace I x)
+    {u : TangentSpace I x} (hu : u ∈ (mfderiv I J f x).kerᗮ) :
+    ⟪h.oneillT x a ((mfderiv I J f x).ker.starProjection b), u⟫_ℝ = ⟪h.oneillT x a b, u⟫_ℝ := by
+  rw [← h.starProjection_orthogonal_ker_oneillT, Submodule.inner_starProjection_left_eq_right,
+    Submodule.starProjection_eq_self_iff.mpr hu]
 
 end Fields
 
