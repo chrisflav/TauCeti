@@ -238,6 +238,12 @@ private theorem linearPart_m_two_sub_eq (f : AInfinityHom AA BB) (a b : A) :
 
 /-! ### Cycles, boundaries, and cohomology -/
 
+/-- The linear part of an `A∞` morphism commutes with the unary differentials. -/
+theorem differential_comp_linearPart (f : AInfinityHom AA BB) :
+    BB.differential ∘ₗ f.linearPart = f.linearPart ∘ₗ AA.differential :=
+  LinearMap.ext fun a ↦ by
+    simp only [LinearMap.comp_apply, AInfinityAlgebra.differential_apply, f.linearPart_m_one]
+
 /-- The linear part of an `A∞` morphism carries cycles to cycles. -/
 theorem linearPart_mem_cycles (f : AInfinityHom AA BB) {x : A} (hx : x ∈ AA.cycles) :
     f.linearPart x ∈ BB.cycles := by

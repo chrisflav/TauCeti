@@ -320,4 +320,41 @@ theorem unaryBarDifferential_comp_self (𝒜 : AInfinityAlgebra R A) :
     ← LinearMap.comp_assoc, differential_comp_self_eq_zero, LinearMap.zero_comp,
     LinearMap.comp_zero]
 
+/-- Projection onto words of length `m` commutes with the unary bar differential. -/
+theorem lengthProj_comp_unaryBarDifferential (𝒜 : AInfinityAlgebra R A) (m : {n : ℕ // 0 < n}) :
+    ReducedTensorWords.lengthProj R A m ∘ₗ 𝒜.unaryBarDifferential =
+      𝒜.unaryBarDifferential ∘ₗ ReducedTensorWords.lengthProj R A m := by
+  rw [𝒜.unaryBarDifferential_eq_gradedCoderiv]
+  refine ReducedTensorWords.lengthProj_comp_gradedCoderiv (𝒜.grading.shift 1) 1 (a := 1) ?_ rfl
+  refine ReducedTensorWords.linearMap_ext R A fun k x ↦ ?_
+  by_cases hk : k = 1
+  · subst hk
+    rw [LinearMap.comp_apply, ReducedTensorWords.lengthProj_of_self]
+  · rw [LinearMap.comp_apply, ReducedTensorWords.lengthProj_of_of_ne R A hk, map_zero,
+      LinearMap.comp_apply, ReducedTensorWords.letter_of_of_ne_one R A hk, map_zero]
+
+/-- A linear map vanishing on `filtration R A n` sees only the unary part of `barDifferential` on
+`filtration R A (n + 1)`. -/
+theorem apply_barDifferential_of_mem_filtration_succ (𝒜 : AInfinityAlgebra R A) {M : Type*}
+    [AddCommMonoid M] [Module R M] {w : ReducedTensorWords R A →ₗ[R] M} {n : ℕ}
+    (hw : ∀ z ∈ ReducedTensorWords.filtration R A n, w z = 0)
+    {z : ReducedTensorWords R A} (hz : z ∈ ReducedTensorWords.filtration R A (n + 1)) :
+    w (𝒜.barDifferential z) = w (𝒜.unaryBarDifferential z) := by
+  rw [𝒜.barDifferential_eq_unary_add_higher, LinearMap.add_apply, map_add,
+    hw _ (𝒜.higherBarDifferential_filtration n ⟨z, hz, rfl⟩), add_zero]
+
+/-- For a linear map vanishing on `filtration R A n`, applying `barDifferential` after projecting
+onto length `n + 1` agrees with applying `unaryBarDifferential` first and then projecting onto
+length `n + 1`. -/
+theorem apply_barDifferential_lengthProj (𝒜 : AInfinityAlgebra R A) {M : Type*}
+    [AddCommMonoid M] [Module R M] {w : ReducedTensorWords R A →ₗ[R] M} {n : ℕ}
+    (hw : ∀ z ∈ ReducedTensorWords.filtration R A n, w z = 0) (z : ReducedTensorWords R A) :
+    w (𝒜.barDifferential (ReducedTensorWords.lengthProj R A ⟨n + 1, n.succ_pos⟩ z)) =
+      (w ∘ₗ ReducedTensorWords.lengthProj R A ⟨n + 1, n.succ_pos⟩)
+        (𝒜.unaryBarDifferential z) := by
+  have hz := ReducedTensorWords.lengthProj_mem_filtration R A ⟨n + 1, n.succ_pos⟩ z
+  have hcomm := LinearMap.congr_fun (𝒜.lengthProj_comp_unaryBarDifferential ⟨n + 1, n.succ_pos⟩) z
+  rw [LinearMap.comp_apply, LinearMap.comp_apply] at hcomm
+  rw [𝒜.apply_barDifferential_of_mem_filtration_succ hw hz, LinearMap.comp_apply, ← hcomm]
+
 end TauCeti.AInfinityAlgebra

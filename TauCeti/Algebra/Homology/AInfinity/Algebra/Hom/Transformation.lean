@@ -7,7 +7,7 @@ module
 
 public import Mathlib.Algebra.Category.ModuleCat.Basic
 public import Mathlib.Algebra.Homology.HomologicalComplex
-public import TauCeti.Algebra.Homology.AInfinity.Algebra.Hom.Homotopy
+public import TauCeti.Algebra.Homology.AInfinity.Algebra.Hom.Homotopy.Basic
 
 /-!
 # The complex of reduced transformations between A-infinity morphisms
@@ -24,7 +24,9 @@ reduced bar constructions: linear maps `D : Tᶜ(sA) ⟶ Tᶜ(sB)` raising the s
 `Δ ∘ D = (D ⊗ G) ∘ Δ + (F ⊗ D) ∘ (τ ⊗ 1) ∘ Δ`,
 
 with `τ` the letterwise Koszul twist of parameter `p` of `Tᶜ(sA)`.  Such a map is determined by its
-suspended Taylor components `π ∘ D`, the components `Dₙ` for `n ≥ 1`.  The differential of a
+suspended Taylor components `π ∘ D`, the components `Dₙ` for `n ≥ 1`, and conversely any map of
+degree `p` from reduced tensor words to letters expands to a unique reduced transformation via
+`TauCeti.AInfinityHom.reducedTransformationCochains.ofTaylor`.  The differential of a
 reduced transformation is its graded commutator with the bar differentials,
 
 `δD = b_B ∘ D - (-1)^p D ∘ b_A`,
@@ -52,8 +54,11 @@ morphisms.
 
 * `TauCeti.AInfinityHom.reducedTransformationCochains`: the reduced transformations of degree `p`
   from `f` to `g`, the `(F, G)`-coderivations of degree `p` between reduced bar constructions.
-* `TauCeti.AInfinityHom.reducedTransformationCochains.taylor`: the suspended Taylor components of
-  a reduced transformation.
+* `TauCeti.AInfinityHom.reducedTransformationCochains.taylor`,
+  `TauCeti.AInfinityHom.reducedTransformationCochains.ofTaylor` and
+  `TauCeti.AInfinityHom.reducedTransformationCochains.filtrationLimit`: the suspended Taylor
+  components of a reduced transformation, the inverse Taylor expansion, and the limit of a
+  filtration-stabilising sequence of reduced transformations.
 * `TauCeti.AInfinityHom.reducedTransformationDifferential`: the graded commutator with the bar
   differentials.
 * `TauCeti.AInfinityHom.reducedTransformationComplex`: the complex of reduced transformations from
@@ -183,6 +188,20 @@ theorem taylor_add (D D' : reducedTransformationCochains f g p) :
     taylor (D + D') = taylor D + taylor D' :=
   LinearMap.comp_add _ _ _
 
+/-- The Taylor components of the negation of a transformation are the negations of its Taylor
+components. -/
+@[simp]
+theorem taylor_neg (D : reducedTransformationCochains f g p) :
+    taylor (-D) = -taylor D :=
+  LinearMap.comp_neg _ _
+
+/-- The Taylor components of a difference of transformations are the differences of their Taylor
+components. -/
+@[simp]
+theorem taylor_sub (D D' : reducedTransformationCochains f g p) :
+    taylor (D - D') = taylor D - taylor D' :=
+  LinearMap.comp_sub _ _ _
+
 /-- The Taylor components of a scalar multiple of a transformation are the scalar multiples of
 its Taylor components. -/
 @[simp]
@@ -209,6 +228,103 @@ theorem taylor_injective :
 @[ext]
 theorem ext {D D' : reducedTransformationCochains f g p} (e : taylor D = taylor D') : D = D' :=
   taylor_injective e
+
+/-- Two transformations of the same degree whose Taylor components agree on `filtration R A n`
+agree on `filtration R A n`. -/
+theorem apply_eq_of_mem_filtration {D D' : reducedTransformationCochains f g p} {n : ℕ}
+    (h : ∀ z ∈ ReducedTensorWords.filtration R A n, taylor D z = taylor D' z)
+    {z : ReducedTensorWords R A}
+    (hz : z ∈ ReducedTensorWords.filtration R A n) :
+    (D : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z =
+      (D' : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z :=
+  (isGradedCoderivationAlong D).apply_eq_of_mem_filtration (isGradedCoderivationAlong D')
+    (fun _ _ ↦ rfl) (fun _ _ ↦ rfl) h hz
+
+/-- A transformation whose Taylor components vanish on `filtration R A n` vanishes on
+`filtration R A n`. -/
+theorem apply_eq_zero_of_mem_filtration {D : reducedTransformationCochains f g p} {n : ℕ}
+    (h : ∀ z ∈ ReducedTensorWords.filtration R A n, taylor D z = 0)
+    {z : ReducedTensorWords R A} (hz : z ∈ ReducedTensorWords.filtration R A n) :
+    (D : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z = 0 :=
+  (isGradedCoderivationAlong D).apply_eq_zero_of_mem_filtration h hz
+
+/-- A transformation whose Taylor components vanish on `filtration R A n` sends every word in
+`filtration R A (n + 1)` into single letters. -/
+theorem apply_eq_ofLetter_of_mem_filtration_succ {D : reducedTransformationCochains f g p} {n : ℕ}
+    (h : ∀ z ∈ ReducedTensorWords.filtration R A n, taylor D z = 0)
+    {z : ReducedTensorWords R A} (hz : z ∈ ReducedTensorWords.filtration R A (n + 1)) :
+    (D : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z =
+      ReducedTensorWords.ofLetter R B (taylor D z) :=
+  (isGradedCoderivationAlong D).apply_eq_ofLetter_of_mem_filtration_succ h hz
+
+variable (f g) in
+/-- The reduced transformation of degree `p` from `f` to `g` with prescribed suspended Taylor
+components `h` of degree `p`. -/
+noncomputable def ofTaylor {h : ReducedTensorWords R A →ₗ[R] B}
+    (hh : LinearMap.IsHomogeneous h (ReducedTensorWords.gradedPiece (AA.grading.shift 1))
+      (BB.grading.shift 1).piece p) :
+    reducedTransformationCochains f g p :=
+  ⟨ReducedTensorWords.gradedCoderivAlong (AA.grading.shift 1) p f.barMap g.barMap h,
+    ReducedTensorWords.isGradedCoderivationAlong_gradedCoderivAlong (AA.grading.shift 1) p
+      f.isCoalgHom_barMap g.isCoalgHom_barMap h,
+    ReducedTensorWords.isHomogeneous_gradedCoderivAlong f.isHomogeneous_barMap
+      g.isHomogeneous_barMap hh⟩
+
+/-- The underlying linear map of `ofTaylor` is `gradedCoderivAlong`. -/
+@[simp]
+theorem coe_ofTaylor {h : ReducedTensorWords R A →ₗ[R] B}
+    (hh : LinearMap.IsHomogeneous h (ReducedTensorWords.gradedPiece (AA.grading.shift 1))
+      (BB.grading.shift 1).piece p) :
+    (ofTaylor f g hh : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) =
+      ReducedTensorWords.gradedCoderivAlong (AA.grading.shift 1) p f.barMap g.barMap h :=
+  (rfl)
+
+/-- The Taylor components of `ofTaylor` are the prescribed map `h`. -/
+@[simp]
+theorem taylor_ofTaylor {h : ReducedTensorWords R A →ₗ[R] B}
+    (hh : LinearMap.IsHomogeneous h (ReducedTensorWords.gradedPiece (AA.grading.shift 1))
+      (BB.grading.shift 1).piece p) :
+    taylor (ofTaylor f g hh) = h :=
+  ReducedTensorWords.letter_comp_gradedCoderivAlong (AA.grading.shift 1) p f.barMap g.barMap h
+
+/-- Expanding the Taylor components of a reduced transformation recovers the transformation. -/
+@[simp]
+theorem ofTaylor_taylor (D : reducedTransformationCochains f g p) :
+    ofTaylor f g (isHomogeneous_taylor D) = D :=
+  ext (taylor_ofTaylor (isHomogeneous_taylor D))
+
+/-- The limit of a sequence of reduced transformations of degree `p` whose Taylor components
+stabilise along the conilpotence filtration. -/
+noncomputable def filtrationLimit {D : ℕ → reducedTransformationCochains f g p}
+    (hD : ∀ n, ∀ z ∈ ReducedTensorWords.filtration R A n, taylor (D (n + 1)) z = taylor (D n) z) :
+    reducedTransformationCochains f g p :=
+  ofTaylor f g (ReducedTensorWords.isHomogeneous_filtrationLimit hD fun n ↦
+    isHomogeneous_taylor (D n))
+
+/-- The Taylor components of `filtrationLimit` are the filtration limit of the Taylor components. -/
+@[simp]
+theorem taylor_filtrationLimit {D : ℕ → reducedTransformationCochains f g p}
+    (hD : ∀ n, ∀ z ∈ ReducedTensorWords.filtration R A n, taylor (D (n + 1)) z = taylor (D n) z) :
+    taylor (filtrationLimit hD) = ReducedTensorWords.filtrationLimit R fun n ↦ taylor (D n) :=
+  taylor_ofTaylor _
+
+/-- On `filtration R A n`, the Taylor components of `filtrationLimit` agree with those of `D n`. -/
+theorem taylor_filtrationLimit_apply_of_mem_filtration
+    {D : ℕ → reducedTransformationCochains f g p}
+    (hD : ∀ n, ∀ z ∈ ReducedTensorWords.filtration R A n, taylor (D (n + 1)) z = taylor (D n) z)
+    {n : ℕ} {z : ReducedTensorWords R A} (hz : z ∈ ReducedTensorWords.filtration R A n) :
+    taylor (filtrationLimit hD) z = taylor (D n) z := by
+  rw [taylor_filtrationLimit]
+  exact ReducedTensorWords.filtrationLimit_apply_of_mem_filtration hD hz
+
+/-- On `filtration R A n`, `filtrationLimit` agrees with `D n`. -/
+theorem coe_filtrationLimit_apply_of_mem_filtration
+    {D : ℕ → reducedTransformationCochains f g p}
+    (hD : ∀ n, ∀ z ∈ ReducedTensorWords.filtration R A n, taylor (D (n + 1)) z = taylor (D n) z)
+    {n : ℕ} {z : ReducedTensorWords R A} (hz : z ∈ ReducedTensorWords.filtration R A n) :
+    (filtrationLimit hD : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z =
+      (D n : ReducedTensorWords R A →ₗ[R] ReducedTensorWords R B) z :=
+  apply_eq_of_mem_filtration (fun _ hw ↦ taylor_filtrationLimit_apply_of_mem_filtration hD hw) hz
 
 end reducedTransformationCochains
 
