@@ -36,8 +36,13 @@ orientation.
 * `TauCeti.WithMetric.riemannianVolume_rescale`: the Riemannian volume of `f g` is the image of
   the volume of `g` weighted by `f ^ (N / 2)`.
 * `TauCeti.WithMetric.lintegral_riemannianVolume_rescale`,
-  `TauCeti.WithMetric.integral_riemannianVolume_rescale`: integration against the volume of `f g`.
-* `TauCeti.WithMetric.riemannianTotalVolume_rescale`: `Vol(f g) = ∫ f ^ (N / 2) dV_g`.
+  `TauCeti.WithMetric.integral_riemannianVolume_rescale`: integration against the volume of `f g`,
+  and `TauCeti.WithMetric.integral_riemannianVolume_rescale_const` for a constant scale.
+* `TauCeti.WithMetric.riemannianTotalVolume_rescale`: `Vol(f g) = ∫ f ^ (N / 2) dV_g`, together
+  with `TauCeti.WithMetric.riemannianTotalVolume_rescale_const` (`Vol(c g) = c ^ (N / 2) Vol(g)`)
+  and the prescribed- and unit-volume normalizations
+  `TauCeti.WithMetric.riemannianTotalVolume_rescale_const_div_rpow` and
+  `TauCeti.WithMetric.riemannianTotalVolume_rescale_const_rpow_neg`.
 * `TauCeti.WithMetric.integral_abs_rpow_rescale_rpow`: for `ĝ = u ^ (4 / (N - 2)) g`,
   `∫ |v| ^ (2 N / (N - 2)) dV_ĝ = ∫ |u v| ^ (2 N / (N - 2)) dV_g`.
 * `TauCeti.WithMetric.riemannianTotalVolume_rescale_rpow`: `Vol(u ^ (4 / (N - 2)) g) =
@@ -153,6 +158,17 @@ theorem integral_riemannianVolume_rescale {F : Type*} [NormedAddCommGroup F] [No
       (ae_of_all _ fun _ ↦ ENNReal.ofReal_lt_top)]
   simp only [ENNReal.toReal_ofReal (Real.rpow_nonneg (hf_pos _).le _)]
 
+/-- Integration against the volume of a constantly rescaled metric `c g`, in real dimension `N`:
+`∫ φ dV_{c g} = c ^ (N / 2) • ∫ φ dV_g`. -/
+@[simp]
+theorem integral_riemannianVolume_rescale_const {F : Type*} [NormedAddCommGroup F]
+    [NormedSpace ℝ F] {c : ℝ} {hf : ContMDiff I 𝓘(ℝ) n fun _ : M ↦ c} {hc : ∀ _ : M, 0 < c}
+    (φ : M → F) :
+    ∫ x, φ x.ofWithMetric ∂riemannianVolume I (WithMetric (g.rescale (fun _ ↦ c) hf hc)) =
+      c ^ ((Module.finrank ℝ E : ℝ) / 2) •
+        ∫ x, φ x.ofWithMetric ∂riemannianVolume I (WithMetric g) := by
+  rw [integral_riemannianVolume_rescale, integral_smul]
+
 /-- **Critical `Lᵖ` integrals under conformal change.** In real dimension `N`, for
 `ĝ = u ^ (4 / (N - 2)) g` with `u ≥ 0` and any function `v`,
 `∫ |v| ^ (2 N / (N - 2)) dV_ĝ = ∫ |u v| ^ (2 N / (N - 2)) dV_g`. -/
@@ -183,6 +199,53 @@ theorem riemannianTotalVolume_rescale [CompactSpace M] :
         ∂riemannianVolume I (WithMetric g) := by
   simpa only [integral_const, smul_eq_mul, mul_one, ← riemannianTotalVolume_def] using
     integral_riemannianVolume_rescale (hf := hf) (hf_pos := hf_pos) fun _ ↦ (1 : ℝ)
+
+/-- **Total volume under constant rescaling.** On a compact manifold of real dimension `N`, the
+total volume of the constantly rescaled metric `c g` is `c ^ (N / 2) * Vol(g)`. -/
+@[simp]
+theorem riemannianTotalVolume_rescale_const [CompactSpace M] {c : ℝ}
+    {hf : ContMDiff I 𝓘(ℝ) n fun _ : M ↦ c} {hc : ∀ _ : M, 0 < c} :
+    riemannianTotalVolume I (WithMetric (g.rescale (fun _ ↦ c) hf hc)) =
+      c ^ ((Module.finrank ℝ E : ℝ) / 2) * riemannianTotalVolume I (WithMetric g) := by
+  rw [riemannianTotalVolume_rescale, integral_const, smul_eq_mul, mul_comm,
+    ← riemannianTotalVolume_def]
+
+/-- **Prescribed-volume constant rescaling.** On a nonempty compact manifold of nonzero real
+dimension `N`, rescaling `g` by `(v / Vol(g)) ^ (2 / N)` produces a metric of total volume `v`, for
+every `v > 0`. -/
+theorem riemannianTotalVolume_rescale_const_div_rpow [CompactSpace M] [Nonempty M]
+    (hE : Module.finrank ℝ E ≠ 0) {v : ℝ} (hv : 0 < v)
+    {hf : ContMDiff I 𝓘(ℝ) n fun _ : M ↦
+      (v / riemannianTotalVolume I (WithMetric g)) ^ (2 / (Module.finrank ℝ E : ℝ))}
+    {hc : ∀ _ : M, 0 <
+      (v / riemannianTotalVolume I (WithMetric g)) ^ (2 / (Module.finrank ℝ E : ℝ))} :
+    riemannianTotalVolume I
+      (WithMetric (g.rescale
+        (fun _ ↦ (v / riemannianTotalVolume I (WithMetric g)) ^ (2 / (Module.finrank ℝ E : ℝ)))
+        hf hc)) = v := by
+  have hV : 0 < riemannianTotalVolume I (WithMetric g) := riemannianTotalVolume_pos
+  have hE' : (Module.finrank ℝ E : ℝ) ≠ 0 := Nat.cast_ne_zero.2 hE
+  rw [riemannianTotalVolume_rescale_const, ← Real.rpow_mul (div_nonneg hv.le hV.le),
+    show 2 / (Module.finrank ℝ E : ℝ) * ((Module.finrank ℝ E : ℝ) / 2) = 1 by field_simp,
+    Real.rpow_one, div_mul_cancel₀ _ hV.ne']
+
+/-- **Unit-volume constant rescaling.** On a nonempty compact manifold of nonzero real dimension
+`N`, rescaling `g` by `Vol(g) ^ (-2 / N)` produces a metric of total volume `1`. -/
+theorem riemannianTotalVolume_rescale_const_rpow_neg [CompactSpace M] [Nonempty M]
+    (hE : Module.finrank ℝ E ≠ 0)
+    {hf : ContMDiff I 𝓘(ℝ) n fun _ : M ↦
+      riemannianTotalVolume I (WithMetric g) ^ (-2 / (Module.finrank ℝ E : ℝ))}
+    {hc : ∀ _ : M, 0 <
+      riemannianTotalVolume I (WithMetric g) ^ (-2 / (Module.finrank ℝ E : ℝ))} :
+    riemannianTotalVolume I
+      (WithMetric (g.rescale
+        (fun _ ↦ riemannianTotalVolume I (WithMetric g) ^ (-2 / (Module.finrank ℝ E : ℝ)))
+        hf hc)) = 1 := by
+  have hV : 0 < riemannianTotalVolume I (WithMetric g) := riemannianTotalVolume_pos
+  have hE' : (Module.finrank ℝ E : ℝ) ≠ 0 := Nat.cast_ne_zero.2 hE
+  rw [riemannianTotalVolume_rescale_const, ← Real.rpow_mul hV.le,
+    show -2 / (Module.finrank ℝ E : ℝ) * ((Module.finrank ℝ E : ℝ) / 2) = -1 by field_simp,
+    Real.rpow_neg_one, inv_mul_cancel₀ hV.ne']
 
 /-- **Total volume of a Yamabe conformal metric.** On a compact manifold of real dimension `N`,
 let `u` be nonnegative and suppose that `u ^ (4 / (N - 2))` is `ContMDiff` of order `n` and

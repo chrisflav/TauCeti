@@ -33,6 +33,15 @@ differentiation, and `C¹`/`C²`/successor regularity for scalar parameters in `
 `integrable_of_hasDerivAt_of_hasDerivAt_of_compact_support` give scalar derivative integrability.
 Directional evaluation of the first derivative integral uses `ContinuousLinearMap.integral_apply`;
 the corresponding two-direction formula uses `ContinuousLinearMap.integral_apply_apply`.
+
+For parameters constrained to a convex set `s` (such as a closed interval or half-space),
+`Convex.hasFDerivWithinAt_setIntegral_of_continuousOn` and
+`Convex.hasDerivWithinAt_setIntegral_of_continuousOn` differentiate `t ↦ ∫ x in K, D t x ∂μ`
+within `s` over a compact measurable set `K` assuming only continuity of `D t` on `K` and joint
+continuity of the parameter derivative on `s ×ˢ K`, without requiring `s` to be open or to have
+unique derivatives. Likewise `TauCeti.continuousOn_setIntegral_of_isCompact` gives continuity of
+`p ↦ ∫ x in K, f p x ∂μ` on a subset `s` of any topological parameter space when `uncurry f` is
+continuous on `s ×ˢ K`.
 -/
 
 public section
@@ -326,4 +335,116 @@ theorem hasDerivAt_deriv_integral_of_compact_support {t₀ : 𝕜} (hU : U ∈ �
 
 end Scalar
 
+/-- **Parametric continuity of a set integral over a compact set.** If `K` is compact and
+measurable and `f` is jointly continuous on `s ×ˢ K` for a topological parameter space `P`, then
+`p ↦ ∫ x in K, f p x ∂μ` is continuous on `s`. -/
+theorem continuousOn_setIntegral_of_isCompact {P : Type*} [TopologicalSpace P]
+    {f : P → X → E} {s : Set P} (hK : IsCompact K) (hKm : MeasurableSet K)
+    (hf : ContinuousOn (uncurry f) (s ×ˢ K)) :
+    ContinuousOn (fun p ↦ ∫ x in K, f p x ∂μ) s := by
+  have hInt (p : P) (hp : p ∈ s) : IntegrableOn (f p) K μ :=
+    (hf.comp (continuous_const.prodMk continuous_id).continuousOn
+      fun x hx ↦ ⟨hp, hx⟩).integrableOn_compact' hK hKm
+  intro p₀ hp₀
+  rw [ContinuousWithinAt, Metric.tendsto_nhds]
+  intro ε hε
+  set δ := ε / (μ.real K + 1)
+  have hμK : 0 ≤ μ.real K := measureReal_nonneg
+  have hδ : 0 < δ := div_pos hε (by linarith)
+  obtain ⟨v, hv, hvf⟩ := hK.mem_uniformity_of_prod hf hp₀ (dist_mem_uniformity hδ)
+  filter_upwards [hv, self_mem_nhdsWithin] with p hp hps
+  rw [dist_eq_norm, ← integral_sub (hInt p hps) (hInt p₀ hp₀)]
+  calc ‖∫ x in K, (f p x - f p₀ x) ∂μ‖
+      ≤ δ * μ.real K :=
+        norm_setIntegral_le_of_norm_le_const hK.measure_lt_top fun x hx ↦ by
+          have hdist : dist (f p x) (f p₀ x) < δ := hvf p hp x hx
+          simpa only [dist_eq_norm] using hdist.le
+    _ < ε := by
+        rw [div_mul_eq_mul_div, div_lt_iff₀ (by linarith)]
+        linarith
+
 end TauCeti
+
+namespace Convex
+
+variable {X : Type*} [TopologicalSpace X] [MeasurableSpace X] [OpensMeasurableSpace X]
+  {μ : Measure X} [IsFiniteMeasureOnCompacts μ] {𝕜 E : Type*} [RCLike 𝕜]
+  [NormedAddCommGroup E] [NormedSpace ℝ E] [NormedSpace 𝕜 E]
+  {H : Type*} [NormedAddCommGroup H] [NormedSpace ℝ H] [NormedSpace 𝕜 H]
+
+/-- **Differentiation under a set integral over a compact set within a convex parameter domain.**
+Suppose `s` is convex over `ℝ`, `K` is compact and measurable, `D t` is continuous on `K` for each
+`t ∈ s`, and `D₁` is jointly continuous on `s ×ˢ K` and gives the parameter derivative of `D · x`
+within `s` at every `t ∈ s` and `x ∈ K`. Then `t ↦ ∫ x in K, D t x ∂μ` has derivative
+`∫ x in K, D₁ t₀ x ∂μ` within `s` at every `t₀ ∈ s`. Neither openness of `s` nor unique
+derivatives on `s` are needed. -/
+theorem hasFDerivWithinAt_setIntegral_of_continuousOn {s : Set H} {K : Set X}
+    {D : H → X → E} {D₁ : H → X → H →L[𝕜] E} {t₀ : H}
+    (hs : Convex ℝ s) (hK : IsCompact K) (hKm : MeasurableSet K)
+    (hD : ∀ t ∈ s, ContinuousOn (D t) K)
+    (hD₁ : ContinuousOn (uncurry D₁) (s ×ˢ K))
+    (hderiv : ∀ t ∈ s, ∀ x ∈ K, HasFDerivWithinAt (D · x) (D₁ t x) s t)
+    (ht₀ : t₀ ∈ s) :
+    HasFDerivWithinAt (fun t ↦ ∫ x in K, D t x ∂μ) (∫ x in K, D₁ t₀ x ∂μ) s t₀ := by
+  have hInt (t : H) (ht : t ∈ s) : IntegrableOn (D t) K μ :=
+    (hD t ht).integrableOn_compact' hK hKm
+  have hInt₁ : IntegrableOn (D₁ t₀) K μ :=
+    (hD₁.comp (continuous_const.prodMk continuous_id).continuousOn
+      fun x hx ↦ ⟨ht₀, hx⟩).integrableOn_compact' hK hKm
+  rw [hasFDerivWithinAt_iff_isLittleO, Asymptotics.isLittleO_iff]
+  intro c hc
+  set ε := c / (μ.real K + 1)
+  have hμK : 0 ≤ μ.real K := measureReal_nonneg
+  have hε : 0 < ε := div_pos hc (by linarith)
+  obtain ⟨v, hv, hvD⟩ := hK.mem_uniformity_of_prod hD₁ ht₀ (dist_mem_uniformity hε)
+  obtain ⟨δ, hδ, hball⟩ := mem_nhdsWithin_iff.1 hv
+  filter_upwards [self_mem_nhdsWithin, nhdsWithin_le_nhds (ball_mem_nhds t₀ hδ)]
+    with t ht htδ
+  have hsδ : Convex ℝ (s ∩ ball t₀ δ) := hs.inter (convex_ball t₀ δ)
+  -- On `s ∩ ball t₀ δ`, the mean value inequality bounds the pointwise first-order remainder.
+  have hpt (x : X) (hx : x ∈ K) : ‖D t x - D t₀ x - D₁ t₀ x (t - t₀)‖ ≤ ε * ‖t - t₀‖ :=
+    hsδ.norm_image_sub_le_of_norm_hasFDerivWithin_le' (f := (D · x)) (f' := (D₁ · x))
+      (fun z (hz : z ∈ s ∩ ball t₀ δ) ↦ (hderiv z hz.1 x hx).mono inter_subset_left)
+      (fun z hz ↦ by
+        have hdist : dist (D₁ z x) (D₁ t₀ x) < ε := hvD z (hball ⟨hz.2, hz.1⟩) x hx
+        simpa only [dist_eq_norm] using hdist.le)
+      ⟨ht₀, mem_ball_self hδ⟩ ⟨ht, htδ⟩
+  have hInt_apply : IntegrableOn (fun x ↦ D₁ t₀ x (t - t₀)) K μ :=
+    (ContinuousLinearMap.apply 𝕜 E (t - t₀)).integrable_comp hInt₁
+  have hrem : (∫ x in K, D t x ∂μ) - (∫ x in K, D t₀ x ∂μ) -
+      (∫ x in K, D₁ t₀ x ∂μ) (t - t₀) =
+      ∫ x in K, (D t x - D t₀ x - D₁ t₀ x (t - t₀)) ∂μ := by
+    rw [ContinuousLinearMap.integral_apply hInt₁,
+      integral_sub (f := fun x ↦ D t x - D t₀ x) ((hInt t ht).sub (hInt t₀ ht₀)) hInt_apply,
+      integral_sub (hInt t ht) (hInt t₀ ht₀)]
+  calc ‖(∫ x in K, D t x ∂μ) - (∫ x in K, D t₀ x ∂μ) - (∫ x in K, D₁ t₀ x ∂μ) (t - t₀)‖
+      = ‖∫ x in K, (D t x - D t₀ x - D₁ t₀ x (t - t₀)) ∂μ‖ := congrArg norm hrem
+    _ ≤ ε * ‖t - t₀‖ * μ.real K :=
+        norm_setIntegral_le_of_norm_le_const hK.measure_lt_top fun x hx ↦ hpt x hx
+    _ = (μ.real K * ε) * ‖t - t₀‖ := by ring
+    _ ≤ c * ‖t - t₀‖ := by
+        refine mul_le_mul_of_nonneg_right ?_ (norm_nonneg _)
+        rw [mul_div_assoc', div_le_iff₀ (by linarith)]
+        nlinarith
+
+/-- **Scalar differentiation under a set integral over a compact set within a convex domain.**
+Suppose `s ⊆ 𝕜` is convex over `ℝ`, `K` is compact and measurable, `D t` is continuous on `K` for
+each `t ∈ s`, and `D₁` is jointly continuous on `s ×ˢ K` and gives the scalar derivative of `D · x`
+within `s` at every `t ∈ s` and `x ∈ K`. Then `t ↦ ∫ x in K, D t x ∂μ` has derivative
+`∫ x in K, D₁ t₀ x ∂μ` within `s` at every `t₀ ∈ s`. -/
+theorem hasDerivWithinAt_setIntegral_of_continuousOn {s : Set 𝕜} {K : Set X}
+    {D D₁ : 𝕜 → X → E} {t₀ : 𝕜}
+    (hs : Convex ℝ s) (hK : IsCompact K) (hKm : MeasurableSet K)
+    (hD : ∀ t ∈ s, ContinuousOn (D t) K)
+    (hD₁ : ContinuousOn (uncurry D₁) (s ×ˢ K))
+    (hderiv : ∀ t ∈ s, ∀ x ∈ K, HasDerivWithinAt (D · x) (D₁ t x) s t)
+    (ht₀ : t₀ ∈ s) :
+    HasDerivWithinAt (fun t ↦ ∫ x in K, D t x ∂μ) (∫ x in K, D₁ t₀ x ∂μ) s t₀ := by
+  let e := ContinuousLinearMap.toSpanSingletonCLE (𝕜 := 𝕜) (E := E)
+  have h := hs.hasFDerivWithinAt_setIntegral_of_continuousOn (μ := μ)
+    (D₁ := fun t x ↦ e (D₁ t x)) hK hKm hD (e.continuous.comp_continuousOn hD₁)
+    (fun t ht x hx ↦ (hderiv t ht x hx).hasFDerivWithinAt) ht₀
+  rw [e.integral_comp_comm (D₁ t₀)] at h
+  exact hasDerivWithinAt_iff_hasFDerivWithinAt.2 h
+
+end Convex
