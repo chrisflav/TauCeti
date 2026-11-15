@@ -5,11 +5,13 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.Algebra.Category.ModuleCat.Abelian
 public import Mathlib.Algebra.Homology.HomologicalComplexAbelian
 public import Mathlib.Algebra.Homology.HomologicalComplexBiprod
 public import Mathlib.Algebra.Homology.ShortComplex.ModuleCat
 public import Mathlib.LinearAlgebra.Basis.Prod
 public import TauCeti.Algebra.Category.ModuleCat.Biproducts
+public import TauCeti.Algebra.Homology.HomologicalComplex.Biprod
 
 /-!
 # Biproducts of complexes of modules
@@ -25,8 +27,9 @@ The comparison uses `ModuleCat.inl_comp_biprodIsoProd_hom` and
 under Mathlib's identification `ModuleCat.biprodIsoProd` of the biproduct of two modules with
 their product, the biproduct inclusions are `LinearMap.inl` and `LinearMap.inr`. Along the same
 identification, bases of `K.X i` and `L.X i` give the basis `HomologicalComplex.biprodXBasis` of
-`(K ⊞ L).X i`, made of their images under the two biproduct inclusions; this is how a direct sum
-of based complexes is based.
+`(K ⊞ L).X i`, made of their images under the two biproduct inclusions, and bases of
+`K.homology i` and `L.homology i` give the basis `HomologicalComplex.biprodHomologyBasis` of
+`(K ⊞ L).homology i`; this is how a direct sum of based complexes with based homology is based.
 
 On elements, `biprod.lift` and `biprod.desc` act componentwise
 (`HomologicalComplex.biprod_desc_f_apply`, `HomologicalComplex.biprod_lift_f_apply`),
@@ -139,6 +142,74 @@ theorem biprodXBasis_inr (k : σ) :
   simp
 
 end Basis
+
+section HomologyBasis
+
+variable {L : HomologicalComplex (ModuleCat.{v} R) c} {i : ι} {κ σ : Type*}
+
+/-- The basis of the homology `(K ⊞ L).homology i` of a biproduct of complexes of modules made of
+the images of a basis `b` of `K.homology i` under `homologyMap biprod.inl`, followed by the images
+of a basis `b'` of `L.homology i` under `homologyMap biprod.inr`. -/
+noncomputable def biprodHomologyBasis (b : Module.Basis κ R (K.homology i))
+    (b' : Module.Basis σ R (L.homology i)) : Module.Basis (κ ⊕ σ) R ((K ⊞ L).homology i) :=
+  (b.prod b').map (homologyBiprodIso K L i ≪≫
+    ModuleCat.biprodIsoProd (K.homology i) (L.homology i)).toLinearEquiv.symm
+
+variable (K L i) in
+/-- Under the identification `homologyBiprodIso K L i ≪≫ ModuleCat.biprodIsoProd _ _` of
+`(K ⊞ L).homology i` with the product module `K.homology i × L.homology i`, the map induced on
+homology by the first biproduct inclusion is `LinearMap.inl`. -/
+theorem homologyMap_inl_comp_homologyBiprodIso_trans_biprodIsoProd_hom :
+    homologyMap (biprod.inl : K ⟶ K ⊞ L) i ≫
+        (homologyBiprodIso K L i ≪≫
+          ModuleCat.biprodIsoProd (K.homology i) (L.homology i)).hom =
+      ModuleCat.ofHom (LinearMap.inl R (K.homology i) (L.homology i)) := by
+  have h : (biprod.inl : K.homology i ⟶ K.homology i ⊞ L.homology i) ≫
+      (homologyBiprodIso K L i).inv = homologyMap (biprod.inl : K ⟶ K ⊞ L) i := by
+    rw [homologyBiprodIso, Functor.mapBiprod_inv]
+    exact biprod.inl_desc _ _
+  rw [Iso.trans_hom, ← h, Category.assoc, Iso.inv_hom_id_assoc,
+    ModuleCat.inl_comp_biprodIsoProd_hom]
+
+variable (K L i) in
+/-- Under the identification `homologyBiprodIso K L i ≪≫ ModuleCat.biprodIsoProd _ _` of
+`(K ⊞ L).homology i` with the product module `K.homology i × L.homology i`, the map induced on
+homology by the second biproduct inclusion is `LinearMap.inr`. -/
+theorem homologyMap_inr_comp_homologyBiprodIso_trans_biprodIsoProd_hom :
+    homologyMap (biprod.inr : L ⟶ K ⊞ L) i ≫
+        (homologyBiprodIso K L i ≪≫
+          ModuleCat.biprodIsoProd (K.homology i) (L.homology i)).hom =
+      ModuleCat.ofHom (LinearMap.inr R (K.homology i) (L.homology i)) := by
+  have h : (biprod.inr : L.homology i ⟶ K.homology i ⊞ L.homology i) ≫
+      (homologyBiprodIso K L i).inv = homologyMap (biprod.inr : L ⟶ K ⊞ L) i := by
+    rw [homologyBiprodIso, Functor.mapBiprod_inv]
+    exact biprod.inr_desc _ _
+  rw [Iso.trans_hom, ← h, Category.assoc, Iso.inv_hom_id_assoc,
+    ModuleCat.inr_comp_biprodIsoProd_hom]
+
+variable (b : Module.Basis κ R (K.homology i)) (b' : Module.Basis σ R (L.homology i))
+
+/-- On `Sum.inl k`, `biprodHomologyBasis` is the image of `b k` under `homologyMap biprod.inl`. -/
+@[simp]
+theorem biprodHomologyBasis_inl (k : κ) :
+    biprodHomologyBasis b b' (.inl k) =
+      (homologyMap (biprod.inl : K ⟶ K ⊞ L) i).hom (b k) := by
+  rw [biprodHomologyBasis, Module.Basis.map_apply, LinearEquiv.symm_apply_eq,
+    Iso.toLinearEquiv_apply, ← ModuleCat.comp_apply,
+    homologyMap_inl_comp_homologyBiprodIso_trans_biprodIsoProd_hom]
+  simp
+
+/-- On `Sum.inr k`, `biprodHomologyBasis` is the image of `b' k` under `homologyMap biprod.inr`. -/
+@[simp]
+theorem biprodHomologyBasis_inr (k : σ) :
+    biprodHomologyBasis b b' (.inr k) =
+      (homologyMap (biprod.inr : L ⟶ K ⊞ L) i).hom (b' k) := by
+  rw [biprodHomologyBasis, Module.Basis.map_apply, LinearEquiv.symm_apply_eq,
+    Iso.toLinearEquiv_apply, ← ModuleCat.comp_apply,
+    homologyMap_inr_comp_homologyBiprodIso_trans_biprodIsoProd_hom]
+  simp
+
+end HomologyBasis
 
 /-! ### Elements of biproducts of complexes of modules -/
 
