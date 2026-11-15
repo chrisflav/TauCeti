@@ -25,6 +25,7 @@ open sector `{w ∈ slitPlane | |arg w| < θ}`, and in particular on all of `sli
 
 * `Complex.VerticalIntegrable.integrable_cpow_smul`: the integrand of the Mellin inversion
   integral of a vertically integrable function is integrable for `y > 0`.
+* `TauCeti.norm_cpow_vertical_le`: `‖w^{σ + i y}‖ ≤ ‖w‖^σ exp (|arg w| |y|)`.
 * `TauCeti.integrable_cpow_vertical_smul`: `y ↦ w^{σ + i y} • g y` is integrable whenever `w ≠ 0`,
   `|arg w| < θ`, and `‖g y‖ ≤ C exp (-θ |y|)`.
 * `TauCeti.differentiableOn_integral_cpow_vertical_smul_sector` and
@@ -57,31 +58,41 @@ end Complex
 
 namespace TauCeti
 
+/-- Norm bound for a complex power along a vertical line `Re s = σ`:
+`‖w^{σ + i y}‖ ≤ ‖w‖^σ exp (|arg w| |y|)`. -/
+theorem norm_cpow_vertical_le (w : ℂ) (σ y : ℝ) :
+    ‖w ^ ((σ : ℂ) + y * I)‖ ≤ ‖w‖ ^ σ * Real.exp (|w.arg| * |y|) := by
+  rcases eq_or_ne w 0 with rfl | hw
+  · rcases eq_or_ne ((σ : ℂ) + y * I) 0 with hs | hs
+    · have hσ : σ = 0 := by simpa using congrArg re hs
+      rw [hs, hσ]
+      simp
+    · rw [zero_cpow hs, norm_zero]
+      positivity
+  · rw [norm_cpow_of_ne_zero hw, div_eq_mul_inv, ← Real.exp_neg]
+    have hre : ((σ : ℂ) + y * I).re = σ := by simp
+    have him : ((σ : ℂ) + y * I).im = y := by simp
+    rw [hre, him]
+    gcongr
+    exact (le_abs_self _).trans_eq (by rw [abs_neg, abs_mul])
+
 /-- If `w ≠ 0`, `|arg w| < θ`, and `‖g y‖ ≤ C exp (-θ |y|)`, then `y ↦ w^{σ + i y} • g y` is
 integrable on `ℝ`. -/
 theorem integrable_cpow_vertical_smul {E : Type*} [NormedAddCommGroup E] [NormedSpace ℂ E]
     {g : ℝ → E} (hg : AEStronglyMeasurable g) {w : ℂ} (hw : w ≠ 0) (σ : ℝ) {C θ : ℝ}
     (hθ : |w.arg| < θ) (hbound : ∀ y : ℝ, ‖g y‖ ≤ C * Real.exp (-θ * |y|)) :
     Integrable fun y : ℝ ↦ w ^ ((σ : ℂ) + y * I) • g y := by
-  have hcont : Continuous fun y : ℝ ↦ w ^ ((σ : ℂ) + y * I) := by
-    simp_rw [cpow_def_of_ne_zero hw]
-    fun_prop
+  have hcont : Continuous fun y : ℝ ↦ w ^ ((σ : ℂ) + y * I) :=
+    Continuous.const_cpow (by fun_prop) (Or.inl hw)
   set C₁ : ℝ := max C 0
   refine ((integrable_exp_neg_mul_abs (sub_pos.2 hθ)).const_mul (‖w‖ ^ σ * C₁)).mono'
     (hcont.aestronglyMeasurable.smul hg) (Eventually.of_forall fun y ↦ ?_)
-  rw [norm_smul, norm_cpow_of_ne_zero hw, div_eq_mul_inv, ← Real.exp_neg]
-  simp only [add_re, ofReal_re, mul_re, I_re, mul_zero, ofReal_im, I_im, mul_one, sub_self,
-    add_zero, add_im, mul_im, zero_add]
-  have harg : Real.exp (-(w.arg * y)) ≤ Real.exp (|w.arg| * |y|) := by
-    refine Real.exp_le_exp.2 ?_
-    calc -(w.arg * y) ≤ |-(w.arg * y)| := le_abs_self _
-      _ = |w.arg| * |y| := by rw [abs_neg, abs_mul]
+  rw [norm_smul]
   have hg_le : ‖g y‖ ≤ C₁ * Real.exp (-θ * |y|) :=
     (hbound y).trans (mul_le_mul_of_nonneg_right (le_max_left C 0) (Real.exp_pos _).le)
-  calc ‖w‖ ^ σ * Real.exp (-(w.arg * y)) * ‖g y‖
+  calc ‖w ^ ((σ : ℂ) + y * I)‖ * ‖g y‖
       ≤ (‖w‖ ^ σ * Real.exp (|w.arg| * |y|)) * (C₁ * Real.exp (-θ * |y|)) :=
-        mul_le_mul (mul_le_mul_of_nonneg_left harg (by positivity)) hg_le
-          (norm_nonneg _) (by positivity)
+        mul_le_mul (norm_cpow_vertical_le w σ y) hg_le (norm_nonneg _) (by positivity)
     _ = ‖w‖ ^ σ * C₁ * Real.exp (-((θ - |w.arg|) * |y|)) := by
         rw [mul_mul_mul_comm, ← Real.exp_add]
         congr 2
@@ -118,25 +129,19 @@ theorem differentiableOn_integral_cpow_vertical_smul_sector {E : Type*} [NormedA
   let F' : ℂ → ℝ → E := fun w y ↦ (((σ : ℂ) + y * I) * w ^ ((σ : ℂ) + y * I - 1)) • g y
   have hF_meas : ∀ᶠ w in 𝓝 w₀, AEStronglyMeasurable (F w) volume := by
     filter_upwards [hU] with w hw
-    have hw_ne : w ≠ 0 := slitPlane_ne_zero hw.1
-    have hcont : Continuous fun y : ℝ ↦ w ^ ((σ : ℂ) + y * I) := by
-      simp_rw [cpow_def_of_ne_zero hw_ne]
-      fun_prop
-    exact hcont.aestronglyMeasurable.smul hg
+    exact (Continuous.const_cpow (by fun_prop)
+      (Or.inl (slitPlane_ne_zero hw.1))).aestronglyMeasurable.smul hg
   have hF_int : Integrable (F w₀) volume :=
     integrable_cpow_vertical_smul hg hw₀_ne σ (by dsimp [θ₂, θ₁]; linarith) hC
   have hF'_meas : AEStronglyMeasurable (F' w₀) volume := by
-    have hcont : Continuous fun y : ℝ ↦ ((σ : ℂ) + y * I) * w₀ ^ ((σ : ℂ) + y * I - 1) := by
-      have hpow : Continuous fun y : ℝ ↦ w₀ ^ ((σ : ℂ) + y * I - 1) := by
-        simp_rw [cpow_def_of_ne_zero hw₀_ne]
-        fun_prop
-      exact (by fun_prop : Continuous fun y : ℝ ↦ (σ : ℂ) + y * I).mul hpow
+    have hcont : Continuous fun y : ℝ ↦ ((σ : ℂ) + y * I) * w₀ ^ ((σ : ℂ) + y * I - 1) :=
+      (by fun_prop : Continuous fun y : ℝ ↦ (σ : ℂ) + y * I).mul
+        (Continuous.const_cpow (by fun_prop) (Or.inl hw₀_ne))
     exact hcont.aestronglyMeasurable.smul hg
   -- Uniformly dominate `‖F' w y‖` on `U` by `K exp (-(δ * |y|))`.
   set K : ℝ := (|σ| + 1) * (1 / δ + 1) * B * C₁
   have h_bound : ∀ᵐ y : ℝ ∂volume, ∀ w ∈ U, ‖F' w y‖ ≤ K * Real.exp (-(δ * |y|)) := by
-    refine Eventually.of_forall fun y w ⟨hw_slit, hw_ball, hw_arg⟩ ↦ ?_
-    have hw_ne : w ≠ 0 := slitPlane_ne_zero hw_slit
+    refine Eventually.of_forall fun y w ⟨_, hw_ball, hw_arg⟩ ↦ ?_
     have hw_dist : ‖w - w₀‖ < ‖w₀‖ / 2 := mem_ball_iff_norm.1 hw_ball
     have hw_lo : ‖w₀‖ / 2 ≤ ‖w‖ := by
       have := norm_sub_norm_le w₀ w
@@ -163,15 +168,12 @@ theorem differentiableOn_integral_cpow_vertical_smul_sector {E : Type*} [NormedA
         nlinarith [abs_nonneg y]
       exact h2.trans (mul_le_mul_of_nonneg_left h1 (by positivity))
     have hpow_norm : ‖w ^ ((σ : ℂ) + y * I - 1)‖ ≤ B * Real.exp (θ₁ * |y|) := by
-      rw [norm_cpow_of_ne_zero hw_ne, div_eq_mul_inv, ← Real.exp_neg]
-      simp only [sub_re, add_re, ofReal_re, mul_re, I_re, mul_zero, ofReal_im, I_im, mul_one,
-        sub_self, add_zero, one_re, sub_im, add_im, mul_im, zero_add, one_im, sub_zero]
-      have harg : Real.exp (-(w.arg * y)) ≤ Real.exp (θ₁ * |y|) := by
-        refine Real.exp_le_exp.2 ?_
-        calc -(w.arg * y) ≤ |-(w.arg * y)| := le_abs_self _
-          _ = |w.arg| * |y| := by rw [abs_neg, abs_mul]
-          _ ≤ θ₁ * |y| := mul_le_mul_of_nonneg_right hw_arg.le (abs_nonneg y)
-      exact mul_le_mul hB_le harg (Real.exp_pos _).le hB
+      have hexp_eq : (σ : ℂ) + y * I - 1 = ((σ - 1 : ℝ) : ℂ) + y * I := by push_cast; ring
+      rw [hexp_eq]
+      refine (norm_cpow_vertical_le w (σ - 1) y).trans ?_
+      exact mul_le_mul hB_le
+        (Real.exp_le_exp.2 (mul_le_mul_of_nonneg_right hw_arg.le (abs_nonneg y)))
+        (Real.exp_pos _).le hB
     have hg_le : ‖g y‖ ≤ C₁ * Real.exp (-θ₂ * |y|) :=
       (hC y).trans (mul_le_mul_of_nonneg_right (le_max_left C 0) (Real.exp_pos _).le)
     have hcoeff : ‖((σ : ℂ) + y * I) * w ^ ((σ : ℂ) + y * I - 1)‖ ≤

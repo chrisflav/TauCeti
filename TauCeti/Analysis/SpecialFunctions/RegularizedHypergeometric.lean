@@ -28,6 +28,8 @@ Because `1 / Γ` vanishes at the poles of `Γ`, none of these statements needs a
 
 * `Complex.hasSum_regularizedHGFun` — the power series of `regularizedHGFun a b` converges to it
   everywhere when `a.card ≤ b.card`, absolutely by `Complex.summable_norm_regularizedHGFun`.
+* `Complex.hasSum_regularizedGaussHGFun_of_norm_lt_one` — the Gauss power series converges to
+  `regularizedGaussHGFun a b c z` on the open unit disk `‖z‖ < 1`.
 * `Complex.hasSum_deriv_regularizedHGFun` — the termwise differentiated series converges to the
   derivative.
 * `Complex.regularizedHGFunCoeff_one_singleton` — the coefficients `1 / Γ(b + n)` of the Kummer
@@ -43,7 +45,7 @@ public section
 noncomputable section
 
 open Filter Set
-open scoped Nat Topology
+open scoped Nat Topology ENNReal
 
 namespace Complex
 
@@ -70,6 +72,18 @@ theorem hasSum_regularizedHGFun {a b : Multiset ℂ} (h : a.card ≤ b.card) (z 
     (by simp [radius_regularizedHGFunSeries_eq_top h])
   simpa [regularizedHGFun, regularizedHGFunSeries, FormalMultilinearSeries.ofScalars_apply_eq,
     mul_comm] using this
+
+/-- On the open unit disk `‖z‖ < 1`, the Gauss power series converges to
+`regularizedGaussHGFun a b c z`. -/
+theorem hasSum_regularizedGaussHGFun_of_norm_lt_one (a b c : ℂ) {z : ℂ} (hz : ‖z‖ < 1) :
+    HasSum (fun n : ℕ => (a.regularizedGaussHGFunSeries b c).coeff n * z ^ n)
+      (regularizedGaussHGFun a b c z) := by
+  have hmem : z ∈ Metric.eball (0 : ℂ) (a.regularizedGaussHGFunSeries b c).radius := by
+    refine lt_of_lt_of_le ?_ (radius_regularizedGaussHGFunSeries_ge_one a b c)
+    rwa [edist_zero_right, ← ofReal_norm, ENNReal.ofReal_lt_one]
+  rw [regularizedGaussHGFun]
+  refine ((a.regularizedGaussHGFunSeries b c).hasSum hmem).congr_fun fun n => ?_
+  rw [FormalMultilinearSeries.apply_eq_pow_smul_coeff, smul_eq_mul, mul_comm]
 
 /-- When there are at most as many upper as lower parameters, the regularized hypergeometric
 series converges absolutely at every `z`. -/

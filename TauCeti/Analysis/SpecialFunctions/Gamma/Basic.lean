@@ -8,7 +8,7 @@ module
 public import Mathlib.Analysis.Asymptotics.AsymptoticEquivalent
 public import Mathlib.Analysis.SpecialFunctions.Gamma.Beta
 public import Mathlib.MeasureTheory.Constructions.BorelSpace.Basic
-public import Mathlib.RingTheory.Polynomial.Pochhammer
+public import Mathlib.RingTheory.Binomial
 import Mathlib.Analysis.Asymptotics.Lemmas
 import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 
@@ -29,7 +29,7 @@ The reciprocal `(Real.Gamma s)⁻¹`, on the other hand, is continuous on all of
 convention `Real.Gamma (-n) = 0` makes it vanish at the poles, matching the zeros of the entire
 function `1 / Γ`. It is bounded on every half-line `[a, ∞)`, which is what uniform estimates for
 series with coefficients `1 / Γ(b + n)`, such as hypergeometric and Bessel series, need.
-For a complex parameter the corresponding estimate is the factorial decay of `1 / Γ(s + n)` on
+For a complex parameter the corresponding estimate is the factorial decay of `1 / Γ(s + k)` on
 the half-plane `1 ≤ Re s`.
 
 Finally, the rising factorial is recorded as a quotient of real Gamma values, and Mathlib's Euler
@@ -46,6 +46,8 @@ summability and moment arguments for discrete laws with Beta-function masses.
   positive parameters.
 * `Real.exists_abs_inv_Gamma_le` — `(Real.Gamma s)⁻¹` is bounded on `[a, ∞)`.
 * `Real.Gamma_add_nat_div_Gamma_eq` — `Γ(x + n) / Γ x` is the rising factorial `x (x + 1) ⋯`.
+* `Complex.Gamma_add_nat_div_factorial_eq` and `Real.Gamma_add_nat_div_factorial_eq` —
+  `Γ(z + n) / n! = Γ(z) * Ring.multichoose z n` away from the nonpositive integers.
 * `Real.prod_range_add_mul_Gamma` — `s (s + 1) ⋯ (s + n - 1) Γ s = Γ(s + n)` for positive `s`.
 * `Real.Gamma_nat_add_half_eq_factorial` — `Γ(n + 1 / 2) = (2 n)! √π / (4 ^ n n!)`.
 * `Real.isEquivalent_Gamma_natCast_add_one_add` — `Γ(n + 1 + s) ~ n ^ s * n!` as `n → ∞`.
@@ -124,6 +126,19 @@ theorem _root_.Real.exists_abs_inv_Gamma_le (a : ℝ) :
 
 end TauCeti
 
+namespace Complex
+
+/-- Away from the poles of `Γ`, dividing `Γ(z + n)` by `n!` gives `Γ(z) * Ring.multichoose z n`. -/
+theorem Gamma_add_nat_div_factorial_eq {n : ℕ} (z : ℂ) (hz : ∀ k : ℕ, z ≠ -k) :
+    Gamma (z + n) / n ! = Gamma z * Ring.multichoose z n := by
+  have hpoch := (div_eq_iff (Gamma_ne_zero hz)).1 (Gamma_add_nat_div_Gamma_eq (n := n) z hz)
+  have hmc := Ring.factorial_nsmul_multichoose_eq_ascPochhammer z n
+  rw [nsmul_eq_mul, Polynomial.ascPochhammer_smeval_eq_eval] at hmc
+  rw [hpoch, ← hmc]
+  field_simp [Nat.cast_ne_zero.mpr n.factorial_ne_zero]
+
+end Complex
+
 namespace Real
 
 /-- The ascending Pochhammer symbol is given by the ratio of real `Γ` values; this is the real
@@ -137,6 +152,18 @@ theorem Gamma_add_nat_div_Gamma_eq {n : ℕ} (x : ℝ) (hx : ∀ k : ℕ, x ≠ 
     rw [ascPochhammer_succ_right, Polynomial.eval_mul, Polynomial.eval_add, Polynomial.eval_X,
       Polynomial.eval_natCast, ← ih, Nat.cast_succ, ← add_assoc, Gamma_add_one hxn]
     ring
+
+/-- Away from the poles of `Real.Gamma`, dividing `Γ(x + n)` by `n!` gives
+`Γ(x) * Ring.multichoose x n`. -/
+theorem Gamma_add_nat_div_factorial_eq {n : ℕ} (x : ℝ) (hx : ∀ k : ℕ, x ≠ -k) :
+    Gamma (x + n) / n ! = Gamma x * Ring.multichoose x n := by
+  have hz : ∀ k : ℕ, (x : ℂ) ≠ -k := fun k hk => hx k (by exact_mod_cast hk)
+  have h := Complex.Gamma_add_nat_div_factorial_eq (n := n) (x : ℂ) hz
+  have hmc : Ring.multichoose (x : ℂ) n = ((Ring.multichoose x n : ℝ) : ℂ) := by
+    simpa using (Ring.map_multichoose Complex.ofRealHom x n).symm
+  have hcast : (x : ℂ) + n = ((x + n : ℝ) : ℂ) := by push_cast; ring
+  rw [hcast, hmc, Complex.Gamma_ofReal, Complex.Gamma_ofReal] at h
+  exact_mod_cast h
 
 /-- The product `s (s + 1) ⋯ (s + n - 1)` times `Γ s` is `Γ (s + n)`, for positive `s`. -/
 theorem prod_range_add_mul_Gamma {s : ℝ} (hs : 0 < s) (n : ℕ) :
