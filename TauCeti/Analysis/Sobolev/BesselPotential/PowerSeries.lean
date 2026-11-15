@@ -5,7 +5,9 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.Analysis.Sobolev.BesselPotential.Algebra
+public import Mathlib.Analysis.Calculus.ContDiff.Defs
+public import Mathlib.Analysis.Calculus.FDeriv.Analytic
+public import TauCeti.Analysis.Sobolev.BesselPotential.Conj
 import TauCeti.Analysis.Sobolev.BesselPotential.Embedding
 import TauCeti.Analysis.SpecialFunctions.Complex.Exp.Series
 import TauCeti.Analysis.SpecialFunctions.Complex.LogBounds
@@ -45,8 +47,17 @@ above satisfies
 
 (`TemperedDistribution.exists_norm_toBesselPotentialSpace_sub_le_of_hasSum_mul_pow`). For the
 exponential the factor is `exp (C R)`, and for `log (1 + z)` it is `(1 - C R)⁻¹` when `C R < 1`.
-These estimates make `U ↦ exp U - 1` and `U ↦ log (1 + U)` continuous for the `H^s` norm, which is
-what the charts of a gauge group modelled on `H^s` require.
+
+In `namespace BesselPotentialSpace`, iterating the continuous bilinear multiplication `mulCLM`
+produces the `(n + 1)`-linear multiplication maps `BesselPotentialSpace.multilinearProd` of norm at
+most `‖mulCLM hs‖ ^ n`, hence a `FormalMultilinearSeries`
+`BesselPotentialSpace.powerSeriesFormalSeries` on `H^s(E)` making convergent power series
+Fréchet-analytic on their ball of convergence. Specializing to `exp z - 1` gives the entire map
+`BesselPotentialSpace.expSubOne : H^s(E) → H^s(E)`, which is complex- and real-analytic (`C^ω`, and
+in particular smooth), has strict Fréchet derivative `id` at `0`, satisfies the group-law identity
+`expSubOne (u + v) = expSubOne u + expSubOne v + mulCLM (expSubOne u) (expSubOne v)` and commutes
+with complex conjugation and order inclusions. These properties underlie the Banach Lie group
+charts of Sobolev gauge groups.
 
 ## Main declarations
 
@@ -68,6 +79,15 @@ what the charts of a gauge group modelled on `H^s` require.
   `‖(exp U - 1) - (exp W - 1)‖_{H^s} ≤ exp (C R) ‖U - W‖_{H^s}`.
 * `TemperedDistribution.exists_norm_toBesselPotentialSpace_sub_le_of_ae_eq_log_one_add`:
   `‖log (1 + U) - log (1 + W)‖_{H^s} ≤ (1 - C R)⁻¹ ‖U - W‖_{H^s}` when `C R < 1`.
+* `BesselPotentialSpace.multilinearProd`, `BesselPotentialSpace.powerSeriesFormalSeries`: the
+  `(n + 1)`-linear algebra product on `H^s(E)` and the associated formal multilinear power series.
+* `BesselPotentialSpace.expSubOne`: the entire map `u ↦ exp u - 1` on `H^s(E)`, with
+  `BesselPotentialSpace.hasFPowerSeriesOnBall_expSubOne`,
+  `BesselPotentialSpace.analyticOnNhd_expSubOne`, `BesselPotentialSpace.contDiff_expSubOne`,
+  `BesselPotentialSpace.contDiff_real_expSubOne`,
+  `BesselPotentialSpace.hasStrictFDerivAt_expSubOne_zero`,
+  `BesselPotentialSpace.toZeroAtInfty_expSubOne_apply`, `BesselPotentialSpace.expSubOne_add`,
+  `BesselPotentialSpace.conjLIE_expSubOne` and `BesselPotentialSpace.inclusion_expSubOne`.
 
 ## References
 
@@ -80,7 +100,7 @@ public section
 noncomputable section
 
 open MeasureTheory Module Filter
-open scoped Nat SchwartzMap ENNReal Topology BesselPotentialSpace
+open scoped Nat SchwartzMap ENNReal NNReal Topology ZeroAtInfty BesselPotentialSpace
 
 variable {E : Type*} [MeasurableSpace E] [NormedAddCommGroup E] [InnerProductSpace ℝ E]
   [FiniteDimensional ℝ E] [BorelSpace E]
@@ -360,3 +380,213 @@ theorem exists_norm_toBesselPotentialSpace_sub_le_of_ae_eq_log_one_add {s : ℝ}
   exact h.trans (mul_le_mul_of_nonneg_right hinv (norm_nonneg _))
 
 end TemperedDistribution
+
+namespace BesselPotentialSpace
+
+variable {r s : ℝ}
+
+/-- The `(n + 1)`-fold continuous multilinear product `(u₀, …, uₙ) ↦ u₀ * ⋯ * uₙ` on the Sobolev
+algebra `H^s(E)`, `2s > dim E`, constructed recursively from `mulCLM`. -/
+def multilinearProd (hs : finrank ℝ E < 2 * s) :
+    ∀ n : ℕ, ContinuousMultilinearMap ℂ (fun _ : Fin (n + 1) ↦ H^{s}(E)) H^{s}(E)
+  | 0 => (continuousMultilinearCurryFin1 ℂ H^{s}(E) H^{s}(E)).symm (.id ℂ H^{s}(E))
+  | n + 1 => ((mulCLM hs).compContinuousMultilinearMap (multilinearProd hs n)).uncurryRight
+
+@[simp]
+theorem multilinearProd_zero_apply (hs : finrank ℝ E < 2 * s) (v : Fin 1 → H^{s}(E)) :
+    multilinearProd hs 0 v = v 0 := by
+  rfl
+
+@[simp]
+theorem multilinearProd_succ_apply (hs : finrank ℝ E < 2 * s) (n : ℕ)
+    (v : Fin (n + 2) → H^{s}(E)) :
+    multilinearProd hs (n + 1) v =
+      mulCLM hs (multilinearProd hs n (Fin.init v)) (v (Fin.last (n + 1))) := by
+  rfl
+
+@[simp]
+theorem continuousMultilinearCurryFin1_multilinearProd_zero (hs : finrank ℝ E < 2 * s) :
+    continuousMultilinearCurryFin1 ℂ H^{s}(E) H^{s}(E) (multilinearProd hs 0) = .id ℂ H^{s}(E) :=
+  (continuousMultilinearCurryFin1 ℂ H^{s}(E) H^{s}(E)).apply_symm_apply _
+
+/-- Operator norm bound `‖multilinearProd hs n‖ ≤ ‖mulCLM hs‖ ^ n`. -/
+theorem norm_multilinearProd_le (hs : finrank ℝ E < 2 * s) :
+    ∀ n : ℕ, ‖multilinearProd (E := E) hs n‖ ≤ ‖mulCLM (E := E) hs‖ ^ n
+  | 0 => by
+    rw [pow_zero, multilinearProd, LinearIsometryEquiv.norm_map]
+    exact ContinuousLinearMap.norm_id_le
+  | n + 1 => by
+    rw [pow_succ', multilinearProd, ContinuousMultilinearMap.uncurryRight_norm]
+    exact ((mulCLM hs).norm_compContinuousMultilinearMap_le _).trans
+      (mul_le_mul_of_nonneg_left (norm_multilinearProd_le hs n) (norm_nonneg _))
+
+/-- Pointwise under `toZeroAtInfty`, `multilinearProd hs n` becomes the `(n + 1)`-fold product in
+`ℂ`. -/
+@[simp]
+theorem toZeroAtInfty_multilinearProd_apply (hs : finrank ℝ E < 2 * s) :
+    ∀ (n : ℕ) (v : Fin (n + 1) → H^{s}(E)) (x : E),
+      toZeroAtInfty hs (multilinearProd hs n v) x = ∏ i, toZeroAtInfty hs (v i) x
+  | 0, v, x => by rw [multilinearProd_zero_apply, Fin.prod_univ_one]
+  | n + 1, v, x => by
+    rw [multilinearProd_succ_apply, toZeroAtInfty_mulCLM_apply,
+      toZeroAtInfty_multilinearProd_apply hs n,
+      Fin.prod_univ_castSucc (f := fun i ↦ toZeroAtInfty hs (v i) x)]
+    rfl
+
+/-- The formal multilinear power series without constant term on `H^s(E)`, `2s > dim E`, with
+`(n + 1)`-st homogeneous term `a n • multilinearProd hs n`. -/
+def powerSeriesFormalSeries (hs : finrank ℝ E < 2 * s) (a : ℕ → ℂ) :
+    FormalMultilinearSeries ℂ H^{s}(E) H^{s}(E)
+  | 0 => 0
+  | n + 1 => a n • multilinearProd hs n
+
+@[simp]
+theorem powerSeriesFormalSeries_zero (hs : finrank ℝ E < 2 * s) (a : ℕ → ℂ) :
+    powerSeriesFormalSeries (E := E) hs a 0 = 0 := by
+  rfl
+
+@[simp]
+theorem powerSeriesFormalSeries_succ (hs : finrank ℝ E < 2 * s) (a : ℕ → ℂ) (n : ℕ) :
+    powerSeriesFormalSeries hs a (n + 1) = a n • multilinearProd hs n := by
+  rfl
+
+/-- Lower bound on the convergence radius of `powerSeriesFormalSeries hs a` from majorant
+convergence at `‖mulCLM hs‖ * ρ`. -/
+theorem le_radius_powerSeriesFormalSeries (hs : finrank ℝ E < 2 * s) {a : ℕ → ℂ} {ρ : ℝ≥0}
+    (hρ : Summable fun n ↦ ‖a n‖ * (‖mulCLM (E := E) hs‖ * ρ) ^ n) :
+    (ρ : ℝ≥0∞) ≤ (powerSeriesFormalSeries hs a).radius := by
+  refine (powerSeriesFormalSeries hs a).le_radius_of_summable_norm ?_
+  rw [← summable_nat_add_iff 1]
+  refine (hρ.mul_left (ρ : ℝ)).of_nonneg_of_le (fun _ ↦ by positivity) fun n ↦ ?_
+  rw [powerSeriesFormalSeries_succ, norm_smul]
+  calc ‖a n‖ * ‖multilinearProd (E := E) hs n‖ * (ρ : ℝ) ^ (n + 1)
+      ≤ ‖a n‖ * ‖mulCLM (E := E) hs‖ ^ n * (ρ : ℝ) ^ (n + 1) := by
+        gcongr; exact norm_multilinearProd_le hs n
+    _ = (ρ : ℝ) * (‖a n‖ * (‖mulCLM (E := E) hs‖ * ρ) ^ n) := by ring
+
+/-- An entire scalar power series without constant term gives an entire formal multilinear series
+on `H^s(E)`. -/
+theorem radius_powerSeriesFormalSeries_eq_top (hs : finrank ℝ E < 2 * s) {a : ℕ → ℂ}
+    (ha : ∀ R : ℝ, 0 ≤ R → Summable fun n ↦ ‖a n‖ * R ^ n) :
+    (powerSeriesFormalSeries (E := E) hs a).radius = ∞ :=
+  ENNReal.eq_top_of_forall_nnreal_le fun ρ ↦
+    le_radius_powerSeriesFormalSeries hs (ha _ (by positivity))
+
+/-- Inside the convergence ball of `powerSeriesFormalSeries hs a`, evaluating `toZeroAtInfty` at
+`x` sums the scalar power series `∑ₙ aₙ (u x) ^ (n + 1)`. -/
+theorem hasSum_toZeroAtInfty_powerSeriesFormalSeries_apply (hs : finrank ℝ E < 2 * s) {a : ℕ → ℂ}
+    {u : H^{s}(E)} (hu : u ∈ Metric.eball (0 : H^{s}(E)) (powerSeriesFormalSeries hs a).radius)
+    (x : E) :
+    HasSum (fun n ↦ a n * (toZeroAtInfty hs u x) ^ (n + 1))
+      (toZeroAtInfty hs ((powerSeriesFormalSeries hs a).sum u) x) := by
+  let evalAddHom : H^{s}(E) →+ ℂ :=
+    { toFun v := toZeroAtInfty hs v x
+      map_zero' := by simp
+      map_add' v w := by simp }
+  have hcont : Continuous evalAddHom :=
+    (BoundedContinuousFunction.evalCLM ℂ x).continuous.comp
+      (ZeroAtInftyContinuousMap.isometry_toBCF.continuous.comp (toZeroAtInfty hs).continuous)
+  have hmap := ((powerSeriesFormalSeries hs a).hasSum hu).map evalAddHom hcont
+  rw [← hasSum_nat_add_iff' 1] at hmap
+  simpa [evalAddHom, Finset.prod_const, smul_eq_mul] using hmap
+
+/-- The formal multilinear series of `exp z - 1 = ∑ₙ z ^ (n + 1) / (n + 1)!` on `H^s(E)`. -/
+def expSubOneSeries (hs : finrank ℝ E < 2 * s) :
+    FormalMultilinearSeries ℂ H^{s}(E) H^{s}(E) :=
+  powerSeriesFormalSeries hs fun n ↦ (((n + 1)! : ℂ))⁻¹
+
+@[simp]
+theorem radius_expSubOneSeries (hs : finrank ℝ E < 2 * s) :
+    (expSubOneSeries (E := E) hs).radius = ∞ := by
+  refine radius_powerSeriesFormalSeries_eq_top hs fun R hR ↦ ?_
+  refine (Real.summable_pow_div_factorial R).of_nonneg_of_le (fun _ ↦ by positivity) fun n ↦ ?_
+  rw [norm_inv, Complex.norm_natCast, div_eq_inv_mul]
+  gcongr
+  exact_mod_cast n.le_succ
+
+/-- **The exponential `u ↦ exp u - 1` on the Sobolev algebra `H^s(E)`, `2s > dim E`**, defined as
+the sum of its convergent formal multilinear power series. -/
+def expSubOne (hs : finrank ℝ E < 2 * s) : H^{s}(E) → H^{s}(E) :=
+  (expSubOneSeries hs).sum
+
+/-- `expSubOne hs` is represented on the whole space `H^s(E)` by `expSubOneSeries hs`. -/
+theorem hasFPowerSeriesOnBall_expSubOne (hs : finrank ℝ E < 2 * s) :
+    HasFPowerSeriesOnBall (expSubOne (E := E) hs) (expSubOneSeries hs) 0 ∞ := by
+  rw [expSubOne, ← radius_expSubOneSeries (E := E) hs]
+  exact (expSubOneSeries (E := E) hs).hasFPowerSeriesOnBall (by simp)
+
+/-- `expSubOne hs` is complex-analytic on `H^s(E)`. -/
+theorem analyticOnNhd_expSubOne (hs : finrank ℝ E < 2 * s) :
+    AnalyticOnNhd ℂ (expSubOne (E := E) hs) Set.univ := by
+  rw [← Metric.eball_top (0 : H^{s}(E))]
+  exact (hasFPowerSeriesOnBall_expSubOne hs).analyticOnNhd
+
+/-- `expSubOne hs` is `C^n` over `ℂ` for every `n : ℕ∞ω` (including `∞` and `ω`). -/
+theorem contDiff_expSubOne {n : WithTop ℕ∞} (hs : finrank ℝ E < 2 * s) :
+    ContDiff ℂ n (expSubOne (E := E) hs) :=
+  (analyticOnNhd_expSubOne hs).contDiff
+
+/-- `expSubOne hs` is `C^n` over `ℝ` for every `n : ℕ∞ω` (including `∞` and `ω`). -/
+theorem contDiff_real_expSubOne {n : WithTop ℕ∞} (hs : finrank ℝ E < 2 * s) :
+    ContDiff ℝ n (expSubOne (E := E) hs) :=
+  ((analyticOnNhd_expSubOne hs).restrictScalars (𝕜 := ℝ)).contDiff
+
+/-- At `0`, `expSubOne hs` has strict complex Fréchet derivative `id`. -/
+theorem hasStrictFDerivAt_expSubOne_zero (hs : finrank ℝ E < 2 * s) :
+    HasStrictFDerivAt (expSubOne (E := E) hs) (.id ℂ H^{s}(E)) 0 := by
+  have h := (hasFPowerSeriesOnBall_expSubOne (E := E) hs).hasFPowerSeriesAt.hasStrictFDerivAt
+  have h1 : continuousMultilinearCurryFin1 ℂ H^{s}(E) H^{s}(E) (expSubOneSeries hs 1) =
+      .id ℂ H^{s}(E) := by
+    simp [expSubOneSeries]
+  rwa [h1] at h
+
+/-- Pointwise evaluation of `expSubOne hs u` under the Sobolev embedding `toZeroAtInfty`:
+`(expSubOne hs u) x = exp (u x) - 1`. -/
+@[simp]
+theorem toZeroAtInfty_expSubOne_apply (hs : finrank ℝ E < 2 * s) (u : H^{s}(E)) (x : E) :
+    toZeroAtInfty hs (expSubOne hs u) x = Complex.exp (toZeroAtInfty hs u x) - 1 := by
+  have hu : u ∈ Metric.eball (0 : H^{s}(E)) (expSubOneSeries hs).radius := by simp
+  exact (hasSum_toZeroAtInfty_powerSeriesFormalSeries_apply hs hu x).unique
+    (Complex.hasSum_exp_sub_one (toZeroAtInfty hs u x))
+
+/-- Almost-everywhere formula for the `L²` function of `expSubOne hs u`. -/
+theorem coeFn_toLp_inclusion_expSubOne (hs : finrank ℝ E < 2 * s) (h : 0 ≤ s) (u : H^{s}(E)) :
+    ⇑(inclusion h (expSubOne hs u)).toLp =ᵐ[volume]
+      fun x ↦ Complex.exp ((inclusion h u).toLp x) - 1 := by
+  filter_upwards [coeFn_toLp_inclusion_ae_eq_toZeroAtInfty hs h (expSubOne hs u),
+    coeFn_toLp_inclusion_ae_eq_toZeroAtInfty hs h u] with x hexp hu
+  rw [hexp, hu, toZeroAtInfty_expSubOne_apply]
+
+@[simp]
+theorem expSubOne_zero (hs : finrank ℝ E < 2 * s) : expSubOne (E := E) hs 0 = 0 := by
+  apply toZeroAtInfty_injective hs
+  ext x
+  simp
+
+/-- The group law of `u ↦ 1 + expSubOne hs u`:
+`expSubOne (u + v) = expSubOne u + expSubOne v + expSubOne u * expSubOne v`. -/
+theorem expSubOne_add (hs : finrank ℝ E < 2 * s) (u v : H^{s}(E)) :
+    expSubOne hs (u + v) =
+      expSubOne hs u + expSubOne hs v + mulCLM hs (expSubOne hs u) (expSubOne hs v) := by
+  apply toZeroAtInfty_injective hs
+  ext x
+  simp [Complex.exp_add]
+  ring
+
+/-- `expSubOne hs` commutes with complex conjugation on `H^s(E)`. -/
+@[simp]
+theorem conjLIE_expSubOne (hs : finrank ℝ E < 2 * s) (u : H^{s}(E)) :
+    conjLIE E s 2 (expSubOne hs u) = expSubOne hs (conjLIE E s 2 u) := by
+  apply toZeroAtInfty_injective hs
+  ext x
+  simp
+
+/-- Lowering the Sobolev order commutes with `expSubOne`. -/
+theorem inclusion_expSubOne (hr : finrank ℝ E < 2 * r) (hs : finrank ℝ E < 2 * s) (h : r ≤ s)
+    (u : H^{s}(E)) :
+    inclusion h (expSubOne hs u) = expSubOne hr (inclusion h u) := by
+  apply toZeroAtInfty_injective hr
+  ext x
+  simp
+
+end BesselPotentialSpace
