@@ -25,7 +25,28 @@ is essential; no finite-generation hypothesis is required when a lower bound is 
 
 The positive-degree action `A₊ M` is itself a homogeneous submodule, stable under degree-zero
 scalars: its degree-`p` components are sums of products `a • y` with `a` of positive degree `i`
-and `y` of degree `p - i`.
+and `y` of degree `p - i`. Over a nonnegatively graded ring, `A₊ M` is stable under all of `A`
+(`TauCeti.InternalGrading.positiveSubmodule`).
+
+## Main definitions
+
+* `TauCeti.InternalGrading.positiveSubmodule`: the positive-degree action `A₊ N` on a module `N`
+  over a nonnegatively graded algebra `A`, bundled as an `A`-submodule.
+
+## Main results
+
+* `TauCeti.InternalGrading.eq_top_of_piece_le_sup_positive_smul_top`: homogeneous generation modulo
+  `A₊` implies generation of a bounded-below graded module.
+* `TauCeti.InternalGrading.subsingleton_of_positive_smul_top_eq_top`: a bounded-below graded module
+  with `A₊ M = M` is zero.
+* `TauCeti.InternalGrading.isGeneratedInDegree_iff_piece_le_positive_smul_top`: characterization of
+  generation in degree `d` via containment of all other pieces in `A₊ M`.
+* `TauCeti.InternalGrading.exists_piece_eq_bot_of_finite` and
+  `TauCeti.InternalGrading.bddBelow_setOf_piece_ne_bot`: every finitely generated graded `A`-module
+  over a nonnegatively graded algebra is bounded below.
+* `TauCeti.InternalGrading.map_mem_positive_smul_top` and
+  `TauCeti.InternalGrading.decompose_zero_eq_zero_of_mem_positive`: functoriality of `A₊ M` under
+  `A`-linear maps and vanishing of the degree-zero component on `A₊ A`.
 
 ## References
 
@@ -40,7 +61,7 @@ namespace TauCeti.InternalGrading
 
 open _root_.DirectSum
 
-universe uk uA uM
+universe uk uA uM uN
 
 variable {k : Type uk} [CommSemiring k] {A : Type uA} [Semiring A] [Algebra k A]
   {M : Type uM} [AddCommMonoid M] [Module k M] [Module A M] [IsScalarTower k A M]
@@ -224,5 +245,151 @@ theorem isGeneratedInDegree_iff_piece_le_positive_smul_top_of_finite [Module.Fin
   by_contra hne
   have := hb hne
   omega
+
+omit [IsScalarTower k A M] in
+/-- Every finitely generated graded module over a nonnegatively graded algebra is bounded below:
+the homogeneous components of a finite `A`-generating set have a minimum degree, and nonnegative
+scalars never lower degree. -/
+theorem exists_piece_eq_bot_of_finite [Module.Finite A M] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) :
+    ∃ b : ℤ, ∀ p < b, G.piece p = ⊥ := by
+  classical
+  obtain ⟨s, hs⟩ := Module.Finite.fg_top (R := A) (M := M)
+  obtain ⟨b, hb⟩ : BddBelow (⋃ g ∈ s, ((decompose G.piece g).support : Set ℤ)) :=
+    (s.finite_toSet.biUnion fun _ _ ↦ Finset.finite_toSet _).bddBelow
+  refine ⟨b, fun p hp ↦ (Submodule.eq_bot_iff _).mpr fun x hx ↦ ?_⟩
+  obtain ⟨n, c, g, rfl⟩ := Submodule.mem_span_set'.mp (hs ▸ Submodule.mem_top : x ∈ _)
+  rw [← decompose_of_mem_same G.piece hx, decompose_sum, DFinsupp.finsetSum_apply,
+    AddSubmonoidClass.coe_finsetSum]
+  refine Finset.sum_eq_zero fun r _ ↦ ?_
+  rw [← sum_support_decompose G.piece (g r).1, Finset.smul_sum, decompose_sum,
+    DFinsupp.finsetSum_apply, AddSubmonoidClass.coe_finsetSum]
+  refine Finset.sum_eq_zero fun q hq ↦ ?_
+  have hbq : b ≤ q := hb (Set.mem_biUnion (g r).2 hq)
+  have h := coe_decompose_smul_add_of_right_mem 𝒜 G.piece
+    (decompose G.piece (g r).1 q).property (a := c r) (i := p - q)
+  rw [sub_add_cancel] at h
+  have hc0 : (decompose 𝒜 (c r) (p - q) : A) = 0 := by
+    simpa only [h𝒜 (p - q) (by omega), Submodule.mem_bot] using
+      (decompose 𝒜 (c r) (p - q)).property
+  rw [h, hc0, zero_smul]
+
+omit [IsScalarTower k A M] in
+/-- The set of nonzero homogeneous pieces of a finitely generated graded module over a
+nonnegatively graded algebra is bounded below. -/
+theorem bddBelow_setOf_piece_ne_bot [Module.Finite A M] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) :
+    BddBelow {p | G.piece p ≠ ⊥} := by
+  obtain ⟨b, hb⟩ := G.exists_piece_eq_bot_of_finite 𝒜 h𝒜
+  exact ⟨b, fun p hp ↦ not_lt.mp fun hlt ↦ hp (hb p hlt)⟩
+
+omit [GradedAlgebra 𝒜] in
+/-- Every `A`-linear map carries `A₊ M` into `A₊ N`. -/
+theorem map_mem_positive_smul_top {N : Type uN} [AddCommMonoid N] [Module k N]
+    [Module A N] [IsScalarTower k A N] (f : M →ₗ[A] N) {x : M}
+    (hx : x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k M)) :
+    f x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N) := by
+  refine Submodule.smul_induction_on hx (fun a ha y _ => ?_) (fun x y hx hy => ?_)
+  · rw [f.map_smul]
+    exact Submodule.smul_mem_smul ha Submodule.mem_top
+  · rw [map_add]
+    exact Submodule.add_mem _ hx hy
+
+/-- On a nonnegatively graded algebra itself, no nonzero degree-zero component arises from
+`A₊ A`. -/
+theorem decompose_zero_eq_zero_of_mem_positive (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) {a : A}
+    (ha : a ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k A)) :
+    (decompose 𝒜 a 0 : A) = 0 := by
+  refine Submodule.smul_induction_on ha (fun x hx y _ => ?_) (fun x y hx hy => ?_)
+  · refine Submodule.iSup_induction _ (motive := fun x => (decompose 𝒜 (x • y) 0 : A) = 0)
+      hx (fun i x hx => ?_) (by simp) (fun b c hb hc => by
+        rw [add_smul, decompose_add, DirectSum.add_apply, Submodule.coe_add, hb, hc, add_zero])
+    refine Submodule.iSup_induction _ (motive := fun x => (decompose 𝒜 (x • y) 0 : A) = 0)
+      hx (fun hi x hx => ?_) (by simp) (fun b c hb hc => by
+        rw [add_smul, decompose_add, DirectSum.add_apply, Submodule.coe_add, hb, hc, add_zero])
+    rw [smul_eq_mul]
+    have hmul := coe_decompose_mul_add_of_left_mem 𝒜 (j := -i) (b := y) hx
+    rw [add_neg_cancel] at hmul
+    have hy0 : (decompose 𝒜 y (-i) : A) = 0 := by
+      simpa only [h𝒜 (-i) (by omega), Submodule.mem_bot] using (decompose 𝒜 y (-i)).property
+    rw [hmul, hy0, mul_zero]
+  · rw [decompose_add, DirectSum.add_apply, Submodule.coe_add, hx, hy, add_zero]
+
+/-- Over a nonnegatively graded algebra, the positive-degree action `A₊ N` is stable under all
+scalars in `A`. -/
+theorem smul_mem_positive_smul_top_of_nonneg {N : Type uN} [AddCommMonoid N] [Module k N]
+    [Module A N] [IsScalarTower k A N] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) (a : A) {x : N}
+    (hx : x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N)) :
+    a • x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N) := by
+  classical
+  rw [← sum_support_decompose 𝒜 a, Finset.sum_smul]
+  refine Submodule.sum_mem _ fun q _ => ?_
+  rcases lt_trichotomy q 0 with hlt | rfl | hgt
+  · have hz : (decompose 𝒜 a q : A) = 0 := by
+      simpa only [h𝒜 q hlt, Submodule.mem_bot] using (decompose 𝒜 a q).property
+    simp [hz]
+  · exact smul_mem_positive_smul_top (decompose 𝒜 a 0).property hx
+  · exact Submodule.smul_mem_smul
+      (Submodule.mem_iSup_of_mem q (Submodule.mem_iSup_of_mem hgt (decompose 𝒜 a q).property))
+      Submodule.mem_top
+
+/-- The positive-degree action `A₊ N` on a module `N` over a nonnegatively graded algebra, bundled
+as an `A`-submodule. -/
+def positiveSubmodule (N : Type uN) [AddCommMonoid N] [Module k N] [Module A N]
+    [IsScalarTower k A N] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) : Submodule A N :=
+  { (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N) with
+    smul_mem' := fun a _ hx => smul_mem_positive_smul_top_of_nonneg 𝒜 h𝒜 a hx }
+
+/-- Membership in `positiveSubmodule` is membership in `A₊ N`. -/
+@[simp]
+theorem mem_positiveSubmodule_iff {N : Type uN} [AddCommMonoid N] [Module k N] [Module A N]
+    [IsScalarTower k A N] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) {x : N} :
+    x ∈ positiveSubmodule 𝒜 N h𝒜 ↔
+      x ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N) :=
+  (Iff.rfl)
+
+/-- Restricting scalars of `positiveSubmodule` to `k` recovers `A₊ N`. -/
+@[simp]
+theorem restrictScalars_positiveSubmodule {N : Type uN} [AddCommMonoid N] [Module k N]
+    [Module A N] [IsScalarTower k A N] (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) :
+    (positiveSubmodule 𝒜 N h𝒜).restrictScalars k =
+      (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k N) :=
+  Submodule.ext fun _ => Iff.rfl
+
+/-- The `A`-submodule `positiveSubmodule` of an internally graded module is homogeneous. -/
+theorem isHomogeneous_positiveSubmodule {N : Type uN} [AddCommMonoid N] [Module k N]
+    [Module A N] [IsScalarTower k A N] (H : InternalGrading k N ℤ) [SetLike.GradedSMul 𝒜 H.piece]
+    (h𝒜 : ∀ i < 0, 𝒜 i = ⊥) :
+    SetLike.IsHomogeneous H.piece (positiveSubmodule 𝒜 N h𝒜) :=
+  H.isHomogeneous_positive_smul_top 𝒜
+
+section Ring
+
+variable {R : Type uk} [CommSemiring R] {B : Type uA} [Ring B] [Algebra R B]
+  (ℬ : ℤ → Submodule R B) [GradedAlgebra ℬ]
+
+/-- Over a nonnegatively graded algebra, subtracting the degree-zero component leaves a sum of
+positive-degree components. -/
+theorem sub_decompose_zero_mem_positive (hℬ : ∀ i < 0, ℬ i = ⊥) (b : B) :
+    b - (decompose ℬ b 0 : B) ∈ ⨆ (i : ℤ) (_ : 0 < i), ℬ i := by
+  classical
+  let s := (decompose ℬ b).support
+  have hsum : ∑ q ∈ s, (decompose ℬ b q : B) = b := sum_support_decompose ℬ b
+  have herase : b - (decompose ℬ b 0 : B) = ∑ q ∈ s.erase 0, (decompose ℬ b q : B) := by
+    by_cases h0 : (0 : ℤ) ∈ s
+    · rw [← Finset.add_sum_erase s (fun q => (decompose ℬ b q : B)) h0] at hsum
+      nth_rw 1 [← hsum]
+      exact add_sub_cancel_left _ _
+    · have hz : (decompose ℬ b 0 : B) = 0 := by simp [DFinsupp.notMem_support_iff.mp h0]
+      nth_rw 1 [← hsum]
+      rw [hz, sub_zero, Finset.erase_eq_of_notMem h0]
+  rw [herase]
+  refine Submodule.sum_mem _ fun q hq => ?_
+  rcases lt_or_gt_of_ne (Finset.ne_of_mem_erase hq) with hlt | hgt
+  · have hz : (decompose ℬ b q : B) = 0 := by
+      simpa only [hℬ q hlt, Submodule.mem_bot] using (decompose ℬ b q).property
+    simp [hz]
+  · exact Submodule.mem_iSup_of_mem q
+      (Submodule.mem_iSup_of_mem hgt (decompose ℬ b q).property)
+
+end Ring
 
 end TauCeti.InternalGrading
