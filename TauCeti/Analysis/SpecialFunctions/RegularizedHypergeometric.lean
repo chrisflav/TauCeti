@@ -9,6 +9,7 @@ public import Mathlib.Analysis.Calculus.SmoothSeries
 public import Mathlib.Analysis.Complex.LocallyUniformLimit
 public import Mathlib.Analysis.SpecialFunctions.RegularizedHypergeometric
 public import TauCeti.Analysis.SpecialFunctions.Gamma.Basic
+import TauCeti.RingTheory.Polynomial.Pochhammer
 
 /-!
 # The regularized hypergeometric function `₀F₁`
@@ -16,13 +17,16 @@ public import TauCeti.Analysis.SpecialFunctions.Gamma.Basic
 Mathlib defines the regularized hypergeometric function `Complex.regularizedHGFun a b` as the sum
 of its power series. This file records that series as a `HasSum` statement and develops the
 function `₀F₁(; b; z) = ∑ zⁿ / (n! Γ(b + n))`, the case `a = 0`, `b = {b}`, which underlies the
-Bessel functions.
+Bessel and Airy functions.
 
 For every complex `b`, Mathlib provides the contiguous relation
 `₀F₁(; b; z) = b ₀F₁(; b + 1; z) + z ₀F₁(; b + 2; z)`.
 For real `b` and real `y` the value is real, given by the real series `∑ yⁿ / (n! Γ(b + n))`;
 it is jointly continuous in `(b, y)` and has derivative `₀F₁(; b + 1; y)` in `y`.
-Because `1 / Γ` vanishes at the poles of `Γ`, none of these statements needs a hypothesis on `b`.
+The product of two `₀F₁` functions at the same argument is a `₂F₃` function at `4z` (DLMF 16.12.1),
+needed in particular to expand quadratic combinations of Bessel and Airy functions into single
+power series. Because `1 / Γ` vanishes at the poles of `Γ`, the series and regularized product
+identities hold for all complex parameters without pole exclusions.
 
 ## Main results
 
@@ -36,6 +40,11 @@ Because `1 / Γ` vanishes at the poles of `Γ`, none of these statements needs a
   arguments.
 * `Complex.continuous_regularizedHGFun_zero_singleton_ofReal_re` — joint continuity in `(b, y)`.
 * `Complex.hasDerivAt_regularizedHGFun_zero_singleton_ofReal_re` — the derivative in `y`.
+* `Complex.sum_antidiagonal_regularizedHGFunCoeff_zero_singleton_mul` and
+  `Complex.hasSum_regularizedHGFun_zero_singleton_mul` — the Cauchy convolution of `₀F₁`
+  coefficients and Maclaurin series of `₀F₁(; b; z) ₀F₁(; c; z)`.
+* `Complex.inv_Gamma_mul_regularizedHGFun_zero_singleton_mul` and
+  `Complex.regularizedHGFun_zero_singleton_mul` — the `₂F₃` product formula DLMF 16.12.1.
 -/
 
 public section
@@ -203,5 +212,125 @@ theorem hasDerivAt_regularizedHGFun_zero_singleton_ofReal_re (b y : ℝ) :
     calc (n : ℝ) * |z| ^ (n - 1) * ((n ! : ℝ)⁻¹ * |(Real.Gamma (b + n))⁻¹|)
         ≤ n * R ^ (n - 1) * ((n ! : ℝ)⁻¹ * C) := by gcongr
       _ = C * (n * R ^ (n - 1) / n !) := by ring
+
+/-- The Cauchy convolution of the coefficients of `₀F₁(; b; ·)` and `₀F₁(; c; ·)` is
+`(b + c + k - 1)_k / (k! Γ(b + k) Γ(c + k))`, holding for all `b, c : ℂ` including at poles of `Γ`.
+-/
+theorem sum_antidiagonal_regularizedHGFunCoeff_zero_singleton_mul (b c : ℂ) (k : ℕ) :
+    ∑ ij ∈ Finset.antidiagonal k,
+      regularizedHGFunCoeff 0 {b} ij.1 * regularizedHGFunCoeff 0 {c} ij.2 =
+      (ascPochhammer ℂ k).eval (b + c + k - 1) /
+        (k ! * Gamma (b + k) * Gamma (c + k)) := by
+  have hterm (ij : ℕ × ℕ) (hij : ij ∈ Finset.antidiagonal k) :
+      regularizedHGFunCoeff 0 {b} ij.1 * regularizedHGFunCoeff 0 {c} ij.2 =
+        ((k.choose ij.1 : ℂ) * ((ascPochhammer ℂ ij.1).eval (c + ij.2) *
+          (ascPochhammer ℂ ij.2).eval (b + ij.1))) *
+          (k ! * Gamma (b + k) * Gamma (c + k))⁻¹ := by
+    have hk : ij.1 + ij.2 = k := Finset.mem_antidiagonal.mp hij
+    have hchoose : (k.choose ij.1 : ℂ) * ij.1 ! * ij.2 ! = k ! := by
+      have hnat : k.choose ij.1 * ij.1 ! * ij.2 ! = k ! := by
+        simpa [← hk] using Nat.choose_mul_factorial_mul_factorial (Nat.le_add_right ij.1 ij.2)
+      exact_mod_cast hnat
+    have hfac : (ij.1 ! : ℂ)⁻¹ * (ij.2 ! : ℂ)⁻¹ = (k.choose ij.1 : ℂ) * (k ! : ℂ)⁻¹ := by
+      have hi : (ij.1 ! : ℂ) ≠ 0 := Nat.cast_ne_zero.2 ij.1.factorial_ne_zero
+      have hj : (ij.2 ! : ℂ) ≠ 0 := Nat.cast_ne_zero.2 ij.2.factorial_ne_zero
+      have hk0 : (k ! : ℂ) ≠ 0 := Nat.cast_ne_zero.2 k.factorial_ne_zero
+      field_simp
+      linear_combination -hchoose
+    have hbG : (Gamma (b + ij.1))⁻¹ =
+        (ascPochhammer ℂ ij.2).eval (b + ij.1) * (Gamma (b + k))⁻¹ := by
+      simpa [← hk, Nat.cast_add, add_assoc] using
+        inv_Gamma_eq_ascPochhammer_mul_inv_Gamma_add_natCast (b + ij.1) ij.2
+    have hcG : (Gamma (c + ij.2))⁻¹ =
+        (ascPochhammer ℂ ij.1).eval (c + ij.2) * (Gamma (c + k))⁻¹ := by
+      have hck : c + ij.2 + ij.1 = c + k := by rw [← hk]; push_cast; ring
+      simpa [hck] using inv_Gamma_eq_ascPochhammer_mul_inv_Gamma_add_natCast (c + ij.2) ij.1
+    simp only [regularizedHGFunCoeff_zero_singleton, mul_inv]
+    calc (ij.1 ! : ℂ)⁻¹ * (Gamma (b + ij.1))⁻¹ * ((ij.2 ! : ℂ)⁻¹ * (Gamma (c + ij.2))⁻¹)
+        = ((ij.1 ! : ℂ)⁻¹ * (ij.2 ! : ℂ)⁻¹) * (Gamma (b + ij.1))⁻¹ * (Gamma (c + ij.2))⁻¹ := by
+          ring
+      _ = (k.choose ij.1 : ℂ) * ((ascPochhammer ℂ ij.1).eval (c + ij.2) *
+            (ascPochhammer ℂ ij.2).eval (b + ij.1)) *
+            ((k ! : ℂ)⁻¹ * (Gamma (b + k))⁻¹ * (Gamma (c + k))⁻¹) := by
+          rw [hfac, hbG, hcG]; ring
+  rw [Finset.sum_congr rfl hterm, ← Finset.sum_mul,
+    TauCeti.sum_antidiagonal_choose_mul_ascPochhammer_eval (Commute.all c b) k]
+  have hcb : c + b + k - 1 = b + c + k - 1 := by ring
+  rw [hcb, div_eq_mul_inv]
+
+/-- **Maclaurin series for the product of two regularized `₀F₁` functions (DLMF 16.12.1).**
+For all complex parameters `b, c` and argument `z` (including at nonpositive-integer poles of `Γ`,
+where `1 / Γ` vanishes),
+`₀F₁(; b; z) ₀F₁(; c; z) = ∑_{k=0}^∞ (b + c + k - 1)_k z^k / (k! Γ(b + k) Γ(c + k))`. -/
+theorem hasSum_regularizedHGFun_zero_singleton_mul (b c z : ℂ) :
+    HasSum (fun k : ℕ => (ascPochhammer ℂ k).eval (b + c + k - 1) * z ^ k /
+      (k ! * Gamma (b + k) * Gamma (c + k)))
+      (regularizedHGFun 0 {b} z * regularizedHGFun 0 {c} z) := by
+  set f : ℕ → ℂ := fun n => regularizedHGFunCoeff 0 {b} n * z ^ n
+  set g : ℕ → ℂ := fun n => regularizedHGFunCoeff 0 {c} n * z ^ n
+  have hf : Summable fun n => ‖f n‖ := summable_norm_regularizedHGFun (by simp) z
+  have hg : Summable fun n => ‖g n‖ := summable_norm_regularizedHGFun (by simp) z
+  have hcauchy : HasSum (fun k => ∑ ij ∈ Finset.antidiagonal k, f ij.1 * g ij.2)
+      (regularizedHGFun 0 {b} z * regularizedHGFun 0 {c} z) := by
+    rw [← (hasSum_regularizedHGFun (a := 0) (b := {b}) (by simp) z).tsum_eq,
+      ← (hasSum_regularizedHGFun (a := 0) (b := {c}) (by simp) z).tsum_eq,
+      tsum_mul_tsum_eq_tsum_sum_antidiagonal_of_summable_norm hf hg]
+    exact (summable_norm_sum_mul_antidiagonal_of_summable_norm hf hg).of_norm.hasSum
+  refine hcauchy.congr_fun fun k => ?_
+  have hpow (ij : ℕ × ℕ) (hij : ij ∈ Finset.antidiagonal k) :
+      f ij.1 * g ij.2 =
+        (regularizedHGFunCoeff 0 {b} ij.1 * regularizedHGFunCoeff 0 {c} ij.2) * z ^ k := by
+    have hzk : z ^ ij.1 * z ^ ij.2 = z ^ k := by rw [← pow_add, Finset.mem_antidiagonal.mp hij]
+    dsimp only [f, g]
+    linear_combination regularizedHGFunCoeff 0 {b} ij.1 * regularizedHGFunCoeff 0 {c} ij.2 * hzk
+  rw [Finset.sum_congr rfl hpow, ← Finset.sum_mul,
+    sum_antidiagonal_regularizedHGFunCoeff_zero_singleton_mul, div_mul_eq_mul_div]
+
+/-- **Product of two regularized `₀F₁` functions (DLMF 16.12.1, regularized form).**
+For all complex parameters `b, c` and argument `z`,
+`(Γ(b + c - 1))⁻¹ ₀F₁(; b; z) ₀F₁(; c; z) = ₂F₃((b + c - 1)/2, (b + c)/2; b, c, b + c - 1; 4z)`.
+Because `1 / Γ` vanishes at the nonpositive-integer poles of `Γ`, this holds without any
+parameter hypotheses. -/
+theorem inv_Gamma_mul_regularizedHGFun_zero_singleton_mul (b c z : ℂ) :
+    (Gamma (b + c - 1))⁻¹ * (regularizedHGFun 0 {b} z * regularizedHGFun 0 {c} z) =
+      regularizedHGFun {(b + c - 1) / 2, (b + c) / 2} {b, c, b + c - 1} (4 * z) := by
+  refine ((hasSum_regularizedHGFun_zero_singleton_mul b c z).mul_left
+    (Gamma (b + c - 1))⁻¹).unique ?_
+  convert hasSum_regularizedHGFun (a := {(b + c - 1) / 2, (b + c) / 2})
+    (b := {b, c, b + c - 1}) (by simp) (4 * z) using 1
+  ext k
+  have hG := inv_Gamma_eq_ascPochhammer_mul_inv_Gamma_add_natCast (b + c - 1) k
+  have hmul : (ascPochhammer ℂ k).eval (b + c - 1) *
+      (ascPochhammer ℂ k).eval (b + c + k - 1) =
+      (ascPochhammer ℂ (2 * k)).eval (b + c - 1) := by
+    have hshift : b + c + k - 1 = b + c - 1 + k := by ring
+    simpa [Polynomial.eval_mul, Polynomial.eval_comp, two_mul, hshift] using
+      congrArg (Polynomial.eval (b + c - 1)) (ascPochhammer_mul (S := ℂ) k k)
+  have hdup := TauCeti.ascPochhammer_two_mul_eval (by norm_num : (2 : ℂ) ≠ 0) k (b + c - 1)
+  have hhalf : (b + c - 1 + 1) / 2 = (b + c) / 2 := by ring
+  rw [hhalf] at hdup
+  rw [hG, regularizedHGFunCoeff]
+  simp only [Multiset.insert_eq_cons, Multiset.map_cons, Multiset.map_singleton,
+    Multiset.prod_cons, Multiset.prod_singleton, div_eq_mul_inv, mul_inv, mul_pow]
+  calc (ascPochhammer ℂ k).eval (b + c - 1) * (Gamma (b + c - 1 + k))⁻¹ *
+        ((ascPochhammer ℂ k).eval (b + c + k - 1) * z ^ k *
+          ((k ! : ℂ)⁻¹ * (Gamma (b + k))⁻¹ * (Gamma (c + k))⁻¹))
+      = ((ascPochhammer ℂ k).eval (b + c - 1) * (ascPochhammer ℂ k).eval (b + c + k - 1)) *
+          z ^ k * ((k ! : ℂ)⁻¹ * (Gamma (b + k))⁻¹ * (Gamma (c + k))⁻¹ *
+            (Gamma (b + c - 1 + k))⁻¹) := by ring
+    _ = (ascPochhammer ℂ k).eval ((b + c - 1) / 2) *
+          (ascPochhammer ℂ k).eval ((b + c) / 2) *
+          ((k ! : ℂ)⁻¹ * ((Gamma (b + k))⁻¹ * ((Gamma (c + k))⁻¹ *
+            (Gamma (b + c - 1 + k))⁻¹))) * (4 ^ k * z ^ k) := by
+        rw [hmul, hdup]; ring
+
+/-- **Product of two regularized `₀F₁` functions (DLMF 16.12.1).**
+When `Γ(b + c - 1) ≠ 0` (i.e., `b + c - 1` is not a nonpositive integer),
+`₀F₁(; b; z) ₀F₁(; c; z) = Γ(b + c - 1) ₂F₃((b + c - 1)/2, (b + c)/2; b, c, b + c - 1; 4z)`. -/
+theorem regularizedHGFun_zero_singleton_mul {b c : ℂ} (h : Gamma (b + c - 1) ≠ 0) (z : ℂ) :
+    regularizedHGFun 0 {b} z * regularizedHGFun 0 {c} z =
+      Gamma (b + c - 1) *
+        regularizedHGFun {(b + c - 1) / 2, (b + c) / 2} {b, c, b + c - 1} (4 * z) := by
+  rw [← inv_Gamma_mul_regularizedHGFun_zero_singleton_mul, ← mul_assoc, mul_inv_cancel₀ h, one_mul]
 
 end Complex

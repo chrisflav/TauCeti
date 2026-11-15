@@ -15,11 +15,11 @@ import Mathlib.Algebra.Polynomial.Roots
 import Mathlib.RingTheory.Binomial
 
 /-!
-# Descending Pochhammer polynomials
+# Pochhammer polynomials
 
-This module provides basic lemmas for descending Pochhammer polynomials `descPochhammer R n`
-over general rings, together with their sums over integer intervals and their forward
-differences.
+This module provides basic lemmas for descending and ascending Pochhammer polynomials
+`descPochhammer R n` and `ascPochhammer R n` over general rings, together with sums over integer
+intervals, forward differences, and rising-factorial Chu–Vandermonde and duplication identities.
 
 The monicity result holds over any ring, and the degree results require only a nontrivial ring.
 The summation identity also holds over arbitrary rings; no division by `m + 1` is needed.
@@ -60,6 +60,10 @@ The summation identity also holds over arbitrary rings; no division by `m + 1` i
 * `TauCeti.pow_eq_sum_stirlingSecond_mul_descPochhammer_eval`: in any ring, `x ^ m` is
   the sum of the falling factorials of degree `j` at `x` weighted by the Stirling numbers of the
   second kind `S(m, j)`.
+* `TauCeti.sum_antidiagonal_choose_mul_ascPochhammer_eval`: shifted Chu–Vandermonde identity
+  `∑_{i + j = k} (k choose i) (b + j)_i (c + i)_j = (b + c + k - 1)_k` for commuting `b` and `c`.
+* `TauCeti.ascPochhammer_two_mul_eval`: duplication identity
+  `(w)_{2k} = 4^k (w / 2)_k ((w + 1) / 2)_k` over a division semiring with `2 ≠ 0`.
 -/
 
 public section
@@ -312,5 +316,78 @@ theorem pow_eq_sum_stirlingSecond_mul_descPochhammer_eval {R : Type*} [Ring R] (
   have hD (j : ℕ) : aeval x (descPochhammer ℤ j) = (descPochhammer R j).eval x := by
     rw [aeval_def, algebraMap_int_eq, eval₂_eq_eval_map, descPochhammer_map]
   simpa [hD] using congrArg (aeval x) hP
+
+/-! ### Rising-factorial identities -/
+
+/-- **Shifted Chu–Vandermonde identity for rising factorials.** For commuting elements `b` and `c`
+of a ring `R`,
+`∑_{i + j = k} (k choose i) (b + j)_i (c + i)_j = (b + c + k - 1)_k`. -/
+theorem sum_antidiagonal_choose_mul_ascPochhammer_eval {R : Type*} [Ring R] {b c : R}
+    (h : Commute b c) (k : ℕ) :
+    ∑ ij ∈ Finset.antidiagonal k,
+      (k.choose ij.1 : R) * ((ascPochhammer R ij.1).eval (b + ij.2) *
+        (ascPochhammer R ij.2).eval (c + ij.1)) =
+      (ascPochhammer R k).eval (b + c + k - 1) := by
+  have hbs : Commute b (c + k - 1) :=
+    (h.add_right (Nat.cast_commute k b).symm).sub_right (Commute.one_right b)
+  have hrs : Commute (b + k - 1) (c + k - 1) :=
+    (hbs.add_left (Nat.cast_commute k _)).sub_left (Commute.one_left _)
+  have hcv := Ring.descPochhammer_smeval_add k hrs
+  simp only [descPochhammer_smeval_eq_ascPochhammer, ascPochhammer_smeval_eq_eval] at hcv
+  have hsum : b + k - 1 + (c + k - 1) - k + 1 = b + c + k - 1 := by abel
+  rw [hsum] at hcv
+  rw [hcv]
+  refine Finset.sum_congr rfl fun ij hij => ?_
+  have hk : (k : R) = ij.1 + ij.2 := by
+    rw [← Finset.mem_antidiagonal.mp hij, Nat.cast_add]
+  have hb' : b + k - 1 - ij.1 + 1 = b + ij.2 := by rw [hk]; abel
+  have hc' : c + k - 1 - ij.2 + 1 = c + ij.1 := by rw [hk]; abel
+  rw [hb', hc']
+
+/-- **Duplication formula for rising factorials.** Over a division semiring in which `2 ≠ 0`,
+`(w)_{2k} = 4^k (w / 2)_k ((w + 1) / 2)_k`. -/
+theorem ascPochhammer_two_mul_eval {K : Type*} [DivisionSemiring K] (h2 : (2 : K) ≠ 0)
+    (k : ℕ) (w : K) :
+    (ascPochhammer K (2 * k)).eval w =
+      4 ^ k * ((ascPochhammer K k).eval (w / 2) * (ascPochhammer K k).eval ((w + 1) / 2)) := by
+  have hcomm_eval (a b : K) (hab : Commute a b) (m : ℕ) :
+      Commute a ((ascPochhammer K m).eval b) := by
+    induction m with
+    | zero => simp [Commute.one_right]
+    | succ m ih =>
+      rw [ascPochhammer_succ_eval]
+      exact ih.mul_right (hab.add_right (Nat.cast_commute m a).symm)
+  have h2c (x : K) : Commute (2 : K) x := by simpa using Nat.cast_commute 2 x
+  have h2inv (x : K) : Commute (2 : K)⁻¹ x := (h2c x).inv_left₀
+  have hab : Commute (w / 2) ((w + 1) / 2) := by
+    rw [div_eq_mul_inv, div_eq_mul_inv]
+    exact (((Commute.refl w).add_right (Commute.one_right w)).mul_right
+      (h2inv w).symm).mul_left (h2inv _)
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    have hstep : 2 * (k + 1) = 2 * k + 1 + 1 := by omega
+    have ha : 2 * (w / 2 + k) = w + ((2 * k : ℕ) : K) := by
+      rw [mul_add, (h2c (w / 2)).eq, div_mul_cancel₀ w h2, Nat.cast_mul, Nat.cast_ofNat]
+    have hb : 2 * ((w + 1) / 2 + k) = w + ((2 * k + 1 : ℕ) : K) := by
+      rw [mul_add, (h2c ((w + 1) / 2)).eq, div_mul_cancel₀ (w + 1) h2, Nat.cast_add,
+        Nat.cast_mul, Nat.cast_ofNat, Nat.cast_one, add_assoc, add_comm (1 : K)]
+    have hc : Commute (w / 2 + k) ((ascPochhammer K k).eval ((w + 1) / 2)) :=
+      (hcomm_eval _ _ hab k).add_left (Nat.cast_commute k _)
+    have h4 : (4 : K) = 2 * 2 := by norm_num
+    rw [hstep, ascPochhammer_succ_eval, ascPochhammer_succ_eval, ih, ← ha, ← hb, pow_succ,
+      ascPochhammer_succ_eval, ascPochhammer_succ_eval]
+    set P := (ascPochhammer K k).eval (w / 2)
+    set Q := (ascPochhammer K k).eval ((w + 1) / 2)
+    set a := w / 2 + k
+    set b := (w + 1) / 2 + k
+    calc 4 ^ k * (P * Q) * (2 * a) * (2 * b)
+        = 4 ^ k * (P * (Q * 2 * a) * 2 * b) := by simp only [mul_assoc]
+      _ = 4 ^ k * ((P * 2) * (Q * a) * 2 * b) := by
+          rw [← (h2c Q).eq]; simp only [mul_assoc]
+      _ = 4 ^ k * (2 * ((P * (a * Q)) * 2) * b) := by
+          rw [← (h2c P).eq, hc.symm.eq]; simp only [mul_assoc]
+      _ = 4 ^ k * 4 * (P * a * (Q * b)) := by
+          rw [← (h2c (P * (a * Q))).eq, h4]; simp only [mul_assoc]
 
 end TauCeti
