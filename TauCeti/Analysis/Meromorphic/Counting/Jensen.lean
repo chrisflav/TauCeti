@@ -31,6 +31,10 @@ a disc of bounded radius.
 * `AnalyticOnNhd.zeroCount_le` — Jensen's bound when `f c ≠ 0`.
 * `AnalyticOnNhd.zeroCount_le_analyticOrderNatAt_add` — Jensen's bound in terms of the order and
   the trailing coefficient of `f` at the centre.
+* `AnalyticOnNhd.finite_setOf_eq_zero_of_subset_closedBall` — a function analytic on a closed ball
+  and nonzero at its centre has finitely many zeros in any subset of the ball.
+* `AnalyticOnNhd.exists_finset_eq_zero_card_le` — Jensen's bound packaged as a finite set covering
+  all zeros in `S ⊆ closedBall c r` with cardinality at most `log (M / ‖f c‖) / log (R / r)`.
 
 ## References
 
@@ -75,3 +79,50 @@ theorem AnalyticOnNhd.zeroCount_le_analyticOrderNatAt_add (hr : 0 < r) (hrR : r 
   (Int.cast_le.2 <| (hf.mono (closedBall_subset_closedBall hrR.le)).zeroCount_le_finsum_divisor
     (isCompact_closedBall c r) U hS).trans
       (hf.sum_divisor_le_analyticOrderNatAt_add hr hrR hM hfc hbound)
+
+/-- A function analytic on `closedBall c R` and nonzero at `c` has positive divisor on the ball at
+every zero in the ball. -/
+theorem AnalyticOnNhd.zero_lt_divisor_closedBall_of_eq_zero (hR : 0 ≤ R)
+    (hf : AnalyticOnNhd ℂ f (closedBall c R)) (hfc : f c ≠ 0) {z : ℂ}
+    (hz : z ∈ closedBall c R) (hfz : f z = 0) :
+    0 < divisor f (closedBall c R) z := by
+  have hc : c ∈ closedBall c R := mem_closedBall_self hR
+  have hctop : analyticOrderAt f c ≠ ⊤ := by
+    rw [(hf c hc).analyticOrderAt_eq_zero.2 hfc]
+    exact ENat.zero_ne_top
+  have hztop : meromorphicOrderAt f z ≠ ⊤ := by
+    rw [(hf z hz).meromorphicOrderAt_eq]
+    simpa using hf.analyticOrderAt_ne_top_of_isPreconnected
+      (convex_closedBall c R).isPreconnected hc hz hctop
+  exact (hf.meromorphicOn.zero_lt_divisor_iff_of_analyticAt (hf z hz) hz hztop).2 hfz
+
+/-- A function analytic on `closedBall c R` and nonzero at `c` has only finitely many zeros in any
+`S ⊆ closedBall c R`. -/
+theorem AnalyticOnNhd.finite_setOf_eq_zero_of_subset_closedBall (hR : 0 ≤ R)
+    (hf : AnalyticOnNhd ℂ f (closedBall c R)) (hfc : f c ≠ 0) (hS : S ⊆ closedBall c R) :
+    {z ∈ S | f z = 0}.Finite := by
+  refine (divisor_finite_inter_support_of_isCompact (f := f) (isCompact_closedBall c R)
+    Set.Subset.rfl hS).subset fun z hz ↦ ⟨hz.1, ?_⟩
+  exact (hf.zero_lt_divisor_closedBall_of_eq_zero hR hfc (hS hz.1) hz.2).ne'
+
+/-- **Jensen's bound for the number of distinct zeros.** Let `f` be analytic on `closedBall c R`,
+bounded by `M ≥ 1` on `sphere c R` and nonzero at `c`. For `0 < r < R` and `S ⊆ closedBall c r`,
+there is a finite set `Z` containing all zeros of `f` in `S` with
+`(Z.card : ℝ) ≤ log (M / ‖f c‖) / log (R / r)`. -/
+theorem AnalyticOnNhd.exists_finset_eq_zero_card_le (hr : 0 < r) (hrR : r < R) (hM : 1 ≤ M)
+    (hf : AnalyticOnNhd ℂ f (closedBall c R)) (hfc : f c ≠ 0)
+    (hbound : ∀ z ∈ sphere c R, ‖f z‖ ≤ M) (hS : S ⊆ closedBall c r) :
+    ∃ Z : Finset ℂ, (∀ z ∈ S, f z = 0 → z ∈ Z) ∧
+      (Z.card : ℝ) ≤ log (M / ‖f c‖) / log (R / r) := by
+  have hR : 0 ≤ R := (hr.trans hrR).le
+  have hSR : S ⊆ closedBall c R := hS.trans (closedBall_subset_closedBall hrR.le)
+  have hfin := hf.finite_setOf_eq_zero_of_subset_closedBall hR hfc hSR
+  refine ⟨hfin.toFinset, fun z hz hfz ↦ hfin.mem_toFinset.2 ⟨hz, hfz⟩, ?_⟩
+  have hsupp : (S ∩ Function.support (fun z ↦ (divisor f (closedBall c R) z).toNat)).Finite :=
+    TauCeti.zeroCount_support_finite <|
+      divisor_finite_inter_support_of_isCompact (isCompact_closedBall c R) Set.Subset.rfl hSR
+  have hcard : hfin.toFinset.card ≤ TauCeti.zeroCount f (closedBall c R) S :=
+    TauCeti.card_le_zeroCount (fun z hz ↦ (hfin.mem_toFinset.1 hz).1)
+      (fun z hz ↦ hf.zero_lt_divisor_closedBall_of_eq_zero hR hfc
+        (hSR (hfin.mem_toFinset.1 hz).1) (hfin.mem_toFinset.1 hz).2) hsupp
+  exact (Nat.cast_le.2 hcard).trans (hf.zeroCount_le hr hrR hM hfc hbound (closedBall c R) hS)

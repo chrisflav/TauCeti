@@ -229,4 +229,18 @@ theorem zeroCount_interior (hfr : ∀ z ∈ frontier R, MeromorphicOn.divisor f 
     simp [hfr z ⟨subset_closure hz, hint⟩]
   rw [zeroCount_def, zeroCount_def, ← finsum_mem_inter_support, hsupp, finsum_mem_inter_support]
 
+/-- Every finite set of points in `R` with positive divisor multiplicity has cardinality at most
+`zeroCount f U R`, provided `R` has finite positive divisor support. -/
+theorem card_le_zeroCount {Z : Finset 𝕜} (hZR : (Z : Set 𝕜) ⊆ R)
+    (hpos : ∀ z ∈ Z, 0 < MeromorphicOn.divisor f U z)
+    (hR : (R ∩ Function.support (fun z ↦ (MeromorphicOn.divisor f U z).toNat)).Finite) :
+    Z.card ≤ zeroCount f U R := by
+  classical
+  calc Z.card = ∑ _ ∈ Z, 1 := Finset.card_eq_sum_ones Z
+    _ ≤ ∑ z ∈ Z, (MeromorphicOn.divisor f U z).toNat :=
+      Finset.sum_le_sum fun z hz ↦ by have := hpos z hz; omega
+    _ = zeroCount f U Z := by
+      rw [zeroCount_def, finsum_mem_eq_sum_of_subset _ (t := Z) (fun _ hz ↦ hz.1) Subset.rfl]
+    _ ≤ zeroCount f U R := zeroCount_mono hZR hR
+
 end TauCeti
