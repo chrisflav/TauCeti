@@ -8,16 +8,19 @@ module
 public import Mathlib.Algebra.Group.Action.Defs
 
 /-!
-# A multiplicative action on a monoid is distributive over its self-action
+# A multiplicative action on a monoid and its self-action
 
 A multiplicative distributive action of `G` on a monoid `A`, such as a `MulSemiringAction`, has
 `g • (a * b) = g • a * g • b`. Read with `A` acting on itself by left multiplication, this is
 `SMulDistribClass G A A`, the form taken by statements about semilinear actions on `A`-modules
-when the module is `A` itself.
+when the module is `A` itself. When the `G`-action instead commutes with left multiplication by `A`
+(`SMulCommClass G A A`), evaluating on `a * 1` forces `G` to act trivially on `A`.
 
 ## Main results
 
 * `TauCeti.smulDistribClass_self`: `SMulDistribClass G A A` for a `MulDistribMulAction G A`.
+* `TauCeti.smul_eq_self_of_smulCommClass_self`: `g • a = a` when `MulDistribMulAction G A` and
+  `SMulCommClass G A A` both hold.
 -/
 
 public section
@@ -29,5 +32,11 @@ on itself by left multiplication. -/
 instance smulDistribClass_self (G A : Type*) [Monoid G] [Monoid A] [MulDistribMulAction G A] :
     SMulDistribClass G A A :=
   ⟨smul_mul'⟩
+
+/-- When a multiplicative distributive action of `G` on a monoid `A` commutes with the action of
+`A` on itself by left multiplication (`SMulCommClass G A A`), the `G`-action on `A` is trivial. -/
+theorem smul_eq_self_of_smulCommClass_self {G A : Type*} [Monoid G] [Monoid A]
+    [MulDistribMulAction G A] [SMulCommClass G A A] (g : G) (a : A) : g • a = a := by
+  rw [← mul_one a, ← smul_eq_mul, smul_comm, smul_one, smul_eq_mul, mul_one]
 
 end TauCeti
