@@ -8,6 +8,7 @@ module
 public import Mathlib.Geometry.Manifold.ChartedSpace
 public import Mathlib.Analysis.Normed.Module.Basic
 public import Mathlib.LinearAlgebra.Dimension.Basic
+public import TauCeti.Topology.FilledIn
 import Mathlib.Analysis.LocallyConvex.WithSeminorms
 import TauCeti.Analysis.Normed.Module.Connected
 import TauCeti.Topology.ConnectedComponents
@@ -43,6 +44,8 @@ model space `E` itself; no smoothness of the transition maps is needed.
 * `TauCeti.isPathConnected_compl_of_finite_of_one_lt_rank`: the special case of a finite set.
 * `TauCeti.isPreconnected_sdiff_of_isOpen_of_isDiscrete_of_one_lt_rank`: closed discrete
   deletion inside a preconnected open subset.
+* `TauCeti.IsFilledIn.union_finite_of_one_lt_rank`: adjoining a finite set preserves `IsFilledIn`
+  when `Ω \ K` is open and the model space has real dimension greater than one.
 -/
 
 public section
@@ -142,5 +145,41 @@ theorem isPathConnected_compl_of_finite_of_one_lt_rank [ConnectedSpace X]
     (h : 1 < Module.rank ℝ E) {s : Set X} (hs : s.Finite) : IsPathConnected sᶜ :=
   have := ChartedSpace.t1Space E X
   isPathConnected_compl_of_isDiscrete_of_one_lt_rank h hs.isClosed hs.isDiscrete
+
+/-- Adjoining a finite set preserves `TauCeti.IsFilledIn` on a manifold modelled on a real normed
+space of dimension greater than one whenever `Ω \ K` is open: deleting finitely many points from an
+open component neither disconnects it nor shrinks its closure. -/
+theorem IsFilledIn.union_finite_of_one_lt_rank (h : 1 < Module.rank ℝ E) {K s Ω : Set X}
+    (hfill : IsFilledIn K Ω) (hΩK : IsOpen (Ω \ K)) (hs : s.Finite) :
+    IsFilledIn (K ∪ s) Ω := by
+  have := ChartedSpace.t1Space E X
+  have := ChartedSpace.locallyPathConnectedSpace E X
+  rw [isFilledIn_iff] at hfill ⊢
+  rintro x ⟨hxΩ, hxKs⟩ ⟨hcpt, hsub⟩
+  have hxK : x ∈ Ω \ K := ⟨hxΩ, fun hK ↦ hxKs (Or.inl hK)⟩
+  set C := connectedComponentIn (Ω \ K) x
+  have hC_open : IsOpen C := hΩK.connectedComponentIn
+  have hCs_conn : IsPreconnected (C \ s) :=
+    isPreconnected_sdiff_of_isOpen_of_isDiscrete_of_one_lt_rank h hC_open
+      isPreconnected_connectedComponentIn hs.isClosed hs.isDiscrete
+  have hxCs : x ∈ C \ s := ⟨mem_connectedComponentIn hxK, fun hx ↦ hxKs (Or.inr hx)⟩
+  have hCs_sub : C \ s ⊆ connectedComponentIn (Ω \ (K ∪ s)) x :=
+    hCs_conn.subset_connectedComponentIn hxCs fun y hy ↦
+      ⟨(connectedComponentIn_subset _ _ hy.1).1,
+        fun h' ↦ h'.elim (connectedComponentIn_subset _ _ hy.1).2 hy.2⟩
+  have hC_cl : C ⊆ closure (C \ s) := fun y hy ↦
+    mem_closure_iff_nhds.mpr fun V hV ↦ by
+      have hopen : IsOpen (s \ {y})ᶜ := hs.sdiff.isClosed.isOpen_compl
+      have hmem : V ∩ C ∩ (s \ {y})ᶜ ∈ 𝓝 y :=
+        Filter.inter_mem (Filter.inter_mem hV (hC_open.mem_nhds hy))
+          (hopen.mem_nhds fun h' ↦ h'.2 rfl)
+      obtain ⟨W, -, hW_sub, hW_conn⟩ := exists_mem_nhds_subset_isConnected_sdiff_singleton h y hmem
+      obtain ⟨w, hwW, hwy⟩ := hW_conn.nonempty
+      have hw := hW_sub hwW
+      exact ⟨w, hw.1.1, hw.1.2, fun hws ↦ hw.2 ⟨hws, hwy⟩⟩
+  have hcl_eq : closure C = closure (connectedComponentIn (Ω \ (K ∪ s)) x) :=
+    Subset.antisymm ((closure_minimal hC_cl isClosed_closure).trans (closure_mono hCs_sub))
+      (closure_mono (connectedComponentIn_mono x (sdiff_subset_sdiff subset_rfl subset_union_left)))
+  exact hfill x hxK ⟨hcl_eq.symm ▸ hcpt, hcl_eq.symm ▸ hsub⟩
 
 end TauCeti

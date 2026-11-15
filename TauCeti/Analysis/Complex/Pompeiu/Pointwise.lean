@@ -20,9 +20,13 @@ radii, where `q` is conjugate to `p`. The latter norm is finite because `q < 2`.
 These bounds are useful for Cauchy integral equations with rough zeroth-order coefficients.
 The exponent hypotheses are expressed by a Hölder conjugate pair, allowing `p = ∞`, `q = 1`.
 For bounded data the transform is moreover continuous on the whole plane
-(`TauCeti.continuous_cauchyTransform_of_norm_le`), since moving the pole moves the reciprocal
-kernel continuously in `L¹` on the support disc. On supercritical data supported in discs the
-transform is subtractive (`TauCeti.cauchyTransform_sub_of_memLp`).
+(`TauCeti.continuous_cauchyTransform_of_norm_le`,
+`HasCompactSupport.continuous_cauchyTransform_of_norm_le`), since moving the pole moves the
+reciprocal kernel continuously in `L¹` on the support disc. On supercritical or essentially bounded
+data supported in discs (or of compact support) the transform is additive and subtractive
+(`TauCeti.cauchyTransform_add_of_memLp`, `TauCeti.cauchyTransform_sub_of_memLp`,
+`HasCompactSupport.cauchyTransform_add_of_memLp`,
+`HasCompactSupport.cauchyTransform_add_of_norm_le`).
 
 The normalization is `T f = π⁻¹ ∫ (w - z)⁻¹ • f z`, inverting
 `bar∂ = (∂ₛ + i ∂ₜ)/2`.
@@ -95,6 +99,16 @@ theorem norm_cauchyTransform_le [p.HolderConjugate q] (hq : q < 2)
   simpa only [ENNReal.toReal_mul, ENNReal.toReal_ofReal (inv_nonneg.mpr Real.pi_pos.le),
     toReal_eNorm] using ENNReal.toReal_mono hfin hb
 
+/-- The Cauchy transform is additive on supercritical data supported in closed discs. -/
+theorem cauchyTransform_add_of_memLp [p.HolderConjugate q] (hq : q < 2) {g : ℂ → F} {c' : ℂ}
+    {r' : ℝ} (hf : MemLp f p volume) (hfs : support f ⊆ closedBall c r) (hg : MemLp g p volume)
+    (hgs : support g ⊆ closedBall c' r') :
+    cauchyTransform (f + g) = cauchyTransform f + cauchyTransform g := by
+  funext w
+  simp only [cauchyTransform_apply, Pi.add_apply, smul_add]
+  rw [integral_add (integrable_sub_inv_smul_of_memLp hq hf hfs w)
+    (integrable_sub_inv_smul_of_memLp hq hg hgs w), smul_add]
+
 /-- The Cauchy transform is subtractive on supercritical data supported in closed discs. -/
 theorem cauchyTransform_sub_of_memLp [p.HolderConjugate q] (hq : q < 2) {g : ℂ → F} {c' : ℂ}
     {r' : ℝ} (hf : MemLp f p volume) (hfs : support f ⊆ closedBall c r) (hg : MemLp g p volume)
@@ -152,5 +166,72 @@ theorem continuous_cauchyTransform_of_norm_le (hf : AEStronglyMeasurable f volum
     (tendsto_id (x := 𝓝 w)) c r).const_mul M |>.const_mul Real.pi⁻¹
   simp only [mul_zero] at hlim
   exact squeeze_zero (fun _ ↦ norm_nonneg _) (fun w' ↦ hbound w w') hlim
+
+/-- Compactly supported supercritical `Lᵖ` data have an integrable Cauchy integrand at every
+point. -/
+theorem _root_.HasCompactSupport.integrable_sub_inv_smul_of_memLp [p.HolderConjugate q]
+    (hfc : HasCompactSupport f) (hq : q < 2) (hf : MemLp f p volume) (w : ℂ) :
+    Integrable (fun z ↦ (w - z)⁻¹ • f z) volume := by
+  obtain ⟨r, hr⟩ := hfc.isCompact.isBounded.subset_closedBall 0
+  exact TauCeti.integrable_sub_inv_smul_of_memLp hq hf ((subset_tsupport f).trans hr) w
+
+/-- Compactly supported essentially bounded measurable data have an integrable Cauchy integrand at
+every point. -/
+theorem _root_.HasCompactSupport.integrable_sub_inv_smul_of_norm_le (hfc : HasCompactSupport f)
+    (hf : AEStronglyMeasurable f volume) {M : ℝ} (hM : ∀ᵐ z, ‖f z‖ ≤ M) (w : ℂ) :
+    Integrable (fun z ↦ (w - z)⁻¹ • f z) volume :=
+  hfc.integrable_sub_inv_smul_of_memLp (p := ∞) (q := 1) (by norm_num)
+    (memLp_top_of_bound hf M hM) w
+
+/-- The Cauchy transform is additive on compactly supported supercritical `Lᵖ` data. -/
+theorem _root_.HasCompactSupport.cauchyTransform_add_of_memLp {p' q' : ENNReal}
+    [p.HolderConjugate q] [p'.HolderConjugate q'] {g : ℂ → F} (hfc : HasCompactSupport f)
+    (hgc : HasCompactSupport g) (hq : q < 2) (hq' : q' < 2) (hf : MemLp f p volume)
+    (hg : MemLp g p' volume) :
+    cauchyTransform (f + g) = cauchyTransform f + cauchyTransform g := by
+  funext w
+  simp only [cauchyTransform_apply, Pi.add_apply, smul_add]
+  rw [integral_add (hfc.integrable_sub_inv_smul_of_memLp hq hf w)
+    (hgc.integrable_sub_inv_smul_of_memLp hq' hg w), smul_add]
+
+/-- The Cauchy transform is subtractive on compactly supported supercritical `Lᵖ` data. -/
+theorem _root_.HasCompactSupport.cauchyTransform_sub_of_memLp {p' q' : ENNReal}
+    [p.HolderConjugate q] [p'.HolderConjugate q'] {g : ℂ → F} (hfc : HasCompactSupport f)
+    (hgc : HasCompactSupport g) (hq : q < 2) (hq' : q' < 2) (hf : MemLp f p volume)
+    (hg : MemLp g p' volume) :
+    cauchyTransform (f - g) = cauchyTransform f - cauchyTransform g := by
+  funext w
+  simp only [cauchyTransform_apply, Pi.sub_apply, smul_sub]
+  rw [integral_sub (hfc.integrable_sub_inv_smul_of_memLp hq hf w)
+    (hgc.integrable_sub_inv_smul_of_memLp hq' hg w), smul_sub]
+
+/-- The Cauchy transform is additive on compactly supported essentially bounded measurable data. -/
+theorem _root_.HasCompactSupport.cauchyTransform_add_of_norm_le {g : ℂ → F}
+    (hfc : HasCompactSupport f) (hgc : HasCompactSupport g) (hf : AEStronglyMeasurable f volume)
+    (hg : AEStronglyMeasurable g volume) {M₁ M₂ : ℝ} (hM₁ : ∀ᵐ z, ‖f z‖ ≤ M₁)
+    (hM₂ : ∀ᵐ z, ‖g z‖ ≤ M₂) :
+    cauchyTransform (f + g) = cauchyTransform f + cauchyTransform g :=
+  hfc.cauchyTransform_add_of_memLp (p := ∞) (q := 1) (p' := ∞) (q' := 1) hgc (by norm_num)
+    (by norm_num) (memLp_top_of_bound hf M₁ hM₁) (memLp_top_of_bound hg M₂ hM₂)
+
+/-- The Cauchy transform of a compactly supported essentially bounded map is continuous on the
+whole plane. When the map is not almost-everywhere strongly measurable, the Bochner integral
+vanishes identically because `z ↦ w - z` is nonzero almost everywhere. -/
+theorem _root_.HasCompactSupport.continuous_cauchyTransform_of_norm_le
+    (hfc : HasCompactSupport f) {M : ℝ} (hM : ∀ᵐ z, ‖f z‖ ≤ M) :
+    Continuous (cauchyTransform f) := by
+  by_cases hf : AEStronglyMeasurable f volume
+  · obtain ⟨r, hr⟩ := hfc.isCompact.isBounded.subset_closedBall 0
+    exact TauCeti.continuous_cauchyTransform_of_norm_le hf ((subset_tsupport f).trans hr) hM
+  · have hzero : cauchyTransform f = 0 := by
+      ext w
+      rw [cauchyTransform_apply, integral_undef fun hint ↦ hf ?_, smul_zero, Pi.zero_apply]
+      have hae : (fun z ↦ (w - z) • ((w - z)⁻¹ • f z)) =ᵐ[volume] f := by
+        filter_upwards [compl_mem_ae_iff.mpr (measure_singleton w)] with z hzw
+        exact smul_inv_smul₀ (sub_ne_zero.mpr (Ne.symm hzw)) (f z)
+      exact (((continuous_const.sub continuous_id).aestronglyMeasurable).smul
+        hint.aestronglyMeasurable).congr hae
+    rw [hzero]
+    exact continuous_zero
 
 end TauCeti

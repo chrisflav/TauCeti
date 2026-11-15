@@ -77,6 +77,8 @@ integrable `f` it is holomorphic off the closed support `tsupport f`, with compl
   the same commutation `D (T f) = T (D f)` for the normalized transform, also in directional form.
 * `TauCeti.cauchyTransform_add` and `TauCeti.cauchyTransform_smul`: the normalized transform is
   additive on continuous compactly supported data and commutes with scalar multiplication.
+* `TauCeti.cauchyTransform_comp_add_right`, `TauCeti.cauchyTransform_comp_add_left` and
+  `TauCeti.cauchyTransform_comp_sub_right`: the normalized transform commutes with translations.
 * `HasCompactSupport.fderiv_apply_one_add_I_smul_apply_I_two_pi_inv_smul_integral_sub_inv_smul`:
   `D = 2 \bar∂` of the Cauchy transform of a compactly supported `C¹` map `f` is `f`.
 * `HasCompactSupport.conjWirtingerDeriv_integral_sub_inv_smul_apply_one`:
@@ -300,6 +302,27 @@ theorem pi_inv_smul_integral_swap_sub_inv_smul_eq_neg_cauchyTransform (f : ℂ �
     (Real.pi : ℂ)⁻¹ • ∫ z, (z - w)⁻¹ • f z = -cauchyTransform f w := by
   simp_rw [← neg_sub w, inv_neg, neg_smul]
   rw [integral_neg, smul_neg, cauchyTransform_apply]
+
+/-- The Cauchy transform commutes with right translation of the input, with no integrability
+hypothesis required. -/
+theorem cauchyTransform_comp_add_right (f : ℂ → F) (a w : ℂ) :
+    cauchyTransform (fun z ↦ f (z + a)) w = cauchyTransform f (w + a) := by
+  rw [cauchyTransform_apply, cauchyTransform_apply]
+  congr 1
+  simpa only [add_sub_add_right_eq_sub] using
+    integral_add_right_eq_self (fun z : ℂ ↦ (w + a - z)⁻¹ • f z) a
+
+/-- The Cauchy transform commutes with left translation of the input, with no integrability
+hypothesis required. -/
+theorem cauchyTransform_comp_add_left (f : ℂ → F) (a w : ℂ) :
+    cauchyTransform (fun z ↦ f (a + z)) w = cauchyTransform f (a + w) := by
+  simpa only [add_comm a] using cauchyTransform_comp_add_right f a w
+
+/-- The Cauchy transform commutes with subtraction of a constant in the input, with no
+integrability hypothesis required. -/
+theorem cauchyTransform_comp_sub_right (f : ℂ → F) (a w : ℂ) :
+    cauchyTransform (fun z ↦ f (z - a)) w = cauchyTransform f (w - a) := by
+  simpa only [sub_eq_add_neg] using cauchyTransform_comp_add_right f (-a) w
 
 section Polar
 
