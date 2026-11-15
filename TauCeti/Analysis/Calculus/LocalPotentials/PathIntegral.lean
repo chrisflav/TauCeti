@@ -10,6 +10,7 @@ public import TauCeti.Analysis.Calculus.LocalPotentials.Basic
 
 import Mathlib.Analysis.Calculus.MeanValue
 import Mathlib.Topology.UnitInterval
+import TauCeti.Topology.Homotopy.Path
 
 /-!
 # Path integrals of covector fields with local potentials
@@ -41,7 +42,7 @@ interior edges cancel in pairs.
   subdivision into open potential neighbourhoods.
 * `TauCeti.localPotentialIntegral_eq_sum_sub`: evaluation of `localPotentialIntegral` on any open
   potential subdivision.
-* `TauCeti.localPotentialIntegral_of_hasFDerivAt`: fundamental theorem of calculus along any
+* `TauCeti.localPotentialIntegral_eq_sub_of_hasFDerivAt`: fundamental theorem of calculus along any
   continuous path in an open set carrying a global potential.
 * `TauCeti.HasLocalPotentials.localPotentialIntegral_trans`,
   `TauCeti.HasLocalPotentials.localPotentialIntegral_pullback`: path concatenation and `C¹`
@@ -67,20 +68,6 @@ section Uniqueness
 
 variable {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
   [NormedAddCommGroup F] [NormedSpace ℝ F]
-
-/-- Two functions differentiating to the same covector field on an open preconnected set have equal
-increments between any two points of that set. -/
-theorem IsOpen.sub_eq_sub_of_hasFDerivAt {u : Set E} (hu : IsOpen u) (hconn : IsPreconnected u)
-    {φ : E → E →L[ℝ] F} {g₁ g₂ : E → F}
-    (hg₁ : ∀ z ∈ u, HasFDerivAt g₁ (φ z) z) (hg₂ : ∀ z ∈ u, HasFDerivAt g₂ (φ z) z)
-    {x y : E} (hx : x ∈ u) (hy : y ∈ u) :
-    g₁ y - g₁ x = g₂ y - g₂ x := by
-  have hxy : (g₁ - g₂) x = (g₁ - g₂) y := by
-    refine hu.is_const_of_fderiv_eq_zero (𝕜 := ℝ) hconn ?_ ?_ hx hy
-    · exact fun z hz ↦ ((hg₁ z hz).sub (hg₂ z hz)).differentiableAt.differentiableWithinAt
-    · intro z hz
-      simpa using ((hg₁ z hz).sub (hg₂ z hz)).fderiv
-  exact sub_eq_sub_iff_sub_eq_sub.mpr (by simpa using hxy.symm)
 
 namespace TauCeti
 
@@ -123,6 +110,16 @@ theorem sub_eq_sub_of_hasFDerivAt_of_isPreconnected {u₁ u₂ t : Set E}
 
 end TauCeti
 
+/-- Two functions differentiating to the same covector field on an open preconnected set have equal
+increments between any two points of that set. -/
+theorem IsOpen.sub_eq_sub_of_hasFDerivAt {u : Set E} (hu : IsOpen u) (hconn : IsPreconnected u)
+    {φ : E → E →L[ℝ] F} {g₁ g₂ : E → F}
+    (hg₁ : ∀ z ∈ u, HasFDerivAt g₁ (φ z) z) (hg₂ : ∀ z ∈ u, HasFDerivAt g₂ (φ z) z)
+    {x y : E} (hx : x ∈ u) (hy : y ∈ u) :
+    g₁ y - g₁ x = g₂ y - g₂ x :=
+  TauCeti.sub_eq_sub_of_hasFDerivAt_of_isPreconnected hu hu hconn subset_rfl subset_rfl hg₁ hg₂
+    hx hy
+
 end Uniqueness
 
 namespace TauCeti
@@ -149,116 +146,120 @@ private def PotentialSubdivision.sum {a b : E} {γ : Path a b}
     (S : PotentialSubdivision φ γ) : F :=
   ∑ k : Fin S.n, (S.g k (γ (S.t (k + 1))) - S.g k (γ (S.t k)))
 
-/-- Telescoping sum of increments over `Fin n`. -/
-private theorem sum_fin_sub {G : Type*} [AddCommGroup G] {n : ℕ} (f : ℕ → G) :
-    (∑ k : Fin n, (f (k + 1) - f k)) = f n - f 0 := by
-  induction n with
-  | zero => simp
-  | succ n ih =>
-    rw [Fin.sum_univ_castSucc]
-    simp only [Fin.val_castSucc, Fin.val_last]
-    rw [ih, sub_add_sub_cancel']
+/-- Along a continuous curve `c : I → E` mapping `[a, b]` into two open potential sets `u₁` and
+`u₂` for `φ`, the two potentials have equal increments from `c a` to `c b`. -/
+private theorem sub_apply_eq_sub_apply_of_hasFDerivAt_Icc {u₁ u₂ : Set E}
+    (hu₁ : IsOpen u₁) (hu₂ : IsOpen u₂) {c : I → E} (hc : Continuous c) {a b : I} (hab : a ≤ b)
+    (hc₁ : MapsTo c (Icc a b) u₁) (hc₂ : MapsTo c (Icc a b) u₂)
+    {g₁ g₂ : E → F} (hg₁ : ∀ z ∈ u₁, HasFDerivAt g₁ (φ z) z)
+    (hg₂ : ∀ z ∈ u₂, HasFDerivAt g₂ (φ z) z) :
+    g₁ (c b) - g₁ (c a) = g₂ (c b) - g₂ (c a) :=
+  sub_eq_sub_of_hasFDerivAt_of_isPreconnected hu₁ hu₂
+    (isPreconnected_Icc.image c hc.continuousOn) hc₁.image_subset hc₂.image_subset
+    hg₁ hg₂ (mem_image_of_mem c ⟨le_rfl, hab⟩) (mem_image_of_mem c ⟨hab, le_rfl⟩)
+
+/-- Clamps `x : I` into the `i`-th subinterval `[S.t i, S.t (i + 1)]` of `S`. -/
+private def PotentialSubdivision.clamp {a b : E} {γ : Path a b}
+    (S : PotentialSubdivision φ γ) (i : Fin S.n) (x : I) : I :=
+  max (S.t i) (min (S.t (i + 1)) x)
+
+private theorem PotentialSubdivision.clamp_zero {a b : E} {γ : Path a b}
+    (S : PotentialSubdivision φ γ) (i : Fin S.n) :
+    S.clamp i 0 = S.t i := by
+  simp [clamp]
+
+private theorem PotentialSubdivision.clamp_one {a b : E} {γ : Path a b}
+    (S : PotentialSubdivision φ γ) (i : Fin S.n) :
+    S.clamp i 1 = S.t (i + 1) := by
+  have hle1 : S.t (i + 1) ≤ 1 := unitInterval.le_one _
+  dsimp [clamp]
+  rw [min_eq_left hle1, max_eq_right (S.ht_mono (Nat.le_succ _))]
+
+/-- When `[S₁.t i, S₁.t (i + 1)]` lies to the left of `[S₂.t j, S₂.t (j + 1)]`, clamping collapses
+each subinterval to a single endpoint, so both clamped potential increments vanish. -/
+private theorem PotentialSubdivision.clamp_sub_eq_of_le {a b : E} {γ : Path a b}
+    {S₁ S₂ : PotentialSubdivision φ γ} {i : Fin S₁.n} {j : Fin S₂.n}
+    (hij : S₁.t (i + 1) ≤ S₂.t j) :
+    S₁.g i (γ (S₁.clamp i (S₂.t (j + 1)))) - S₁.g i (γ (S₁.clamp i (S₂.t j))) =
+      S₂.g j (γ (S₂.clamp j (S₁.t (i + 1)))) - S₂.g j (γ (S₂.clamp j (S₁.t i))) := by
+  have hi : S₁.t i ≤ S₁.t (i + 1) := S₁.ht_mono (Nat.le_succ _)
+  have hj : S₂.t j ≤ S₂.t (j + 1) := S₂.ht_mono (Nat.le_succ _)
+  have hc₁0 : S₁.clamp i (S₂.t j) = S₁.t (i + 1) := by
+    simp [clamp, min_eq_left hij, max_eq_right hi]
+  have hc₁1 : S₁.clamp i (S₂.t (j + 1)) = S₁.t (i + 1) := by
+    simp [clamp, min_eq_left (hij.trans hj), max_eq_right hi]
+  have hc₂0 : S₂.clamp j (S₁.t i) = S₂.t j := by
+    simp [clamp, min_eq_right ((hi.trans hij).trans hj), max_eq_left (hi.trans hij)]
+  have hc₂1 : S₂.clamp j (S₁.t (i + 1)) = S₂.t j := by
+    simp [clamp, min_eq_right (hij.trans hj), max_eq_left hij]
+  simp [hc₁0, hc₁1, hc₂0, hc₂1]
+
+/-- Clamping the `j`-th subinterval of `S₂` into the `i`-th subinterval of `S₁` gives the same
+potential increment as clamping in the opposite order. -/
+private theorem PotentialSubdivision.clamp_sub_eq {a b : E} {γ : Path a b}
+    (S₁ S₂ : PotentialSubdivision φ γ) (i : Fin S₁.n) (j : Fin S₂.n) :
+    S₁.g i (γ (S₁.clamp i (S₂.t (j + 1)))) - S₁.g i (γ (S₁.clamp i (S₂.t j))) =
+      S₂.g j (γ (S₂.clamp j (S₁.t (i + 1)))) - S₂.g j (γ (S₂.clamp j (S₁.t i))) := by
+  -- Case 1 (disjoint before): `[S₁.t i, S₁.t (i + 1)]` ends at or before `S₂.t j`.
+  rcases le_or_gt (S₁.t (i + 1)) (S₂.t j) with hij | hij
+  · exact clamp_sub_eq_of_le hij
+  -- Case 2 (disjoint after): `[S₂.t j, S₂.t (j + 1)]` ends at or before `S₁.t i` (by symmetry).
+  rcases le_or_gt (S₂.t (j + 1)) (S₁.t i) with hji | hji
+  · exact (clamp_sub_eq_of_le hji).symm
+  -- Case 3 (overlap): both clamps span the nonempty subinterval `[lo, hi']`.
+  have hi : S₁.t i ≤ S₁.t (i + 1) := S₁.ht_mono (Nat.le_succ _)
+  have hj : S₂.t j ≤ S₂.t (j + 1) := S₂.ht_mono (Nat.le_succ _)
+  let lo : I := max (S₁.t i) (S₂.t j)
+  let hi' : I := min (S₁.t (i + 1)) (S₂.t (j + 1))
+  have hlo_le_hi : lo ≤ hi' := max_le (le_min hi hji.le) (le_min hij.le hj)
+  have hc₁0 : S₁.clamp i (S₂.t j) = lo := by simp [clamp, lo, min_eq_right hij.le]
+  have hc₂0 : S₂.clamp j (S₁.t i) = lo := by simp [clamp, lo, min_eq_right hji.le, max_comm]
+  have hc₁1 : S₁.clamp i (S₂.t (j + 1)) = hi' :=
+    max_eq_right ((le_max_left (S₁.t i) (S₂.t j)).trans hlo_le_hi)
+  have hc₂1 : S₂.clamp j (S₁.t (i + 1)) = hi' := by
+    simpa only [clamp, min_comm (S₂.t (j + 1)) (S₁.t (i + 1))] using
+      max_eq_right ((le_max_right (S₁.t i) (S₂.t j)).trans hlo_le_hi)
+  rw [hc₁0, hc₁1, hc₂0, hc₂1]
+  exact sub_apply_eq_sub_apply_of_hasFDerivAt_Icc (S₁.hu i) (S₂.hu j) γ.continuous hlo_le_hi
+    ((S₁.hγ i).mono_left (Icc_subset_Icc (le_max_left _ _) (min_le_left _ _)))
+    ((S₂.hγ j).mono_left (Icc_subset_Icc (le_max_right _ _) (min_le_right _ _)))
+    (S₁.hg i) (S₂.hg j)
 
 /-- Two open potential subdivisions of the same path have equal increment sums: clamping one
 partition into each subinterval of the other produces a doubly indexed sum that telescopes in one
 index to `S₁.sum` and in the other to `S₂.sum`. -/
 private theorem PotentialSubdivision.sum_eq {a b : E} {γ : Path a b}
     (S₁ S₂ : PotentialSubdivision φ γ) : S₁.sum = S₂.sum := by
-  let clamp₁ (i : Fin S₁.n) (j : ℕ) : I := max (S₁.t i) (min (S₁.t (i + 1)) (S₂.t j))
-  let clamp₂ (i : ℕ) (j : Fin S₂.n) : I := max (S₂.t j) (min (S₂.t (j + 1)) (S₁.t i))
-  have h₁_0 (i : Fin S₁.n) : clamp₁ i 0 = S₁.t i := by
-    simp [clamp₁, S₂.ht0]
-  have h₁_n (i : Fin S₁.n) : clamp₁ i S₂.n = S₁.t (i + 1) := by
-    dsimp only [clamp₁]
-    have hle1 : S₁.t (i + 1) ≤ 1 := unitInterval.le_one _
-    rw [S₂.htn, min_eq_left hle1, max_eq_right (S₁.ht_mono (Nat.le_succ _))]
-  have h₂_0 (j : Fin S₂.n) : clamp₂ 0 j = S₂.t j := by
-    simp [clamp₂, S₁.ht0]
-  have h₂_n (j : Fin S₂.n) : clamp₂ S₁.n j = S₂.t (j + 1) := by
-    dsimp only [clamp₂]
-    have hle1 : S₂.t (j + 1) ≤ 1 := unitInterval.le_one _
-    rw [S₁.htn, min_eq_left hle1, max_eq_right (S₂.ht_mono (Nat.le_succ _))]
-  have hcell (i : Fin S₁.n) (j : Fin S₂.n) :
-      S₁.g i (γ (clamp₁ i (j + 1))) - S₁.g i (γ (clamp₁ i j)) =
-        S₂.g j (γ (clamp₂ (i + 1) j)) - S₂.g j (γ (clamp₂ i j)) := by
-    have hi : S₁.t i ≤ S₁.t (i + 1) := S₁.ht_mono (Nat.le_succ _)
-    have hj : S₂.t j ≤ S₂.t (j + 1) := S₂.ht_mono (Nat.le_succ _)
-    rcases le_or_gt (S₁.t (i + 1)) (S₂.t j) with hij | hij
-    · have hc₁0 : clamp₁ i j = S₁.t (i + 1) := by
-        simp [clamp₁, min_eq_left hij, max_eq_right hi]
-      have hc₁1 : clamp₁ i (j + 1) = S₁.t (i + 1) := by
-        simp [clamp₁, min_eq_left (hij.trans hj), max_eq_right hi]
-      have hc₂0 : clamp₂ i j = S₂.t j := by
-        simp [clamp₂, min_eq_right ((hi.trans hij).trans hj), max_eq_left (hi.trans hij)]
-      have hc₂1 : clamp₂ (i + 1) j = S₂.t j := by
-        simp [clamp₂, min_eq_right (hij.trans hj), max_eq_left hij]
-      simp [hc₁0, hc₁1, hc₂0, hc₂1]
-    · rcases le_or_gt (S₂.t (j + 1)) (S₁.t i) with hji | hji
-      · have hc₁0 : clamp₁ i j = S₁.t i := by
-          simp [clamp₁, min_eq_right ((hj.trans hji).trans hi), max_eq_left (hj.trans hji)]
-        have hc₁1 : clamp₁ i (j + 1) = S₁.t i := by
-          simp [clamp₁, min_eq_right (hji.trans hi), max_eq_left hji]
-        have hc₂0 : clamp₂ i j = S₂.t (j + 1) := by
-          simp [clamp₂, min_eq_left hji, max_eq_right hj]
-        have hc₂1 : clamp₂ (i + 1) j = S₂.t (j + 1) := by
-          simp [clamp₂, min_eq_left (hji.trans hi), max_eq_right hj]
-        simp [hc₁0, hc₁1, hc₂0, hc₂1]
-      · let lo : I := max (S₁.t i) (S₂.t j)
-        let hi' : I := min (S₁.t (i + 1)) (S₂.t (j + 1))
-        have hlo_le_hi : lo ≤ hi' := max_le (le_min hi hji.le) (le_min hij.le hj)
-        have hc₁0 : clamp₁ i j = lo := by
-          simp [clamp₁, lo, min_eq_right hij.le]
-        have hc₂0 : clamp₂ i j = lo := by
-          simp [clamp₂, lo, min_eq_right hji.le, max_comm]
-        have hc₁1 : clamp₁ i (j + 1) = hi' :=
-          max_eq_right ((le_max_left (S₁.t i) (S₂.t j)).trans hlo_le_hi)
-        have hc₂1 : clamp₂ (i + 1) j = hi' := by
-          dsimp only [clamp₂]
-          have : min (S₂.t (j + 1)) (S₁.t (i + 1)) = hi' := min_comm _ _
-          rw [this, max_eq_right ((le_max_right (S₁.t i) (S₂.t j)).trans hlo_le_hi)]
-        rw [hc₁0, hc₁1, hc₂0, hc₂1]
-        have hsub₁ : Icc lo hi' ⊆ Icc (S₁.t i) (S₁.t (i + 1)) :=
-          Icc_subset_Icc (le_max_left _ _) (min_le_left _ _)
-        have hsub₂ : Icc lo hi' ⊆ Icc (S₂.t j) (S₂.t (j + 1)) :=
-          Icc_subset_Icc (le_max_right _ _) (min_le_right _ _)
-        have hK : IsPreconnected (γ '' Icc lo hi') := by
-          have hIcc : IsPreconnected (Icc lo hi') := by
-            have heq : Subtype.val '' (Icc lo hi' : Set I) = Icc (lo : ℝ) (hi' : ℝ) := by
-              ext x
-              constructor
-              · rintro ⟨y, ⟨hy1, hy2⟩, rfl⟩
-                exact ⟨hy1, hy2⟩
-              · rintro ⟨hx1, hx2⟩
-                exact ⟨⟨x, (unitInterval.nonneg lo).trans hx1,
-                  hx2.trans (unitInterval.le_one hi')⟩, ⟨hx1, hx2⟩, rfl⟩
-            exact Topology.IsInducing.subtypeVal.isPreconnected_image.mp
-              (heq ▸ isPreconnected_Icc)
-          exact hIcc.image γ γ.continuous.continuousOn
-        exact sub_eq_sub_of_hasFDerivAt_of_isPreconnected (S₁.hu i) (S₂.hu j) hK
-          ((S₁.hγ i).mono_left hsub₁).image_subset ((S₂.hγ j).mono_left hsub₂).image_subset
-          (S₁.hg i) (S₂.hg j) (mem_image_of_mem γ ⟨le_rfl, hlo_le_hi⟩)
-          (mem_image_of_mem γ ⟨hlo_le_hi, le_rfl⟩)
   calc
     S₁.sum
-      = ∑ i : Fin S₁.n, (S₁.g i (γ (clamp₁ i S₂.n)) - S₁.g i (γ (clamp₁ i 0))) := by
-          simp_rw [h₁_n, h₁_0]; rfl
+      = ∑ i : Fin S₁.n, (S₁.g i (γ (S₁.clamp i (S₂.t S₂.n))) -
+          S₁.g i (γ (S₁.clamp i (S₂.t 0)))) := by
+          simp_rw [S₂.htn, S₂.ht0, clamp_one, clamp_zero]; rfl
     _ = ∑ i : Fin S₁.n, ∑ j : Fin S₂.n,
-          (S₁.g i (γ (clamp₁ i (j + 1))) - S₁.g i (γ (clamp₁ i j))) := by
+          (S₁.g i (γ (S₁.clamp i (S₂.t (j + 1)))) - S₁.g i (γ (S₁.clamp i (S₂.t j)))) := by
           refine Finset.sum_congr rfl fun i _ ↦ ?_
-          exact (sum_fin_sub (fun j ↦ S₁.g i (γ (clamp₁ i j)))).symm
+          exact ((Fin.sum_univ_eq_sum_range
+            (fun j ↦ S₁.g i (γ (S₁.clamp i (S₂.t (j + 1)))) -
+              S₁.g i (γ (S₁.clamp i (S₂.t j)))) S₂.n).trans
+            (Finset.sum_range_sub (fun j ↦ S₁.g i (γ (S₁.clamp i (S₂.t j)))) S₂.n)).symm
     _ = ∑ i : Fin S₁.n, ∑ j : Fin S₂.n,
-          (S₂.g j (γ (clamp₂ (i + 1) j)) - S₂.g j (γ (clamp₂ i j))) := by
-          refine Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ hcell i j
+          (S₂.g j (γ (S₂.clamp j (S₁.t (i + 1)))) - S₂.g j (γ (S₂.clamp j (S₁.t i)))) :=
+          Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ S₁.clamp_sub_eq S₂ i j
     _ = ∑ j : Fin S₂.n, ∑ i : Fin S₁.n,
-          (S₂.g j (γ (clamp₂ (i + 1) j)) - S₂.g j (γ (clamp₂ i j))) := Finset.sum_comm
-    _ = ∑ j : Fin S₂.n, (S₂.g j (γ (clamp₂ S₁.n j)) - S₂.g j (γ (clamp₂ 0 j))) := by
+          (S₂.g j (γ (S₂.clamp j (S₁.t (i + 1)))) - S₂.g j (γ (S₂.clamp j (S₁.t i)))) :=
+          Finset.sum_comm
+    _ = ∑ j : Fin S₂.n, (S₂.g j (γ (S₂.clamp j (S₁.t S₁.n))) -
+          S₂.g j (γ (S₂.clamp j (S₁.t 0)))) := by
           refine Finset.sum_congr rfl fun j _ ↦ ?_
-          exact sum_fin_sub (fun i ↦ S₂.g j (γ (clamp₂ i j)))
+          exact (Fin.sum_univ_eq_sum_range
+            (fun i ↦ S₂.g j (γ (S₂.clamp j (S₁.t (i + 1)))) -
+              S₂.g j (γ (S₂.clamp j (S₁.t i)))) S₁.n).trans
+            (Finset.sum_range_sub (fun i ↦ S₂.g j (γ (S₂.clamp j (S₁.t i)))) S₁.n)
     _ = S₂.sum := by
-          simp_rw [h₂_n, h₂_0]; rfl
+          simp_rw [S₁.htn, S₁.ht0, clamp_one, clamp_zero]; rfl
 
-/-- Compactness of the unit interval refines any continuous path in a `HasLocalPotentials` domain
-into a monotone partition whose subintervals map into `C¹` potential balls. -/
+/-- Every continuous path in a `HasLocalPotentials` domain admits a monotone partition of the unit
+interval whose subintervals map into `C¹` potential balls. -/
 theorem HasLocalPotentials.exists_monotone_ball_subdivision (hφ : HasLocalPotentials s φ)
     {a b : E} (γ : Path a b) (hγ : ∀ t, γ t ∈ s) :
     ∃ (n : ℕ) (t : ℕ → I) (c : Fin n → E) (r : Fin n → ℝ) (g : Fin n → E → F),
@@ -268,6 +269,7 @@ theorem HasLocalPotentials.exists_monotone_ball_subdivision (hφ : HasLocalPoten
       (∀ k, ContDiffOn ℝ 1 (g k) (ball (c k) (r k))) ∧
       ∀ k : Fin n, ∀ y ∈ ball (c k) (r k), HasFDerivAt (g k) (φ y) y := by
   classical
+  -- Pull back the local potential balls along `γ` and refine the open cover by compactness of `I`.
   choose R hRpos hRs G hGcont hGderiv using fun p : s ↦ hasLocalPotentials_iff.mp hφ p.1 p.2
   let cover (p : s) : Set I := γ ⁻¹' ball p.1 (R p)
   have hopen : ∀ p : s, IsOpen (cover p) := fun p ↦ isOpen_ball.preimage γ.continuous
@@ -288,8 +290,8 @@ private theorem HasLocalPotentials.nonempty_potentialSubdivision (hφ : HasLocal
   exact ⟨⟨n, t, ht_mono, ht0, htn, fun k ↦ ball (c k) (r k), fun _ ↦ isOpen_ball, hmaps, g, hderiv⟩⟩
 
 /-- The continuous path integral of a covector field `φ : E → E →L[ℝ] F` along `γ : Path a b`,
-computed by summing potential increments over any open potential subdivision of `γ` and returning
-`0` if no such subdivision exists. -/
+equal to the sum of potential increments over any open potential subdivision of `γ` and `0` if no
+such subdivision exists. -/
 noncomputable def localPotentialIntegral (φ : E → E →L[ℝ] F) {a b : E} (γ : Path a b) : F :=
   open Classical in
   if h : Nonempty (PotentialSubdivision φ γ) then h.some.sum else 0
@@ -310,7 +312,7 @@ theorem localPotentialIntegral_eq_sum_sub {a b : E} {γ : Path a b} {n : ℕ} {t
 /-- Fundamental theorem of calculus for `localPotentialIntegral`: if `g` differentiates to `φ` on an
 open set `u` containing the image of a continuous path `γ : Path a b`, then the path integral equals
 `g b - g a`. -/
-theorem localPotentialIntegral_of_hasFDerivAt {u : Set E} (hu : IsOpen u)
+theorem localPotentialIntegral_eq_sub_of_hasFDerivAt {u : Set E} (hu : IsOpen u)
     {a b : E} {γ : Path a b} (hγ : ∀ t, γ t ∈ u)
     {g : E → F} (hg : ∀ x ∈ u, HasFDerivAt g (φ x) x) :
     localPotentialIntegral φ γ = g b - g a := by
@@ -373,7 +375,7 @@ theorem localPotentialIntegral_symm (φ : E → E →L[ℝ] F) {a b : E} (γ : P
         have hk1 : (k : ℕ) + 1 ≤ S.n := k.2
         have hk0 : (k : ℕ) ≤ S.n := Nat.le_of_succ_le hk1
         simp only [hk0, hk1, ↓reduceIte] at hx1 hx2
-        change p (σ x) ∈ S.u k.rev
+        rw [Path.symm_apply]
         refine S.hγ k.rev ⟨?_, ?_⟩
         · have hrev : (k.rev : ℕ) = S.n - ((k : ℕ) + 1) := by simp [Fin.rev]
           rw [hrev]
@@ -409,8 +411,8 @@ theorem localPotentialIntegral_symm (φ : E → E →L[ℝ] F) {a b : E} (γ : P
 @[simp]
 theorem localPotentialIntegral_zero {a b : E} (γ : Path a b) :
     localPotentialIntegral (0 : E → E →L[ℝ] F) γ = 0 := by
-  have := localPotentialIntegral_of_hasFDerivAt (φ := (0 : E → E →L[ℝ] F)) (γ := γ) isOpen_univ
-    (fun _ ↦ mem_univ _) (g := fun _ ↦ (0 : F)) (fun x _ ↦ hasFDerivAt_const (0 : F) x)
+  have := localPotentialIntegral_eq_sub_of_hasFDerivAt (φ := (0 : E → E →L[ℝ] F)) (γ := γ)
+    isOpen_univ (fun _ ↦ mem_univ _) (g := fun _ ↦ (0 : F)) (fun x _ ↦ hasFDerivAt_const (0 : F) x)
   simpa using this
 
 /-- Function-literal form of `localPotentialIntegral_zero`. -/
@@ -423,7 +425,7 @@ theorem localPotentialIntegral_fun_zero {a b : E} (γ : Path a b) :
 @[simp]
 theorem localPotentialIntegral_const (L : E →L[ℝ] F) {a b : E} (γ : Path a b) :
     localPotentialIntegral (fun _ ↦ L) γ = L (b - a) := by
-  rw [localPotentialIntegral_of_hasFDerivAt isOpen_univ (fun _ ↦ mem_univ _)
+  rw [localPotentialIntegral_eq_sub_of_hasFDerivAt isOpen_univ (fun _ ↦ mem_univ _)
     (fun _ _ ↦ L.hasFDerivAt), L.map_sub]
 
 /-- Negating the covector field negates `localPotentialIntegral`. -/
@@ -553,6 +555,73 @@ theorem HasLocalPotentials.localPotentialIntegral_sub
   rw [sub_eq_add_neg, hφ.localPotentialIntegral_add hψ.neg γ hγ, localPotentialIntegral_neg,
     sub_eq_add_neg]
 
+/-- Combined partition of `I` scaling `S₁.t` into `[0, 1/2]` and `S₂.t` into `[1/2, 1]`. -/
+private noncomputable def PotentialSubdivision.transT {a b c : E} {γ₁ : Path a b} {γ₂ : Path b c}
+    (S₁ : PotentialSubdivision φ γ₁) (S₂ : PotentialSubdivision φ γ₂) (k : ℕ) : I :=
+  if k ≤ S₁.n then
+    ⟨(S₁.t k : ℝ) / 2,
+      ⟨by linarith [unitInterval.nonneg (S₁.t k)], by linarith [unitInterval.le_one (S₁.t k)]⟩⟩
+  else
+    ⟨((S₂.t (k - S₁.n) : ℝ) + 1) / 2,
+      ⟨by linarith [unitInterval.nonneg (S₂.t (k - S₁.n))],
+        by linarith [unitInterval.le_one (S₂.t (k - S₁.n))]⟩⟩
+
+private theorem PotentialSubdivision.coe_transT_of_le {a b c : E} {γ₁ : Path a b} {γ₂ : Path b c}
+    (S₁ : PotentialSubdivision φ γ₁) (S₂ : PotentialSubdivision φ γ₂) {k : ℕ} (hk : k ≤ S₁.n) :
+    (S₁.transT S₂ k : ℝ) = (S₁.t k : ℝ) / 2 := by
+  simp [transT, hk]
+
+private theorem PotentialSubdivision.coe_transT_add {a b c : E} {γ₁ : Path a b} {γ₂ : Path b c}
+    (S₁ : PotentialSubdivision φ γ₁) (S₂ : PotentialSubdivision φ γ₂) (j : ℕ) :
+    (S₁.transT S₂ (S₁.n + j) : ℝ) = ((S₂.t j : ℝ) + 1) / 2 := by
+  dsimp [transT]
+  split_ifs with hle
+  · have hj0 : j = 0 := by omega
+    simp [hj0, S₁.htn, S₂.ht0]
+  · simp
+
+private theorem PotentialSubdivision.transT_mono {a b c : E} {γ₁ : Path a b} {γ₂ : Path b c}
+    (S₁ : PotentialSubdivision φ γ₁) (S₂ : PotentialSubdivision φ γ₂) :
+    Monotone (S₁.transT S₂) := by
+  intro i j hij
+  rw [← Subtype.coe_le_coe]
+  by_cases hj : j ≤ S₁.n
+  · rw [S₁.coe_transT_of_le S₂ (hij.trans hj), S₁.coe_transT_of_le S₂ hj]
+    linarith [Subtype.coe_le_coe.mpr (S₁.ht_mono hij)]
+  · obtain ⟨d, rfl⟩ : ∃ d, j = S₁.n + d := ⟨j - S₁.n, by omega⟩
+    rw [S₁.coe_transT_add S₂ d]
+    by_cases hi : i ≤ S₁.n
+    · rw [S₁.coe_transT_of_le S₂ hi]
+      linarith [unitInterval.le_one (S₁.t i), unitInterval.nonneg (S₂.t d)]
+    · obtain ⟨c, rfl⟩ : ∃ c, i = S₁.n + c := ⟨i - S₁.n, by omega⟩
+      have hcd : c ≤ d := by omega
+      rw [S₁.coe_transT_add S₂ c]
+      linarith [Subtype.coe_le_coe.mpr (S₂.ht_mono hcd)]
+
+/-- Each subinterval of `S₁.transT S₂` maps under `γ₁.trans γ₂` into `Fin.addCases S₁.u S₂.u`. -/
+private theorem PotentialSubdivision.mapsTo_transT {a b c : E} {γ₁ : Path a b} {γ₂ : Path b c}
+    (S₁ : PotentialSubdivision φ γ₁) (S₂ : PotentialSubdivision φ γ₂)
+    (k : Fin (S₁.n + S₂.n)) :
+    MapsTo (γ₁.trans γ₂) (Icc (S₁.transT S₂ k) (S₁.transT S₂ (k + 1)))
+      (Fin.addCases S₁.u S₂.u k) := by
+  refine Fin.addCases (fun i x ⟨hx1, hx2⟩ ↦ ?_) (fun j x ⟨hx1, hx2⟩ ↦ ?_) k
+  · simp only [Fin.val_castAdd, Fin.addCases_left] at hx1 hx2 ⊢
+    rw [← Subtype.coe_le_coe, S₁.coe_transT_of_le S₂ (Nat.le_of_succ_le i.2)] at hx1
+    rw [← Subtype.coe_le_coe, S₁.coe_transT_of_le S₂ i.2] at hx2
+    have hx_le : 2 * (x : ℝ) ≤ 1 := by linarith [unitInterval.le_one (S₁.t (i + 1))]
+    let y : I := ⟨2 * (x : ℝ), ⟨by linarith [unitInterval.nonneg x], hx_le⟩⟩
+    rw [γ₁.trans_apply_of_eq_two_mul γ₂ y rfl]
+    exact S₁.hγ i ⟨Subtype.coe_le_coe.mp (by linarith : (S₁.t i : ℝ) ≤ y),
+      Subtype.coe_le_coe.mp (by linarith : (y : ℝ) ≤ S₁.t (i + 1))⟩
+  · simp only [Fin.val_natAdd, Fin.addCases_right] at hx1 hx2 ⊢
+    rw [← Subtype.coe_le_coe, S₁.coe_transT_add S₂ j] at hx1
+    rw [← Subtype.coe_le_coe, add_assoc, S₁.coe_transT_add S₂ (j + 1)] at hx2
+    have hx_ge : 0 ≤ 2 * (x : ℝ) - 1 := by linarith [unitInterval.nonneg (S₂.t j)]
+    let y : I := ⟨2 * (x : ℝ) - 1, ⟨hx_ge, by linarith [unitInterval.le_one x]⟩⟩
+    rw [γ₁.trans_apply_of_eq_two_mul_sub_one γ₂ y rfl]
+    exact S₂.hγ j ⟨Subtype.coe_le_coe.mp (by linarith : (S₂.t j : ℝ) ≤ y),
+      Subtype.coe_le_coe.mp (by linarith : (y : ℝ) ≤ S₂.t (j + 1))⟩
+
 /-- Path concatenation adds `localPotentialIntegral` values on a `HasLocalPotentials` domain. -/
 theorem HasLocalPotentials.localPotentialIntegral_trans (hφ : HasLocalPotentials s φ)
     {a b c : E} (γ₁ : Path a b) (γ₂ : Path b c)
@@ -561,127 +630,30 @@ theorem HasLocalPotentials.localPotentialIntegral_trans (hφ : HasLocalPotential
       localPotentialIntegral φ γ₁ + localPotentialIntegral φ γ₂ := by
   obtain ⟨S₁⟩ := hφ.nonempty_potentialSubdivision γ₁ hγ₁
   obtain ⟨S₂⟩ := hφ.nonempty_potentialSubdivision γ₂ hγ₂
-  let halfLeft (x : I) : I := ⟨(x : ℝ) / 2,
-    ⟨by linarith [unitInterval.nonneg x], by linarith [unitInterval.le_one x]⟩⟩
-  let halfRight (x : I) : I := ⟨((x : ℝ) + 1) / 2,
-    ⟨by linarith [unitInterval.nonneg x], by linarith [unitInterval.le_one x]⟩⟩
-  have hmonoL : Monotone halfLeft := fun x y hxy ↦ by
-    change (x : ℝ) / 2 ≤ (y : ℝ) / 2; linarith [Subtype.coe_le_coe.mpr hxy]
-  have hmonoR : Monotone halfRight := fun x y hxy ↦ by
-    change ((x : ℝ) + 1) / 2 ≤ ((y : ℝ) + 1) / 2; linarith [Subtype.coe_le_coe.mpr hxy]
-  let t (k : ℕ) : I :=
-    if k ≤ S₁.n then halfLeft (S₁.t k) else halfRight (S₂.t (k - S₁.n))
-  have ht_mono : Monotone t := by
-    intro i j hij
-    dsimp [t]
-    split_ifs with hi hj hj
-    · exact hmonoL (S₁.ht_mono hij)
-    · calc halfLeft (S₁.t i) ≤ halfLeft (S₁.t S₁.n) := hmonoL (S₁.ht_mono hi)
-        _ = halfRight (S₂.t 0) := by ext; simp [halfLeft, halfRight, S₁.htn, S₂.ht0]
-        _ ≤ halfRight (S₂.t (j - S₁.n)) := hmonoR (S₂.ht_mono (Nat.zero_le _))
-    · omega
-    · exact hmonoR (S₂.ht_mono (Nat.sub_le_sub_right hij S₁.n))
-  have ht0 : t 0 = 0 := by ext; simp [t, halfLeft, S₁.ht0]
-  have htn : t (S₁.n + S₂.n) = 1 := by
-    by_cases h₂0 : S₂.n = 0
-    · have h01 : (0 : I) = 1 := S₂.ht0.symm.trans (h₂0 ▸ S₂.htn)
-      exact absurd h01 zero_ne_one
-    · have hnot : ¬S₁.n + S₂.n ≤ S₁.n := by omega
-      ext; simp [t, hnot, halfRight, S₂.htn]
-  let u (k : Fin (S₁.n + S₂.n)) : Set E :=
-    Fin.addCases S₁.u S₂.u k
-  let g (k : Fin (S₁.n + S₂.n)) : E → F :=
-    Fin.addCases S₁.g S₂.g k
-  have hu (k : Fin (S₁.n + S₂.n)) : IsOpen (u k) := by
-    refine Fin.addCases (fun i ↦ ?_) (fun j ↦ ?_) k
-    · simpa [u] using S₁.hu i
-    · simpa [u] using S₂.hu j
-  have hg (k : Fin (S₁.n + S₂.n)) : ∀ x ∈ u k, HasFDerivAt (g k) (φ x) x := by
-    refine Fin.addCases (fun i ↦ ?_) (fun j ↦ ?_) k
-    · simpa [u, g] using S₁.hg i
-    · simpa [u, g] using S₂.hg j
-  have htransL (x : I) : (γ₁.trans γ₂) (halfLeft x) = γ₁ x := by
-    rw [Path.trans_apply]
-    split_ifs with hle
-    · congr 1; ext; change 2 * ((x : ℝ) / 2) = x; ring
-    · exfalso
-      change ¬(x : ℝ) / 2 ≤ 1 / 2 at hle
-      linarith [unitInterval.le_one x]
-  have htransR (x : I) : (γ₁.trans γ₂) (halfRight x) = γ₂ x := by
-    rw [Path.trans_apply]
-    split_ifs with hle
-    · have hx0 : (x : ℝ) = 0 := by
-        change ((x : ℝ) + 1) / 2 ≤ 1 / 2 at hle
-        linarith [unitInterval.nonneg x]
-      have hx_zero : x = 0 := Subtype.ext hx0
-      subst hx_zero
-      convert γ₁.target.trans γ₂.source.symm using 2
-      ext; change 2 * (((0 : ℝ) + 1) / 2) = 1; ring
-    · congr 1; ext; change 2 * (((x : ℝ) + 1) / 2) - 1 = x; ring
-  have hmaps (k : Fin (S₁.n + S₂.n)) :
-      MapsTo (γ₁.trans γ₂) (Icc (t k) (t (k + 1))) (u k) := by
-    refine Fin.addCases (fun i x ⟨hx1, hx2⟩ ↦ ?_) (fun j x ⟨hx1, hx2⟩ ↦ ?_) k
-    · have hi1 : (i : ℕ) + 1 ≤ S₁.n := i.2
-      have hi0 : (i : ℕ) ≤ S₁.n := Nat.le_of_succ_le hi1
-      change t (i : ℕ) ≤ x at hx1
-      change x ≤ t ((i : ℕ) + 1) at hx2
-      simp only [t, hi0, hi1, ↓reduceIte] at hx1 hx2
-      have hx1' : (S₁.t i : ℝ) / 2 ≤ x := hx1
-      have hx2' : (x : ℝ) ≤ (S₁.t ((i : ℕ) + 1) : ℝ) / 2 := hx2
-      have hx_le_half : (x : ℝ) ≤ 1 / 2 := by
-        linarith [unitInterval.le_one (S₁.t ((i : ℕ) + 1))]
-      let y : I := ⟨2 * (x : ℝ), ⟨by linarith [unitInterval.nonneg x], by linarith⟩⟩
-      have hxy : halfLeft y = x := by ext; change (2 * (x : ℝ)) / 2 = x; ring
-      rw [← hxy, htransL]
-      simpa [u] using S₁.hγ i
-        ⟨Subtype.coe_le_coe.mp (by change (S₁.t i : ℝ) ≤ 2 * (x : ℝ); linarith),
-         Subtype.coe_le_coe.mp (by change 2 * (x : ℝ) ≤ S₁.t ((i : ℕ) + 1); linarith)⟩
-    · have hj_left : t (S₁.n + j) = halfRight (S₂.t j) := by
-        dsimp [t]
-        split_ifs with hle
-        · have hj0 : (j : ℕ) = 0 := by omega
-          ext; simp [hj0, halfLeft, halfRight, S₁.htn, S₂.ht0]
-        · simp
-      have hj_right : t (S₁.n + (j : ℕ) + 1) = halfRight (S₂.t ((j : ℕ) + 1)) := by
-        have hnot : ¬S₁.n + (j : ℕ) + 1 ≤ S₁.n := by omega
-        have hsub : S₁.n + (j : ℕ) + 1 - S₁.n = (j : ℕ) + 1 := by omega
-        simp [t, hnot, hsub]
-      change t (S₁.n + j) ≤ x at hx1
-      change x ≤ t (S₁.n + (j : ℕ) + 1) at hx2
-      rw [hj_left] at hx1
-      rw [hj_right] at hx2
-      have hx1' : ((S₂.t j : ℝ) + 1) / 2 ≤ x := hx1
-      have hx2' : (x : ℝ) ≤ ((S₂.t ((j : ℕ) + 1) : ℝ) + 1) / 2 := hx2
-      have hx_ge_half : (1 : ℝ) / 2 ≤ x := by
-        linarith [unitInterval.nonneg (S₂.t j)]
-      let y : I := ⟨2 * (x : ℝ) - 1, ⟨by linarith, by linarith [unitInterval.le_one x]⟩⟩
-      have hxy : halfRight y = x := by ext; change (2 * (x : ℝ) - 1 + 1) / 2 = x; ring
-      rw [← hxy, htransR]
-      simpa [u] using S₂.hγ j
-        ⟨Subtype.coe_le_coe.mp (by change (S₂.t j : ℝ) ≤ 2 * (x : ℝ) - 1; linarith),
-         Subtype.coe_le_coe.mp (by change 2 * (x : ℝ) - 1 ≤ S₂.t ((j : ℕ) + 1); linarith)⟩
-  rw [localPotentialIntegral_eq_sum_sub ht_mono ht0 htn hu hmaps hg,
+  rw [localPotentialIntegral_eq_sum_sub (S₁.transT_mono S₂)
+      (Subtype.ext (by simp [S₁.coe_transT_of_le S₂ (Nat.zero_le _), S₁.ht0]))
+      (Subtype.ext (by simp [S₁.coe_transT_add S₂ S₂.n, S₂.htn]))
+      (u := Fin.addCases S₁.u S₂.u)
+      (fun k ↦ Fin.addCases (fun i ↦ by simpa using S₁.hu i) (fun j ↦ by simpa using S₂.hu j) k)
+      (S₁.mapsTo_transT S₂)
+      (g := Fin.addCases S₁.g S₂.g)
+      (fun k ↦ Fin.addCases (fun i ↦ by simpa using S₁.hg i) (fun j ↦ by simpa using S₂.hg j) k),
     localPotentialIntegral_eq_sum_sub S₁.ht_mono S₁.ht0 S₁.htn S₁.hu S₁.hγ S₁.hg,
     localPotentialIntegral_eq_sum_sub S₂.ht_mono S₂.ht0 S₂.htn S₂.hu S₂.hγ S₂.hg,
     Fin.sum_univ_add]
   congr 1
   · refine Finset.sum_congr rfl fun i _ ↦ ?_
-    have hi1 : (i : ℕ) + 1 ≤ S₁.n := i.2
-    have hi0 : (i : ℕ) ≤ S₁.n := Nat.le_of_succ_le hi1
-    simp only [Fin.val_castAdd, g, Fin.addCases_left, t, hi0, hi1, ↓reduceIte, htransL]
+    simp only [Fin.val_castAdd, Fin.addCases_left]
+    rw [γ₁.trans_apply_of_eq_two_mul γ₂ (S₁.t (i + 1))
+        (by rw [S₁.coe_transT_of_le S₂ i.2]; ring),
+      γ₁.trans_apply_of_eq_two_mul γ₂ (S₁.t i)
+        (by rw [S₁.coe_transT_of_le S₂ (Nat.le_of_succ_le i.2)]; ring)]
   · refine Finset.sum_congr rfl fun j _ ↦ ?_
-    have hj_left : t (S₁.n + j) = halfRight (S₂.t j) := by
-      dsimp [t]
-      split_ifs with hle
-      · have hj0 : (j : ℕ) = 0 := by omega
-        ext; simp [hj0, halfLeft, halfRight, S₁.htn, S₂.ht0]
-      · simp
-    have hj_right : t (S₁.n + (j : ℕ) + 1) = halfRight (S₂.t ((j : ℕ) + 1)) := by
-      have hnot : ¬S₁.n + (j : ℕ) + 1 ≤ S₁.n := by omega
-      have hsub : S₁.n + (j : ℕ) + 1 - S₁.n = (j : ℕ) + 1 := by omega
-      simp [t, hnot, hsub]
-    simp only [Fin.val_natAdd, g, Fin.addCases_right]
-    rw [hj_right, hj_left, htransR, htransR]
+    simp only [Fin.val_natAdd, Fin.addCases_right, add_assoc]
+    rw [γ₁.trans_apply_of_eq_two_mul_sub_one γ₂ (S₂.t (j + 1))
+        (by rw [S₁.coe_transT_add S₂ (j + 1)]; ring),
+      γ₁.trans_apply_of_eq_two_mul_sub_one γ₂ (S₂.t j)
+        (by rw [S₁.coe_transT_add S₂ j]; ring)]
 
 /-- Change of variables / pullback formula for `localPotentialIntegral` along a `C¹` map `f` of
 open domains, stated for any path `γ'` pointwise equal to `f ∘ γ` so that `f` need not be continuous
@@ -723,6 +695,97 @@ theorem HasLocalPotentials.localPotentialIntegral_map {f : G → E}
   have hu : IsOpen u := hφ.isOpen.preimage hf.continuous
   exact hφ.localPotentialIntegral_pullback hu hf.contDiffOn (mapsTo_preimage f s) γ hγ (fun _ ↦ rfl)
 
+/-- Evaluates `localPotentialIntegral φ γ` when `γ` agrees pointwise with a curve `c : I → E` whose
+subintervals on partition `t` map into open potential sets `u k`. -/
+private theorem localPotentialIntegral_eq_sum_apply {a b : E} {γ : Path a b} {n : ℕ}
+    {t : ℕ → I} (ht_mono : Monotone t) (ht0 : t 0 = 0) (htn : t n = 1)
+    {u : Fin n → Set E} (hu : ∀ k, IsOpen (u k)) {c : I → E} (hγc : ∀ x, γ x = c x)
+    (hc : ∀ k : Fin n, MapsTo c (Icc (t k) (t (k + 1))) (u k))
+    {g : Fin n → E → F} (hg : ∀ k : Fin n, ∀ x ∈ u k, HasFDerivAt (g k) (φ x) x) :
+    localPotentialIntegral φ γ = ∑ k : Fin n, (g k (c (t (k + 1))) - g k (c (t k))) := by
+  rw [localPotentialIntegral_eq_sum_sub ht_mono ht0 htn hu (fun k x hx ↦ hγc x ▸ hc k hx) hg]
+  exact Finset.sum_congr rfl fun k _ ↦ by simp [hγc]
+
+/-- On an `n × n` grid of `I × I` mapped continuously by `H` into open potential sets `u i j`
+carrying potentials `g i j` of `φ`, interior horizontal and vertical edge increments agree across
+adjacent cells and telescope so that the top-minus-bottom boundary sum equals the right-minus-left
+boundary sum. -/
+private theorem sum_sub_grid_eq {n : ℕ} (hn : 0 < n) {t : ℕ → I} (ht_mono : Monotone t)
+    {H : I × I → E} (hH_cont : Continuous H) {u : Fin n → Fin n → Set E}
+    (hu : ∀ i j, IsOpen (u i j))
+    (hmaps : ∀ i j : Fin n, MapsTo H (Icc (t i) (t (i + 1)) ×ˢ Icc (t j) (t (j + 1))) (u i j))
+    {g : Fin n → Fin n → E → F} (hg : ∀ i j, ∀ z ∈ u i j, HasFDerivAt (g i j) (φ z) z) :
+    let zeroFin : Fin n := ⟨0, hn⟩
+    let lastFin : Fin n := ⟨n - 1, Nat.sub_lt hn zero_lt_one⟩
+    (∑ j : Fin n, (g lastFin j (H (t n, t (j + 1))) - g lastFin j (H (t n, t j)))) -
+        (∑ j : Fin n, (g zeroFin j (H (t 0, t (j + 1))) - g zeroFin j (H (t 0, t j)))) =
+      (∑ i : Fin n, (g i lastFin (H (t (i + 1), t n)) - g i lastFin (H (t i, t n)))) -
+        (∑ i : Fin n, (g i zeroFin (H (t (i + 1), t 0)) - g i zeroFin (H (t i, t 0)))) := by
+  intro zeroFin lastFin
+  have hhoriz (i i' : Fin n) (hi : (i : ℕ) + 1 = i') (j : Fin n) :
+      g i j (H (t (i + 1), t (j + 1))) - g i j (H (t (i + 1), t j)) =
+        g i' j (H (t i', t (j + 1))) - g i' j (H (t i', t j)) := by
+    simpa only [hi] using sub_apply_eq_sub_apply_of_hasFDerivAt_Icc (hu i j) (hu i' j)
+      (c := fun y ↦ H (t (i + 1), y))
+      (hH_cont.comp (continuous_const.prodMk continuous_id)) (ht_mono (Nat.le_succ _))
+      (fun _ hy ↦ hmaps i j ⟨⟨ht_mono (Nat.le_succ _), le_rfl⟩, hy⟩)
+      (fun _ hy ↦ by rw [hi]; exact hmaps i' j ⟨⟨le_rfl, ht_mono (Nat.le_succ _)⟩, hy⟩)
+      (hg i j) (hg i' j)
+  have hvert (i : Fin n) (j j' : Fin n) (hj : (j : ℕ) + 1 = j') :
+      g i j (H (t (i + 1), t (j + 1))) - g i j (H (t i, t (j + 1))) =
+        g i j' (H (t (i + 1), t j')) - g i j' (H (t i, t j')) := by
+    simpa only [hj] using sub_apply_eq_sub_apply_of_hasFDerivAt_Icc (hu i j) (hu i j')
+      (c := fun x ↦ H (x, t (j + 1)))
+      (hH_cont.comp (continuous_id.prodMk continuous_const)) (ht_mono (Nat.le_succ _))
+      (fun _ hx ↦ hmaps i j ⟨hx, ⟨ht_mono (Nat.le_succ _), le_rfl⟩⟩)
+      (fun _ hx ↦ by rw [hj]; exact hmaps i j' ⟨hx, ⟨le_rfl, ht_mono (Nat.le_succ _)⟩⟩)
+      (hg i j) (hg i j')
+  let H_edge (k : ℕ) (j : Fin n) : F :=
+    if hk : k < n then g ⟨k, hk⟩ j (H (t k, t (j + 1))) - g ⟨k, hk⟩ j (H (t k, t j))
+    else g lastFin j (H (t k, t (j + 1))) - g lastFin j (H (t k, t j))
+  let V_edge (i : Fin n) (k : ℕ) : F :=
+    if hk : k < n then g i ⟨k, hk⟩ (H (t (i + 1), t k)) - g i ⟨k, hk⟩ (H (t i, t k))
+    else g i lastFin (H (t (i + 1), t k)) - g i lastFin (H (t i, t k))
+  have hH_succ (i j : Fin n) :
+      H_edge (i + 1) j = g i j (H (t (i + 1), t (j + 1))) - g i j (H (t (i + 1), t j)) := by
+    dsimp [H_edge]
+    split_ifs with hk
+    · exact (hhoriz i ⟨i + 1, hk⟩ rfl j).symm
+    · obtain rfl : i = lastFin := by ext; simp [lastFin]; omega
+      rfl
+  have hV_succ (i j : Fin n) :
+      V_edge i (j + 1) = g i j (H (t (i + 1), t (j + 1))) - g i j (H (t i, t (j + 1))) := by
+    dsimp [V_edge]
+    split_ifs with hk
+    · exact (hvert i j ⟨j + 1, hk⟩ rfl).symm
+    · obtain rfl : j = lastFin := by ext; simp [lastFin]; omega
+      rfl
+  have hcell_zero (i j : Fin n) :
+      H_edge (i + 1) j - H_edge i j = V_edge i (j + 1) - V_edge i j := by
+    rw [hH_succ, hV_succ]
+    simp only [H_edge, i.2, V_edge, j.2, ↓reduceDIte]
+    abel
+  rw [← Finset.sum_sub_distrib, ← Finset.sum_sub_distrib]
+  calc
+    ∑ j : Fin n, ((g lastFin j (H (t n, t (j + 1))) - g lastFin j (H (t n, t j))) -
+        (g zeroFin j (H (t 0, t (j + 1))) - g zeroFin j (H (t 0, t j))))
+      = ∑ j : Fin n, (H_edge n j - H_edge 0 j) :=
+          Finset.sum_congr rfl fun j _ ↦ by simp [H_edge, hn, zeroFin]
+    _ = ∑ j : Fin n, ∑ i : Fin n, (H_edge (i + 1) j - H_edge i j) :=
+          Finset.sum_congr rfl fun j _ ↦
+            ((Fin.sum_univ_eq_sum_range (fun i ↦ H_edge (i + 1) j - H_edge i j) n).trans
+              (Finset.sum_range_sub (fun i ↦ H_edge i j) n)).symm
+    _ = ∑ i : Fin n, ∑ j : Fin n, (H_edge (i + 1) j - H_edge i j) := Finset.sum_comm
+    _ = ∑ i : Fin n, ∑ j : Fin n, (V_edge i (j + 1) - V_edge i j) :=
+          Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ hcell_zero i j
+    _ = ∑ i : Fin n, (V_edge i n - V_edge i 0) :=
+          Finset.sum_congr rfl fun i _ ↦
+            (Fin.sum_univ_eq_sum_range (fun j ↦ V_edge i (j + 1) - V_edge i j) n).trans
+              (Finset.sum_range_sub (fun j ↦ V_edge i j) n)
+    _ = ∑ i : Fin n, ((g i lastFin (H (t (i + 1), t n)) - g i lastFin (H (t i, t n))) -
+        (g i zeroFin (H (t (i + 1), t 0)) - g i zeroFin (H (t i, t 0)))) :=
+          Finset.sum_congr rfl fun i _ ↦ by simp [V_edge, hn, zeroFin]
+
 /-- Boundary relation for `localPotentialIntegral` on a continuous free homotopy square
 `H : (γ₀ : C(I, E)).Homotopy γ₁` in `s`: the sum along the bottom and right edges equals the sum
 along the left and top edges. -/
@@ -740,162 +803,43 @@ theorem HasLocalPotentials.localPotentialIntegral_add_eq_of_homotopy
       (fun p _ ↦ mem_iUnion.mpr ⟨⟨H p, hH p⟩, mem_ball_self (hRpos ⟨H p, hH p⟩)⟩)
   have htn_eq : t n = 1 := htn n le_rfl
   choose idx hidx using fun i j : Fin n ↦ hsub i j
-  let B (i j : Fin n) : Set E := ball (idx i j).1 (R (idx i j))
   let g (i j : Fin n) : E → F := G (idx i j)
-  -- Pick a non-degenerate index witness: `0 ≠ 1` in `I`, so `n` cannot be `0`.
   have hn_pos : 0 < n := by
     by_contra h0
-    have hn0 : n = 0 := Nat.eq_zero_of_not_pos h0
-    subst hn0
+    obtain rfl : n = 0 := Nat.eq_zero_of_not_pos h0
     exact zero_ne_one (ht0.symm.trans htn_eq)
   let zeroFin : Fin n := ⟨0, hn_pos⟩
   let lastFin : Fin n := ⟨n - 1, Nat.sub_lt hn_pos zero_lt_one⟩
-  have hlast_succ : (lastFin : ℕ) + 1 = n := Nat.sub_add_cancel hn_pos
-  have h0_mem : (0 : I) ∈ Icc (t zeroFin) (t ((zeroFin : ℕ) + 1)) := by
-    refine ⟨?_, ?_⟩
-    · change t 0 ≤ 0; rw [ht0]
-    · exact Subtype.coe_le_coe.mp (unitInterval.nonneg _)
-  have h1_mem : (1 : I) ∈ Icc (t lastFin) (t ((lastFin : ℕ) + 1)) := by
-    rw [hlast_succ, htn_eq]
-    exact ⟨unitInterval.le_one _, le_rfl⟩
-  -- Evaluate the four boundary path integrals on the partition `t`.
+  have h0_mem : t 0 ∈ Icc (t zeroFin) (t ((zeroFin : ℕ) + 1)) :=
+    ⟨by simp [zeroFin], ht_mono (Nat.zero_le _)⟩
+  have h1_mem : t n ∈ Icc (t lastFin) (t ((lastFin : ℕ) + 1)) := by
+    have hlast_succ : (lastFin : ℕ) + 1 = n := Nat.sub_add_cancel hn_pos
+    rw [hlast_succ]
+    exact ⟨ht_mono (Nat.sub_le n 1), le_rfl⟩
   have hγ₀_eq : localPotentialIntegral φ γ₀ =
-      ∑ j : Fin n, (g zeroFin j (H (0, t (j + 1))) - g zeroFin j (H (0, t j))) := by
-    have hmaps (j : Fin n) : MapsTo γ₀ (Icc (t j) (t (j + 1))) (B zeroFin j) := by
-      intro y hy
-      have := hidx zeroFin j (mk_mem_prod h0_mem hy)
-      simpa [B] using this
-    rw [localPotentialIntegral_eq_sum_sub ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball) hmaps
-      (fun j ↦ hGderiv (idx zeroFin j))]
-    refine Finset.sum_congr rfl fun j _ ↦ ?_
-    simp [g]
+      ∑ j : Fin n, (g zeroFin j (H (t 0, t (j + 1))) - g zeroFin j (H (t 0, t j))) :=
+    localPotentialIntegral_eq_sum_apply ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball)
+      (fun y ↦ by simp [ht0]) (fun j _ hy ↦ hidx zeroFin j (mk_mem_prod h0_mem hy))
+      (fun j ↦ hGderiv (idx zeroFin j))
   have hγ₁_eq : localPotentialIntegral φ γ₁ =
-      ∑ j : Fin n, (g lastFin j (H (1, t (j + 1))) - g lastFin j (H (1, t j))) := by
-    have hmaps (j : Fin n) : MapsTo γ₁ (Icc (t j) (t (j + 1))) (B lastFin j) := by
-      intro y hy
-      have := hidx lastFin j (mk_mem_prod h1_mem hy)
-      simpa [B] using this
-    rw [localPotentialIntegral_eq_sum_sub ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball) hmaps
-      (fun j ↦ hGderiv (idx lastFin j))]
-    refine Finset.sum_congr rfl fun j _ ↦ ?_
-    simp [g]
+      ∑ j : Fin n, (g lastFin j (H (t n, t (j + 1))) - g lastFin j (H (t n, t j))) :=
+    localPotentialIntegral_eq_sum_apply ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball)
+      (fun y ↦ by simp [htn_eq]) (fun j _ hy ↦ hidx lastFin j (mk_mem_prod h1_mem hy))
+      (fun j ↦ hGderiv (idx lastFin j))
   have hleft_eq : localPotentialIntegral φ (H.evalAt 0) =
-      ∑ i : Fin n, (g i zeroFin (H (t (i + 1), 0)) - g i zeroFin (H (t i, 0))) := by
-    have hmaps (i : Fin n) : MapsTo (H.evalAt 0) (Icc (t i) (t (i + 1))) (B i zeroFin) :=
-      fun _ hx ↦ hidx i zeroFin (mk_mem_prod hx h0_mem)
-    exact localPotentialIntegral_eq_sum_sub ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball) hmaps
+      ∑ i : Fin n, (g i zeroFin (H (t (i + 1), t 0)) - g i zeroFin (H (t i, t 0))) :=
+    localPotentialIntegral_eq_sum_apply ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball)
+      (fun x ↦ by rw [ht0]; rfl) (fun i _ hx ↦ hidx i zeroFin (mk_mem_prod hx h0_mem))
       (fun i ↦ hGderiv (idx i zeroFin))
   have hright_eq : localPotentialIntegral φ (H.evalAt 1) =
-      ∑ i : Fin n, (g i lastFin (H (t (i + 1), 1)) - g i lastFin (H (t i, 1))) := by
-    have hmaps (i : Fin n) : MapsTo (H.evalAt 1) (Icc (t i) (t (i + 1))) (B i lastFin) :=
-      fun _ hx ↦ hidx i lastFin (mk_mem_prod hx h1_mem)
-    exact localPotentialIntegral_eq_sum_sub ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball) hmaps
+      ∑ i : Fin n, (g i lastFin (H (t (i + 1), t n)) - g i lastFin (H (t i, t n))) :=
+    localPotentialIntegral_eq_sum_apply ht_mono ht0 htn_eq (fun _ ↦ isOpen_ball)
+      (fun x ↦ by rw [htn_eq]; rfl) (fun i _ hx ↦ hidx i lastFin (mk_mem_prod hx h1_mem))
       (fun i ↦ hGderiv (idx i lastFin))
-  -- Preconnectedness helper for horizontal and vertical grid edges.
-  have hIcc_preconn (a b : I) : IsPreconnected (Icc a b) := by
-    have heq : Subtype.val '' (Icc a b : Set I) = Icc (a : ℝ) (b : ℝ) := by
-      ext x
-      constructor
-      · rintro ⟨y, ⟨hy1, hy2⟩, rfl⟩; exact ⟨hy1, hy2⟩
-      · rintro ⟨hx1, hx2⟩
-        exact ⟨⟨x, (unitInterval.nonneg a).trans hx1, hx2.trans (unitInterval.le_one b)⟩,
-          ⟨hx1, hx2⟩, rfl⟩
-    exact Topology.IsInducing.subtypeVal.isPreconnected_image.mp (heq ▸ isPreconnected_Icc)
-  -- Shared horizontal interior edge between row `i` and row `i'` when `(i : ℕ) + 1 = i'`.
-  have hhoriz (i i' : Fin n) (hi : (i : ℕ) + 1 = i') (j : Fin n) :
-      g i j (H (t (i + 1), t (j + 1))) - g i j (H (t (i + 1), t j)) =
-        g i' j (H (t i', t (j + 1))) - g i' j (H (t i', t j)) := by
-    have hj_le : t j ≤ t (j + 1) := ht_mono (Nat.le_succ _)
-    let edge : Set E := (fun y : I ↦ H (t (i + 1), y)) '' Icc (t j) (t (j + 1))
-    have hedge_pre : IsPreconnected edge :=
-      (hIcc_preconn _ _).image _
-        (H.continuous.comp (continuous_const.prodMk continuous_id)).continuousOn
-    have hsub_i : edge ⊆ B i j := by
-      rintro _ ⟨y, hy, rfl⟩
-      exact hidx i j ⟨⟨ht_mono (Nat.le_succ _), le_rfl⟩, hy⟩
-    have hsub_i' : edge ⊆ B i' j := by
-      rintro _ ⟨y, hy, rfl⟩
-      rw [hi]
-      exact hidx i' j ⟨⟨le_rfl, ht_mono (Nat.le_succ _)⟩, hy⟩
-    have heq := sub_eq_sub_of_hasFDerivAt_of_isPreconnected isOpen_ball isOpen_ball hedge_pre
-      hsub_i hsub_i' (hGderiv (idx i j)) (hGderiv (idx i' j))
-      (mem_image_of_mem (fun y : I ↦ H (t (i + 1), y)) ⟨le_rfl, hj_le⟩)
-      (mem_image_of_mem (fun y : I ↦ H (t (i + 1), y)) ⟨hj_le, le_rfl⟩)
-    simpa [hi] using heq
-  -- Shared vertical interior edge between column `j` and column `j'` when `(j : ℕ) + 1 = j'`.
-  have hvert (i : Fin n) (j j' : Fin n) (hj : (j : ℕ) + 1 = j') :
-      g i j (H (t (i + 1), t (j + 1))) - g i j (H (t i, t (j + 1))) =
-        g i j' (H (t (i + 1), t j')) - g i j' (H (t i, t j')) := by
-    have hi_le : t i ≤ t (i + 1) := ht_mono (Nat.le_succ _)
-    let edge : Set E := (fun x : I ↦ H (x, t (j + 1))) '' Icc (t i) (t (i + 1))
-    have hedge_pre : IsPreconnected edge :=
-      (hIcc_preconn _ _).image _
-        (H.continuous.comp (continuous_id.prodMk continuous_const)).continuousOn
-    have hsub_j : edge ⊆ B i j := by
-      rintro _ ⟨x, hx, rfl⟩
-      exact hidx i j ⟨hx, ⟨ht_mono (Nat.le_succ _), le_rfl⟩⟩
-    have hsub_j' : edge ⊆ B i j' := by
-      rintro _ ⟨x, hx, rfl⟩
-      rw [hj]
-      exact hidx i j' ⟨hx, ⟨le_rfl, ht_mono (Nat.le_succ _)⟩⟩
-    have heq := sub_eq_sub_of_hasFDerivAt_of_isPreconnected isOpen_ball isOpen_ball hedge_pre
-      hsub_j hsub_j' (hGderiv (idx i j)) (hGderiv (idx i j'))
-      (mem_image_of_mem (fun x : I ↦ H (x, t (j + 1))) ⟨le_rfl, hi_le⟩)
-      (mem_image_of_mem (fun x : I ↦ H (x, t (j + 1))) ⟨hi_le, le_rfl⟩)
-    simpa [hj] using heq
-  -- Define canonical horizontal and vertical edge increments indexed by `0 ≤ k ≤ n`.
-  let H_edge (k : ℕ) (j : Fin n) : F :=
-    if hk : k < n then g ⟨k, hk⟩ j (H (t k, t (j + 1))) - g ⟨k, hk⟩ j (H (t k, t j))
-    else g lastFin j (H (t k, t (j + 1))) - g lastFin j (H (t k, t j))
-  let V_edge (i : Fin n) (k : ℕ) : F :=
-    if hk : k < n then g i ⟨k, hk⟩ (H (t (i + 1), t k)) - g i ⟨k, hk⟩ (H (t i, t k))
-    else g i lastFin (H (t (i + 1), t k)) - g i lastFin (H (t i, t k))
-  have hH_succ (i : Fin n) (j : Fin n) :
-      H_edge (i + 1) j = g i j (H (t (i + 1), t (j + 1))) - g i j (H (t (i + 1), t j)) := by
-    dsimp [H_edge]
-    split_ifs with hk
-    · exact (hhoriz i ⟨i + 1, hk⟩ rfl j).symm
-    · have hi_last : i = lastFin := by ext; simp [lastFin]; omega
-      subst hi_last; rfl
-  have hV_succ (i : Fin n) (j : Fin n) :
-      V_edge i (j + 1) = g i j (H (t (i + 1), t (j + 1))) - g i j (H (t i, t (j + 1))) := by
-    dsimp [V_edge]
-    split_ifs with hk
-    · exact (hvert i j ⟨j + 1, hk⟩ rfl).symm
-    · have hj_last : j = lastFin := by ext; simp [lastFin]; omega
-      subst hj_last; rfl
-  have hcell_zero (i j : Fin n) :
-      (H_edge (i + 1) j - H_edge i j) = (V_edge i (j + 1) - V_edge i j) := by
-    have hH_curr : H_edge i j = g i j (H (t i, t (j + 1))) - g i j (H (t i, t j)) := by
-      simp [H_edge, i.2]
-    have hV_curr : V_edge i j = g i j (H (t (i + 1), t j)) - g i j (H (t i, t j)) := by
-      simp [V_edge, j.2]
-    rw [hH_succ, hH_curr, hV_succ, hV_curr]
-    abel
-  have hsum_H :
-      (∑ j : Fin n, (H_edge n j - H_edge 0 j)) =
-        localPotentialIntegral φ γ₁ - localPotentialIntegral φ γ₀ := by
-    rw [hγ₁_eq, hγ₀_eq, ← Finset.sum_sub_distrib]
-    refine Finset.sum_congr rfl fun j _ ↦ ?_
-    simp [H_edge, hn_pos, zeroFin, htn_eq, ht0]
-  have hsum_V :
-      (∑ i : Fin n, (V_edge i n - V_edge i 0)) =
-        localPotentialIntegral φ (H.evalAt 1) - localPotentialIntegral φ (H.evalAt 0) := by
-    rw [hright_eq, hleft_eq, ← Finset.sum_sub_distrib]
-    refine Finset.sum_congr rfl fun i _ ↦ ?_
-    simp [V_edge, hn_pos, zeroFin, htn_eq, ht0]
-  have hdouble :
-      (∑ j : Fin n, (H_edge n j - H_edge 0 j)) =
-        ∑ i : Fin n, (V_edge i n - V_edge i 0) := by
-    calc
-      ∑ j : Fin n, (H_edge n j - H_edge 0 j)
-        = ∑ j : Fin n, ∑ i : Fin n, (H_edge (i + 1) j - H_edge i j) := by
-            refine Finset.sum_congr rfl fun j _ ↦ (sum_fin_sub (fun i ↦ H_edge i j)).symm
-      _ = ∑ i : Fin n, ∑ j : Fin n, (H_edge (i + 1) j - H_edge i j) := Finset.sum_comm
-      _ = ∑ i : Fin n, ∑ j : Fin n, (V_edge i (j + 1) - V_edge i j) := by
-            refine Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ hcell_zero i j
-      _ = ∑ i : Fin n, (V_edge i n - V_edge i 0) := by
-            refine Finset.sum_congr rfl fun i _ ↦ sum_fin_sub (fun j ↦ V_edge i j)
+  have hgrid := sum_sub_grid_eq (φ := φ) hn_pos ht_mono H.continuous (fun _ _ ↦ isOpen_ball)
+    (fun i j _ hp ↦ hidx i j hp) (fun i j ↦ hGderiv (idx i j))
+  dsimp only at hgrid
+  rw [← hγ₁_eq, ← hγ₀_eq, ← hright_eq, ← hleft_eq] at hgrid
   calc
     localPotentialIntegral φ γ₀ + localPotentialIntegral φ (H.evalAt 1)
       = localPotentialIntegral φ γ₀ +
@@ -903,7 +847,7 @@ theorem HasLocalPotentials.localPotentialIntegral_add_eq_of_homotopy
           localPotentialIntegral φ (H.evalAt 0) := by abel
     _ = localPotentialIntegral φ γ₀ +
           (localPotentialIntegral φ γ₁ - localPotentialIntegral φ γ₀) +
-          localPotentialIntegral φ (H.evalAt 0) := by rw [← hsum_V, ← hdouble, hsum_H]
+          localPotentialIntegral φ (H.evalAt 0) := by rw [← hgrid]
     _ = localPotentialIntegral φ (H.evalAt 0) + localPotentialIntegral φ γ₁ := by abel
 
 /-- Homotopy invariance of `localPotentialIntegral` relative to endpoints: two paths connected by a

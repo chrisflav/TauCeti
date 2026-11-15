@@ -53,11 +53,11 @@ Since the argument is continuous on the slit plane and blind to positive real sc
 * `Complex.inv_exp_arg_mul_le_exp_pi_mul_abs`: `(exp (arg u * r))⁻¹ ≤ exp (π * |r|)`.
 * `Complex.abs_arg_lt_pi_of_mem_slitPlane`: on the slit plane, `|arg z| < π`.
 * `Complex.exp_mem_slitPlane_of_abs_im_lt`: `exp x` lies in the slit plane when `|im x| < π`.
-* `Complex.contDiffAt_arg`: the argument is smooth on the slit plane.
+* `Complex.contDiffAt_arg`, `Complex.contDiffOn_arg`: the argument is smooth on the slit plane.
 * `Complex.tendsto_arg_of_tendsto_ofReal_mul`: if `c x * f x → Q ∈ slitPlane` with `c x > 0`
   eventually, then `arg (f x) → arg Q`.
-* `HasDerivAt.hasFDerivAt_arg`: the real derivative of `arg ∘ f` on the slit plane is the
-  imaginary part of the logarithmic derivative of `f`.
+* `HasDerivAt.hasFDerivAt_arg`, `Complex.hasFDerivAt_arg`: the real derivative of `arg ∘ f` (and of
+  `arg` itself) on the slit plane is the imaginary part of the logarithmic derivative.
 * `ContDiff.contDiffAt_comp_arg`: a smooth `2π`-periodic function of the argument is smooth away
   from the origin.
 -/
@@ -210,6 +210,10 @@ theorem contDiffAt_arg {z : ℂ} (hz : z ∈ slitPlane) {n : WithTop ℕ∞} : C
     ((contDiffAt_log hz (n := n)).restrict_scalars ℝ)
   exact h.congr_of_eventuallyEq (Filter.Eventually.of_forall fun w ↦ (log_im w).symm)
 
+/-- The argument is smooth on the slit plane. -/
+theorem contDiffOn_arg {n : WithTop ℕ∞} : ContDiffOn ℝ n arg slitPlane :=
+  fun _ hz ↦ (contDiffAt_arg hz).contDiffWithinAt
+
 open Filter Topology in
 /-- Positive real scaling does not move the argument: if `Q ∈ slitPlane`, eventually `0 < c x`,
 and `c x * f x → Q`, then `arg (f x) → arg Q`. -/
@@ -231,6 +235,12 @@ theorem HasDerivAt.hasFDerivAt_arg {f : ℂ → ℂ} {f' z : ℂ} (hf : HasDeriv
         ((ContinuousLinearMap.toSpanSingleton ℂ (f' / f z)).restrictScalars ℝ)) z := by
   simpa only [Function.comp_def, Complex.imCLM_apply, Complex.log_im] using
     Complex.imCLM.hasFDerivAt.comp z ((hf.clog hz).hasFDerivAt.restrictScalars ℝ)
+
+/-- On the slit plane, `Complex.arg` has real Fréchet derivative `v ↦ Im (v * z⁻¹)` at `z`. -/
+theorem Complex.hasFDerivAt_arg {z : ℂ} (hz : z ∈ Complex.slitPlane) :
+    HasFDerivAt Complex.arg
+      (Complex.imCLM ∘L ((ContinuousLinearMap.toSpanSingleton ℂ z⁻¹).restrictScalars ℝ)) z := by
+  simpa only [id_eq, one_div] using (hasDerivAt_id z).hasFDerivAt_arg hz
 
 /-- A `2π`-periodic function of the argument of a nonzero complex number `z` may be computed from
 the argument of `-z`, which differs from that of `z` by `π` modulo `2π`. -/

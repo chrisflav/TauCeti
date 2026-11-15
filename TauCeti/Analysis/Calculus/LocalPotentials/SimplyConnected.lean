@@ -9,7 +9,8 @@ public import TauCeti.Analysis.Calculus.LocalPotentials.PathIntegral
 public import Mathlib.AlgebraicTopology.FundamentalGroupoid.SimplyConnected
 
 import Mathlib.Analysis.Convex.PathConnected
-import Mathlib.Topology.Connected.LocallyPathConnected
+import Mathlib.Analysis.LocallyConvex.WithSeminorms
+import TauCeti.Topology.Path.Trans
 
 /-!
 # Global potentials on simply connected open sets
@@ -21,7 +22,7 @@ of a real normed space `E`, with values in an arbitrary real normed space `F` (n
 Using `localPotentialIntegral` and its homotopy invariance, we establish:
 
 * `TauCeti.HasLocalPotentials.contDiffOn_of_hasFDerivAt`: any function whose Fréchet derivative on
-  `s` equals `φ` is automatically `C¹` on `s`.
+  `s` equals `φ` is `C¹` on `s`.
 * `TauCeti.HasLocalPotentials.exists_hasFDerivAt_iff_forall_loop_eq_zero`: on a nonempty connected
   open set `s`, `φ` admits a global `C¹` potential if and only if `localPotentialIntegral φ γ = 0`
   for every loop `γ` in `s` based at a chosen point `x₀ ∈ s`.
@@ -43,23 +44,10 @@ variable {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
   [NormedAddCommGroup F] [NormedSpace ℝ F]
   {s : Set E} {φ : E → E →L[ℝ] F}
 
-private theorem locallyPathConnectedSpace_of_normedSpace : LocallyPathConnectedSpace E :=
-  .of_bases (fun _ ↦ Metric.nhds_basis_ball) fun x _ hr ↦
-    (convex_ball x _).isPathConnected (nonempty_ball.mpr hr)
-
-private theorem path_trans_mem {X : Type*} [TopologicalSpace X] {s : Set X}
-    {a b c : X} {γ₁ : Path a b} {γ₂ : Path b c}
-    (h₁ : ∀ t, γ₁ t ∈ s) (h₂ : ∀ t, γ₂ t ∈ s) (t : I) : (γ₁.trans γ₂) t ∈ s := by
-  have ht : (γ₁.trans γ₂) t ∈ range γ₁ ∪ range γ₂ := by
-    rw [← Path.trans_range]; exact mem_range_self t
-  rcases ht with ⟨v, hv⟩ | ⟨v, hv⟩
-  · exact hv ▸ h₁ v
-  · exact hv ▸ h₂ v
-
-/-- Any global potential of a covector field with local `C¹` potentials is automatically `C¹` on
-`s`, because on each local potential ball it differs from a `C¹` local potential by a constant. -/
+/-- Any global potential of a covector field with local potentials on `s` is `C¹` on `s`. -/
 theorem HasLocalPotentials.contDiffOn_of_hasFDerivAt (hφ : HasLocalPotentials s φ) {g : E → F}
     (hg : ∀ w ∈ s, HasFDerivAt g (φ w) w) : ContDiffOn ℝ 1 g s := by
+  -- On each local potential ball, `g` differs from the `C¹` local potential by a constant.
   intro w hw
   obtain ⟨r, hr, hrs, gw, hgw_cont, hgw_deriv⟩ := hasLocalPotentials_iff.mp hφ w hw
   have heq : EqOn g (fun y ↦ gw y + (g w - gw w)) (ball w r) := fun y hy ↦ by
@@ -80,15 +68,14 @@ theorem HasLocalPotentials.localPotentialIntegral_eq_of_forall_loop_eq_zero
     (hloop : ∀ γ : Path x₀ x₀, (∀ t, γ t ∈ s) → localPotentialIntegral φ γ = 0)
     {a b : E} {γ₁ γ₂ : Path a b} (hγ₁ : ∀ t, γ₁ t ∈ s) (hγ₂ : ∀ t, γ₂ t ∈ s) :
     localPotentialIntegral φ γ₁ = localPotentialIntegral φ γ₂ := by
-  have := locallyPathConnectedSpace_of_normedSpace (E := E)
   have hpc : IsPathConnected s := hφ.isOpen.isConnected_iff_isPathConnected.mp ⟨⟨x₀, hx₀⟩, hs⟩
   have ha : a ∈ s := γ₁.source ▸ hγ₁ 0
   let α : Path x₀ a := (hpc.joinedIn x₀ hx₀ a ha).somePath
   have hα : ∀ t, α t ∈ s := (hpc.joinedIn x₀ hx₀ a ha).somePath_mem
-  have hα₁ : ∀ t, (α.trans γ₁) t ∈ s := path_trans_mem hα hγ₁
-  have hα₂ : ∀ t, (α.trans γ₂) t ∈ s := path_trans_mem hα hγ₂
+  have hα₁ : ∀ t, (α.trans γ₁) t ∈ s := Path.trans_apply_mem hα hγ₁
+  have hα₂ : ∀ t, (α.trans γ₂) t ∈ s := Path.trans_apply_mem hα hγ₂
   have hzero : localPotentialIntegral φ ((α.trans γ₁).trans (α.trans γ₂).symm) = 0 :=
-    hloop _ (path_trans_mem hα₁ fun t ↦ hα₂ (σ t))
+    hloop _ (Path.trans_apply_mem hα₁ fun t ↦ hα₂ (σ t))
   rw [hφ.localPotentialIntegral_trans (α.trans γ₁) (α.trans γ₂).symm hα₁ (fun t ↦ hα₂ (σ t)),
     localPotentialIntegral_symm, hφ.localPotentialIntegral_trans α γ₁ hα hγ₁,
     hφ.localPotentialIntegral_trans α γ₂ hα hγ₂, add_neg_eq_zero] at hzero
@@ -102,7 +89,6 @@ theorem HasLocalPotentials.exists_hasFDerivAt_of_forall_loop_eq_zero
     (hloop : ∀ γ : Path x₀ x₀, (∀ t, γ t ∈ s) → localPotentialIntegral φ γ = 0) :
     ∃ g : E → F, ContDiffOn ℝ 1 g s ∧ g x₀ = 0 ∧ ∀ w ∈ s, HasFDerivAt g (φ w) w := by
   classical
-  have := locallyPathConnectedSpace_of_normedSpace (E := E)
   have hpc : IsPathConnected s := hφ.isOpen.isConnected_iff_isPathConnected.mp ⟨⟨x₀, hx₀⟩, hs⟩
   let g : E → F := fun x ↦
     if hx : x ∈ s then localPotentialIntegral φ (hpc.joinedIn x₀ hx₀ x hx).somePath else 0
@@ -118,7 +104,7 @@ theorem HasLocalPotentials.exists_hasFDerivAt_of_forall_loop_eq_zero
     have hαa : ∀ t, αa t ∈ s := (hpc.joinedIn x₀ hx₀ a ha).somePath_mem
     have hαb : ∀ t, αb t ∈ s := (hpc.joinedIn x₀ hx₀ b hb).somePath_mem
     have heq := hφ.localPotentialIntegral_eq_of_forall_loop_eq_zero hs hx₀ hloop
-      (path_trans_mem hαa hγ) hαb
+      (Path.trans_apply_mem hαa hγ) hαb
     rw [hφ.localPotentialIntegral_trans αa γ hαa hγ] at heq
     simp only [g, ha, hb, ↓reduceDIte]
     exact eq_sub_of_add_eq' heq
@@ -130,7 +116,7 @@ theorem HasLocalPotentials.exists_hasFDerivAt_of_forall_loop_eq_zero
         range_subset_iff.mp (Path.range_segment w y ▸
           (convex_ball w r).segment_subset (mem_ball_self hr) hy)
       have h₁ := hpath (Path.segment w y) fun t ↦ hrs (hseg_ball t)
-      have h₂ := localPotentialIntegral_of_hasFDerivAt isOpen_ball hseg_ball hgw_deriv
+      have h₂ := localPotentialIntegral_eq_sub_of_hasFDerivAt isOpen_ball hseg_ball hgw_deriv
       have hsub : g y - g w = gw y - gw w := h₁.symm.trans h₂
       calc
         g y = g y - g w + g w := (sub_add_cancel _ _).symm
@@ -148,7 +134,7 @@ theorem HasLocalPotentials.exists_hasFDerivAt_iff_forall_loop_eq_zero
       ∀ γ : Path x₀ x₀, (∀ t, γ t ∈ s) → localPotentialIntegral φ γ = 0 := by
   constructor
   · rintro ⟨g, -, hg⟩ γ hγ
-    rw [localPotentialIntegral_of_hasFDerivAt hφ.isOpen hγ hg, sub_self]
+    rw [localPotentialIntegral_eq_sub_of_hasFDerivAt hφ.isOpen hγ hg, sub_self]
   · intro hloop
     obtain ⟨g, hg_cont, -, hg_deriv⟩ :=
       hφ.exists_hasFDerivAt_of_forall_loop_eq_zero hs hx₀ hloop
@@ -175,13 +161,12 @@ theorem HasLocalPotentials.exists_hasFDerivAt_of_simplyConnected
   hφ.exists_hasFDerivAt_of_isSimplyConnected ‹SimplyConnectedSpace s›
 
 /-- A covector field with local potentials on an open set `s` whose connected components in `s` are
-simply connected admits a global `C¹` potential on `s` (taking the zero potential when `s = ∅`). -/
+simply connected admits a global `C¹` potential on `s`. -/
 theorem HasLocalPotentials.exists_hasFDerivAt_of_forall_connectedComponentIn
     (hφ : HasLocalPotentials s φ)
     (hsc : ∀ x ∈ s, IsSimplyConnected (connectedComponentIn s x)) :
     ∃ g : E → F, ContDiffOn ℝ 1 g s ∧ ∀ w ∈ s, HasFDerivAt g (φ w) w := by
   classical
-  have := locallyPathConnectedSpace_of_normedSpace (E := E)
   have hcomp_pot (c : connectedComponentIn s '' s) :
       ∃ G : E → F, ∀ w ∈ c.1, HasFDerivAt G (φ w) w := by
     obtain ⟨x, hx, hcx⟩ := c.2

@@ -31,6 +31,8 @@ without any differentiability assumption; for instance, the real derivative of `
 * `DifferentiableAt.range_fderiv_restrictScalars`: the range of the derivative does not depend
   on the field of scalars.
 * `DifferentiableAt.injective_fderiv_restrictScalars_iff`: neither does its injectivity.
+* `TauCeti.hasDerivAt_iff_hasFDerivAt_restrictScalars`: a scalar derivative over `𝕜'` is equivalent
+  to the restricted-scalars Fréchet derivative of `toSpanSingleton 𝕜' f'` over `𝕜`.
 * `TauCeti.fderiv_comp_smul_apply`: the derivative over `𝕜` of `w ↦ f (c • w)` for `c : 𝕜'`.
 -/
 
@@ -55,6 +57,14 @@ theorem _root_.DifferentiableAt.fderiv_restrictScalars_smul (hi : Differentiable
 theorem _root_.DifferentiableAt.fderiv_restrictScalars_eq_smul_deriv {f : 𝕜' → E} {x : 𝕜'}
     (hf : DifferentiableAt 𝕜' f x) (v : 𝕜') : fderiv 𝕜 f x v = v • deriv f x := by
   rw [hf.fderiv_restrictScalars 𝕜, ContinuousLinearMap.coe_restrictScalars', fderiv_eq_smul_deriv]
+
+/-- A scalar derivative `HasDerivAt f f' x` over a larger field `𝕜'` is equivalent to the Fréchet
+derivative `(ContinuousLinearMap.toSpanSingleton 𝕜' f').restrictScalars 𝕜` over `𝕜`. -/
+theorem hasDerivAt_iff_hasFDerivAt_restrictScalars {f : 𝕜' → E} {f' : E} {x : 𝕜'} :
+    HasDerivAt f f' x ↔
+      HasFDerivAt f ((ContinuousLinearMap.toSpanSingleton 𝕜' f').restrictScalars 𝕜) x :=
+  ⟨fun h ↦ h.hasFDerivAt.restrictScalars 𝕜,
+    fun h ↦ hasDerivAt_iff_hasFDerivAt.mpr (hasFDerivAt_of_restrictScalars 𝕜 h rfl)⟩
 
 /-- The tangent space of a map differentiable over a larger field `𝕜'` is the same over `𝕜`. For
 a holomorphic map, the real tangent space is the complex tangent space; in particular it is stable

@@ -9,6 +9,7 @@ public import Mathlib.AlgebraicTopology.FundamentalGroupoid.SimplyConnected
 public import Mathlib.Analysis.Complex.HasPrimitives
 
 import Mathlib.Analysis.Calculus.MeanValue
+import TauCeti.Analysis.Calculus.FDeriv.RestrictScalars
 import TauCeti.Analysis.Calculus.LocalPotentials.Complex
 
 /-!
@@ -63,19 +64,17 @@ theorem DifferentiableOn.isExactOn_of_forall_connectedComponentIn {U : Set ℂ} 
     (hf : DifferentiableOn ℂ f U) (hU : IsOpen U)
     (hsc : ∀ z ∈ U, IsSimplyConnected (connectedComponentIn U z)) :
     IsExactOn f U := by
-  let _ : NormedSpace ℝ E := NormedSpace.restrictScalars ℝ ℂ E
   obtain ⟨g, -, hg⟩ :=
     (hf.hasLocalPotentials hU).exists_hasFDerivAt_of_forall_connectedComponentIn hsc
-  exact ⟨g, fun z hz ↦ TauCeti.hasDerivAt_iff_hasFDerivAt_restrictScalars.mpr (hg z hz)⟩
+  exact ⟨g, fun z hz ↦ (TauCeti.hasDerivAt_iff_hasFDerivAt_restrictScalars ℝ).mpr (hg z hz)⟩
 
 /-- Every holomorphic function `f : ℂ → E` on a simply connected open set `U ⊆ ℂ` with values in a
 complete complex normed space admits a global primitive on `U`. -/
 theorem DifferentiableOn.isExactOn_of_isSimplyConnected {U : Set ℂ} {f : ℂ → E}
     (hf : DifferentiableOn ℂ f U) (hU : IsOpen U) (hU_sc : IsSimplyConnected U) :
     IsExactOn f U := by
-  let _ : NormedSpace ℝ E := NormedSpace.restrictScalars ℝ ℂ E
   obtain ⟨g, -, hg⟩ := (hf.hasLocalPotentials hU).exists_hasFDerivAt_of_isSimplyConnected hU_sc
-  exact ⟨g, fun z hz ↦ TauCeti.hasDerivAt_iff_hasFDerivAt_restrictScalars.mpr (hg z hz)⟩
+  exact ⟨g, fun z hz ↦ (TauCeti.hasDerivAt_iff_hasFDerivAt_restrictScalars ℝ).mpr (hg z hz)⟩
 
 /-- Typeclass-hypothesis version of `DifferentiableOn.isExactOn_of_isSimplyConnected`: a holomorphic
 function on an open set `U ⊆ ℂ` with `[SimplyConnectedSpace U]` has a global primitive on `U`. -/

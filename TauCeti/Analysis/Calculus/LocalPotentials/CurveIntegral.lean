@@ -40,13 +40,13 @@ variable {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
   [NormedAddCommGroup F] [NormedSpace ℝ F]
   {s : Set E} {φ : E → E →L[ℝ] F}
 
-private theorem continuousOn_curveIntegralFun {a b : E} {γ : Path a b}
-    (hφ : ContinuousOn φ s) (hγ : ContDiffOn ℝ 1 γ.extend I) (hγ_mem : ∀ t, γ t ∈ s) :
-    ContinuousOn (curveIntegralFun φ γ) I := by
+private theorem continuousOn_curveIntegralFun {t : Set E} {J : Set ℝ} {a b : E} {γ : Path a b}
+    (hJI : J ⊆ I) (hφ : ContinuousOn φ t) (hγ : ContDiffOn ℝ 1 γ.extend I)
+    (hmaps : MapsTo γ.extend J t) :
+    ContinuousOn (curveIntegralFun φ γ) J := by
   simp only [funext (curveIntegralFun_def φ γ)]
-  refine ContinuousOn.clm_apply ?_ (hγ.continuousOn_derivWithin uniqueDiffOn_Icc_zero_one le_rfl)
-  exact hφ.comp γ.continuous_extend.continuousOn fun t ht ↦
-    (γ.extend_extends' ⟨t, ht⟩).symm ▸ hγ_mem ⟨t, ht⟩
+  exact (hφ.comp γ.continuous_extend.continuousOn hmaps).clm_apply
+    ((hγ.continuousOn_derivWithin uniqueDiffOn_Icc_zero_one le_rfl).mono hJI)
 
 /-- A covector field with local potentials on `s` is curve-integrable along every `C¹` path in
 `s`. -/
@@ -73,13 +73,8 @@ private theorem integral_curveIntegralFun_eq_sub {u_set : Set E} {g : E → F}
   have hg_u : ContinuousOn g u_set := fun z hz ↦ (hg z hz).continuousAt.continuousWithinAt
   have hg_cont : ContinuousOn (g ∘ γ.extend) (Icc (u : ℝ) (v : ℝ)) :=
     hg_u.comp γ.continuous_extend.continuousOn hmaps
-  have hfun_cont : ContinuousOn (curveIntegralFun φ γ) (Icc (u : ℝ) (v : ℝ)) := by
-    have hωγ : ContinuousOn (fun t ↦ φ (γ.extend t)) (Icc (u : ℝ) (v : ℝ)) :=
-      hφ_cont.comp γ.continuous_extend.continuousOn hmaps
-    have hdγ : ContinuousOn (derivWithin γ.extend I) (Icc (u : ℝ) (v : ℝ)) :=
-      (hγ.continuousOn_derivWithin uniqueDiffOn_Icc_zero_one le_rfl).mono hIcc_sub
-    simp only [funext (curveIntegralFun_def φ γ)]
-    exact hωγ.clm_apply hdγ
+  have hfun_cont : ContinuousOn (curveIntegralFun φ γ) (Icc (u : ℝ) (v : ℝ)) :=
+    continuousOn_curveIntegralFun hIcc_sub hφ_cont hγ hmaps
   have hderiv (t : ℝ) (ht : t ∈ Ioo (u : ℝ) (v : ℝ)) :
       HasDerivAt (g ∘ γ.extend) (curveIntegralFun φ γ t) t := by
     have ht0 : 0 < t := (unitInterval.nonneg u).trans_lt ht.1
@@ -116,7 +111,8 @@ theorem HasLocalPotentials.localPotentialIntegral_eq_curveIntegral
   rw [localPotentialIntegral_eq_sum_sub ht_mono ht0 htn (fun _ ↦ isOpen_ball) hmaps hg,
     curveIntegral_def]
   have hcont_all : ContinuousOn (curveIntegralFun φ γ) I :=
-    continuousOn_curveIntegralFun hφ.continuousOn hγ hγ_mem
+    continuousOn_curveIntegralFun subset_rfl hφ.continuousOn hγ fun t ht ↦
+      (γ.extend_extends' ⟨t, ht⟩).symm ▸ hγ_mem ⟨t, ht⟩
   have hint (k : ℕ) (_ : k < n) :
       IntervalIntegrable (curveIntegralFun φ γ) volume (t k : ℝ) (t (k + 1) : ℝ) := by
     have hle : (t k : ℝ) ≤ (t (k + 1) : ℝ) := ht_mono (Nat.le_succ k)

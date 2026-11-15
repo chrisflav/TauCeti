@@ -8,9 +8,9 @@ module
 public import TauCeti.Analysis.Calculus.LocalPotentials.SimplyConnected
 public import Mathlib.Analysis.Complex.HasPrimitives
 
+import TauCeti.Analysis.Calculus.FDeriv.RestrictScalars
 import TauCeti.Analysis.Calculus.LocalPotentials.CurveIntegral
-import Mathlib.Analysis.Calculus.FDeriv.RestrictScalars
-import Mathlib.Analysis.SpecialFunctions.Complex.LogDeriv
+import TauCeti.Analysis.SpecialFunctions.Complex.Arg
 
 /-!
 # Planar and complex one-forms with local potentials
@@ -25,8 +25,9 @@ examples:
   has local potentials on `s` if and only if `s` is open and `f` is holomorphic on `s`.
 * `DifferentiableOn.hasLocalPotentials` and `Complex.IsConservativeOn.hasLocalPotentials`: local
   potentials of holomorphic and continuous conservative functions on open subsets of `ℂ`.
-* `TauCeti.not_hasLocalPotentials_re_smul_imCLM_ball`: the smooth `1`-form `x dy` (`z ↦ z.re • Im`)
-  has no local potentials on any open disc `ball c r` with `r > 0`.
+* `TauCeti.not_hasLocalPotentials_re_smul_imCLM`: the smooth `1`-form `x dy` (`z ↦ z.re • Im`)
+  has no local potentials on any nonempty set (in particular on `ℂ` or any open disc of positive
+  radius).
 * `TauCeti.angularForm`: the punctured-plane angular `1`-form `dθ = Im(dz / z)`, which has global
   `C¹` potential `Complex.arg` on `Complex.slitPlane`, satisfies `HasLocalPotentials ({0}ᶜ)
   angularForm`, integrates to `2π` along `TauCeti.unitCircleLoop` (hence `-2π` along its reversal
@@ -45,27 +46,6 @@ section ComplexScalars
 
 variable {F : Type*} [NormedAddCommGroup F] [NormedSpace ℂ F]
 
-/-- A complex scalar derivative `HasDerivAt g f' z` is equivalent to the real Fréchet derivative
-`(toSpanSingleton ℂ f').restrictScalars ℝ`. -/
-theorem hasDerivAt_iff_hasFDerivAt_restrictScalars {g : ℂ → F} {f' : F} {z : ℂ} :
-    HasDerivAt g f' z ↔ HasFDerivAt g ((toSpanSingleton ℂ f').restrictScalars ℝ) z :=
-  ⟨fun h ↦ h.hasFDerivAt.restrictScalars ℝ,
-    fun h ↦ hasDerivAt_iff_hasFDerivAt.mpr (hasFDerivAt_of_restrictScalars ℝ h rfl)⟩
-
-private theorem continuousOn_toSpanSingleton_restrictScalars {s : Set ℂ} {f : ℂ → F}
-    (hf : ContinuousOn f s) :
-    ContinuousOn (fun z ↦ (toSpanSingleton ℂ (f z)).restrictScalars ℝ) s := by
-  let _ : NormedSpace ℝ F := NormedSpace.restrictScalars ℝ ℂ F
-  have hcont : Continuous (fun y : F ↦ (toSpanSingleton ℂ y).restrictScalars ℝ) := by
-    refine Metric.continuous_iff.mpr fun x ε hε ↦ ⟨ε, hε, fun y hy ↦ ?_⟩
-    have hsub : (toSpanSingleton ℂ y).restrictScalars ℝ -
-        (toSpanSingleton ℂ x).restrictScalars ℝ =
-        (toSpanSingleton ℂ (y - x)).restrictScalars ℝ := by
-      ext v; simp [smul_sub]
-    rwa [dist_eq_norm, hsub, ContinuousLinearMap.norm_restrictScalars, norm_toSpanSingleton,
-      ← dist_eq_norm]
-  exact hcont.comp_continuousOn hf
-
 /-- If `f : ℂ → F` is continuous on an open set `s` and admits a complex primitive on `s`, then
 its `ℂ`-linear real covector field has local potentials on `s` (without completeness of `F`). -/
 theorem _root_.Complex.IsExactOn.hasLocalPotentials {s : Set ℂ} {f : ℂ → F}
@@ -73,12 +53,13 @@ theorem _root_.Complex.IsExactOn.hasLocalPotentials {s : Set ℂ} {f : ℂ → F
     HasLocalPotentials s (fun z ↦ (toSpanSingleton ℂ (f z)).restrictScalars ℝ) := by
   obtain ⟨g, hg⟩ := hf
   have hd : ∀ z ∈ s, HasFDerivAt g ((toSpanSingleton ℂ (f z)).restrictScalars ℝ) z :=
-    fun z hz ↦ hasDerivAt_iff_hasFDerivAt_restrictScalars.mp (hg z hz)
+    fun z hz ↦ (hasDerivAt_iff_hasFDerivAt_restrictScalars ℝ).mp (hg z hz)
   have hg_c1 : ContDiffOn ℝ 1 g s := by
-    rw [show (1 : ℕ∞ω) = (0 : ℕ∞ω) + 1 from rfl, contDiffOn_succ_iff_fderiv_of_isOpen hs]
+    rw [← zero_add (1 : ℕ∞ω), contDiffOn_succ_iff_fderiv_of_isOpen hs]
     refine ⟨fun z hz ↦ (hd z hz).differentiableAt.differentiableWithinAt, by simp, ?_⟩
     rw [contDiffOn_zero]
-    exact (continuousOn_toSpanSingleton_restrictScalars hf_cont).congr
+    exact (((continuous_restrictScalars ℝ).comp
+      (toSpanSingletonLIE ℂ F).continuous).comp_continuousOn hf_cont).congr
       fun z hz ↦ (hd z hz).fderiv
   exact hasLocalPotentials_of_hasFDerivAt hs hg_c1 hd
 
@@ -87,22 +68,16 @@ section CompleteSpace
 variable [CompleteSpace F] {s : Set ℂ} {f : ℂ → F}
 
 /-- On an open subset `s ⊆ ℂ`, a holomorphic function `f : ℂ → F` into a complete complex normed
-space defines a covector field with local potentials via Morera's theorem on discs. -/
+space defines a covector field with local potentials. -/
 theorem _root_.DifferentiableOn.hasLocalPotentials (hf : DifferentiableOn ℂ f s) (hs : IsOpen s) :
     HasLocalPotentials s (fun z ↦ (toSpanSingleton ℂ (f z)).restrictScalars ℝ) := by
   rw [hasLocalPotentials_iff]
   intro z hz
   obtain ⟨r, hr, hrs⟩ := Metric.isOpen_iff.mp hs z hz
-  obtain ⟨g, hg⟩ := (hf.mono hrs).isExactOn_ball
-  have hd : ∀ w ∈ ball z r, HasFDerivAt g ((toSpanSingleton ℂ (f w)).restrictScalars ℝ) w :=
-    fun w hw ↦ hasDerivAt_iff_hasFDerivAt_restrictScalars.mp (hg w hw)
-  have hg_c1 : ContDiffOn ℝ 1 g (ball z r) := by
-    rw [show (1 : ℕ∞ω) = (0 : ℕ∞ω) + 1 from rfl, contDiffOn_succ_iff_fderiv_of_isOpen isOpen_ball]
-    refine ⟨fun w hw ↦ (hd w hw).differentiableAt.differentiableWithinAt, by simp, ?_⟩
-    rw [contDiffOn_zero]
-    exact (continuousOn_toSpanSingleton_restrictScalars (hf.continuousOn.mono hrs)).congr
-      fun w hw ↦ (hd w hw).fderiv
-  exact ⟨r, hr, hrs, g, hg_c1, hd⟩
+  have hball := ((hf.mono hrs).isExactOn_ball).hasLocalPotentials isOpen_ball
+    (hf.continuousOn.mono hrs)
+  obtain ⟨δ, hδ, hδr, g, hg_c1, hd⟩ := hasLocalPotentials_iff.mp hball z (mem_ball_self hr)
+  exact ⟨δ, hδ, hδr.trans hrs, g, hg_c1, hd⟩
 
 /-- On an open subset `s ⊆ ℂ`, a continuous `Complex.IsConservativeOn` function into a complete
 complex normed space defines a covector field with local potentials. -/
@@ -120,7 +95,7 @@ theorem hasLocalPotentials_toSpanSingleton_restrictScalars_iff :
   refine ⟨fun hφ ↦ ⟨hφ.isOpen, fun z hz ↦ ?_⟩, fun ⟨hs, hf⟩ ↦ hf.hasLocalPotentials hs⟩
   obtain ⟨r, hr, -, g, -, hg⟩ := hasLocalPotentials_iff.mp hφ z hz
   have hexact : Complex.IsExactOn f (ball z r) :=
-    ⟨g, fun w hw ↦ hasDerivAt_iff_hasFDerivAt_restrictScalars.mpr (hg w hw)⟩
+    ⟨g, fun w hw ↦ (hasDerivAt_iff_hasFDerivAt_restrictScalars ℝ).mpr (hg w hw)⟩
   exact ((hexact.differentiableOn isOpen_ball z (mem_ball_self hr)).differentiableAt
     (ball_mem_nhds z hr)).differentiableWithinAt
 
@@ -130,13 +105,15 @@ end ComplexScalars
 
 section NonConservativeExample
 
-/-- The smooth `1`-form `x dy` (`z ↦ z.re • Complex.imCLM`) has no local potentials on any open
-disc `ball c r` of positive radius: integrating a putative potential around an axis-aligned square
-inside the disc yields a nonzero area discrepancy. -/
-theorem not_hasLocalPotentials_re_smul_imCLM_ball (c : ℂ) {r : ℝ} (hr : 0 < r) :
-    ¬ HasLocalPotentials (ball c r) (fun z : ℂ ↦ z.re • Complex.imCLM) := by
+/-- The smooth `1`-form `x dy` (`z ↦ z.re • Complex.imCLM`) has no local potentials on any
+nonempty subset of `ℂ`. -/
+theorem not_hasLocalPotentials_re_smul_imCLM {s : Set ℂ} (hs : s.Nonempty) :
+    ¬ HasLocalPotentials s (fun z : ℂ ↦ z.re • Complex.imCLM) := by
+  -- Integrating a putative local potential around an axis-aligned square of side `ε = δ / 3`
+  -- inside a potential ball yields a nonzero `ε²` area discrepancy.
+  obtain ⟨c, hc⟩ := hs
   intro h
-  obtain ⟨δ, hδ, -, g, -, hg⟩ := hasLocalPotentials_iff.mp h c (mem_ball_self hr)
+  obtain ⟨δ, hδ, -, g, -, hg⟩ := hasLocalPotentials_iff.mp h c hc
   let φ : ℂ → ℂ →L[ℝ] ℝ := fun z ↦ z.re • Complex.imCLM
   have hφ_cont : Continuous φ := Complex.continuous_re.smul continuous_const
   let ε : ℝ := δ / 3
@@ -155,7 +132,8 @@ theorem not_hasLocalPotentials_re_smul_imCLM_ball (c : ℂ) {r : ℝ} (hr : 0 < 
       Real.norm_eq_abs, Complex.norm_I, mul_one, abs_of_pos hε]
     dsimp [ε]; linarith
   have hp₁₁ : p₁₁ ∈ ball c δ := by
-    rw [mem_ball, dist_eq_norm, show p₁₁ - c = (ε : ℂ) + ε * Complex.I by dsimp [p₁₁]; ring]
+    have hp₁₁_sub : p₁₁ - c = (ε : ℂ) + ε * Complex.I := by dsimp [p₁₁]; ring
+    rw [mem_ball, dist_eq_norm, hp₁₁_sub]
     calc
       ‖(ε : ℂ) + ε * Complex.I‖ ≤ ‖(ε : ℂ)‖ + ‖ε * Complex.I‖ := norm_add_le _ _
       _ = ε + ε := by simp [abs_of_pos hε]
@@ -201,11 +179,6 @@ theorem not_hasLocalPotentials_re_smul_imCLM_ball (c : ℂ) {r : ℝ} (hr : 0 < 
   have hsq : ε ^ 2 = 0 := by linarith
   exact (pow_ne_zero 2 hε.ne') hsq
 
-/-- The smooth `1`-form `x dy` (`z ↦ z.re • Complex.imCLM`) has no local potentials on `ℂ`. -/
-theorem not_hasLocalPotentials_re_smul_imCLM_univ :
-    ¬ HasLocalPotentials (univ : Set ℂ) (fun z : ℂ ↦ z.re • Complex.imCLM) :=
-  fun h ↦ not_hasLocalPotentials_re_smul_imCLM_ball 0 one_pos (h.mono isOpen_ball (subset_univ _))
-
 end NonConservativeExample
 
 section AngularForm
@@ -214,6 +187,11 @@ section AngularForm
 total map `ℂ → ℂ →L[ℝ] ℝ` with value `0` at `0`. -/
 noncomputable def angularForm (z : ℂ) : ℂ →L[ℝ] ℝ :=
   Complex.imCLM.comp ((toSpanSingleton ℂ z⁻¹).restrictScalars ℝ)
+
+/-- `angularForm z` is the composition of `Complex.imCLM` with real-scalar-restricted multiplication
+by `z⁻¹`. -/
+theorem angularForm_def (z : ℂ) :
+    angularForm z = Complex.imCLM.comp ((toSpanSingleton ℂ z⁻¹).restrictScalars ℝ) := (rfl)
 
 /-- Evaluates `angularForm z` on a tangent vector `v : ℂ` as `(v * z⁻¹).im`. -/
 @[simp]
@@ -227,34 +205,15 @@ theorem angularForm_apply_re_im (z v : ℂ) :
     Complex.conj_im, Complex.ofReal_re, Complex.ofReal_im, mul_zero, zero_add]
   ring
 
-/-- On `Complex.slitPlane`, `Complex.arg` has Fréchet derivative `angularForm z` at `z`. -/
-theorem hasFDerivAt_arg {z : ℂ} (hz : z ∈ Complex.slitPlane) :
-    HasFDerivAt Complex.arg (angularForm z) z := by
-  have h_eq : Complex.arg = Complex.imCLM ∘ Complex.log :=
-    funext fun w ↦ (Complex.log_im w).symm
-  rw [h_eq]
-  exact Complex.imCLM.hasFDerivAt.comp z
-    (hasDerivAt_iff_hasFDerivAt_restrictScalars.mp (Complex.hasDerivAt_log hz))
-
-/-- `Complex.arg` is `C¹` on `Complex.slitPlane`. -/
-theorem contDiffOn_arg_slitPlane : ContDiffOn ℝ 1 Complex.arg Complex.slitPlane := by
-  have h_eq : Complex.arg = Complex.imCLM ∘ Complex.log :=
-    funext fun w ↦ (Complex.log_im w).symm
-  rw [h_eq]
-  refine Complex.imCLM.contDiff.comp_contDiffOn fun z hz ↦ ?_
-  exact ((Complex.contDiffAt_log hz (n := 1)).restrict_scalars ℝ).contDiffWithinAt
-
-/-- `angularForm` has local potentials on `Complex.slitPlane` via the global potential
-`Complex.arg`. -/
+/-- `angularForm` has local potentials on `Complex.slitPlane`. -/
 theorem hasLocalPotentials_angularForm_slitPlane :
     HasLocalPotentials Complex.slitPlane angularForm :=
-  hasLocalPotentials_of_hasFDerivAt Complex.isOpen_slitPlane contDiffOn_arg_slitPlane
-    fun _ hz ↦ hasFDerivAt_arg hz
+  hasLocalPotentials_of_hasFDerivAt Complex.isOpen_slitPlane Complex.contDiffOn_arg
+    fun z hz ↦ (angularForm_def z).symm ▸ Complex.hasFDerivAt_arg hz
 
-/-- `angularForm` has local potentials on the punctured plane `{0}ᶜ : Set ℂ`, covered by
-`Complex.slitPlane` (with potential `Complex.arg`) and its negation (with potential
-`z ↦ Complex.arg (-z)`). -/
+/-- `angularForm` has local potentials on the punctured plane `{0}ᶜ : Set ℂ`. -/
 theorem hasLocalPotentials_angularForm : HasLocalPotentials ({0}ᶜ : Set ℂ) angularForm := by
+  -- Cover `{0}ᶜ` by `Complex.slitPlane` and its negation `(· * -1)⁻¹' slitPlane`.
   have hneg : HasLocalPotentials ((fun z : ℂ ↦ -z) ⁻¹' Complex.slitPlane) angularForm := by
     have hpull := hasLocalPotentials_angularForm_slitPlane.pullback
       (Complex.isOpen_slitPlane.preimage continuous_neg) contDiff_neg.contDiffOn
@@ -271,14 +230,9 @@ theorem hasLocalPotentials_angularForm : HasLocalPotentials ({0}ᶜ : Set ℂ) a
     simp only [mem_compl_iff, mem_singleton_iff, mem_union, mem_preimage]
     refine ⟨Complex.mem_slitPlane_or_neg_mem_slitPlane, fun h hz ↦ ?_⟩
     rcases h with h | h <;> simp [hz] at h
-  rw [hcov, hasLocalPotentials_iff]
-  intro z hz
-  rcases hz with hz | hz
-  · obtain ⟨r, hr, hrs, g, hg, hd⟩ := hasLocalPotentials_iff.mp
-      hasLocalPotentials_angularForm_slitPlane z hz
-    exact ⟨r, hr, hrs.trans subset_union_left, g, hg, hd⟩
-  · obtain ⟨r, hr, hrs, g, hg, hd⟩ := hasLocalPotentials_iff.mp hneg z hz
-    exact ⟨r, hr, hrs.trans subset_union_right, g, hg, hd⟩
+  rw [hcov, union_eq_iUnion]
+  exact hasLocalPotentials_iUnion
+    (Bool.forall_bool.mpr ⟨hneg, hasLocalPotentials_angularForm_slitPlane⟩)
 
 /-- Counterclockwise parametrization `t ↦ exp(2π i t)` of the unit circle as a loop based at `1`. -/
 noncomputable def unitCircleLoop : Path (1 : ℂ) 1 :=
@@ -313,7 +267,7 @@ theorem localPotentialIntegral_angularForm_unitCircleLoop :
     intro w _
     have hfderiv : fderiv ℝ Complex.exp w =
         (toSpanSingleton ℂ (Complex.exp w)).restrictScalars ℝ :=
-      (hasDerivAt_iff_hasFDerivAt_restrictScalars.mp (Complex.hasDerivAt_exp w)).fderiv
+      ((hasDerivAt_iff_hasFDerivAt_restrictScalars ℝ).mp (Complex.hasDerivAt_exp w)).fderiv
     ext v
     simp [hfderiv]
   rw [localPotentialIntegral_congr_of_isOpen isOpen_univ (fun _ ↦ mem_univ _) hpull,
@@ -339,7 +293,7 @@ theorem not_exists_hasFDerivAt_angularForm_compl_zero :
     ¬ ∃ g : ℂ → ℝ, ∀ z ∈ ({0}ᶜ : Set ℂ), HasFDerivAt g (angularForm z) z := by
   rintro ⟨g, hg⟩
   have hzero : localPotentialIntegral angularForm unitCircleLoop = 0 := by
-    rw [localPotentialIntegral_of_hasFDerivAt isOpen_compl_singleton
+    rw [localPotentialIntegral_eq_sub_of_hasFDerivAt isOpen_compl_singleton
       unitCircleLoop_mem_compl_zero hg, sub_self]
   rw [localPotentialIntegral_angularForm_unitCircleLoop] at hzero
   exact (mul_ne_zero two_ne_zero Real.pi_ne_zero) hzero
