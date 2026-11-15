@@ -23,8 +23,9 @@ complement `F` at every point (`Manifold.isSubmersionOfComplement_iff`). Mathlib
 forward direction, `Manifold.IsSubmersionOfComplement.isSubmersionAt`, and does not expose the
 definition, so the converse is needed to build global submersions from pointwise local normal
 forms, for instance with `Manifold.IsSubmersionAtOfComplement.mk_of_continuousAt`.
-The first projection of a product of manifolds is a submersion, with the second model space
-as complement (`Manifold.isSubmersionOfComplement_fst`).
+The first projection of a product of manifolds is a submersion, with the second model space as
+complement (`Manifold.isSubmersionOfComplement_fst`), and any `C^n` submersion is also a `C^m`
+submersion for `m ≤ n` (`Manifold.IsSubmersion.of_le`).
 
 This file also differentiates the normal form of a `C^n` submersion `f : M → N`, `n ≠ 0`: around
 every point `x` there are charts `φ` of `M` and `ψ` of `N` and a continuous linear equivalence
@@ -46,6 +47,9 @@ constant on the fibres factors through a unique `C^m` map
 ## Main results
 
 * `Manifold.isSubmersionOfComplement_iff`: a submersion with complement `F` is one at every point.
+* `Manifold.IsSubmersionAtOfComplement.of_le`, `Manifold.IsSubmersionAt.of_le`,
+  `Manifold.IsSubmersionOfComplement.of_le`, `Manifold.IsSubmersion.of_le`: monotonicity in the
+  smoothness exponent.
 * `Manifold.IsSubmersionAtOfComplement.mfderiv_extend_comp_mfderiv`: the derivative of a
   submersion in its normal-form charts.
 * `Manifold.IsSubmersionAtOfComplement.surjective_mfderiv`,
@@ -80,7 +84,7 @@ open scoped Manifold
 
 section Pointwise
 
-variable {𝕜 E E' F H G M N : Type*} [NontriviallyNormedField 𝕜] {n : WithTop ℕ∞}
+variable {𝕜 E E' F H G M N : Type*} [NontriviallyNormedField 𝕜] {m n : WithTop ℕ∞}
   [NormedAddCommGroup E] [NormedSpace 𝕜 E] [NormedAddCommGroup E'] [NormedSpace 𝕜 E']
   [NormedAddCommGroup F] [NormedSpace 𝕜 F] [TopologicalSpace H] [TopologicalSpace G]
   {I : ModelWithCorners 𝕜 E H} {J : ModelWithCorners 𝕜 E' G}
@@ -91,6 +95,30 @@ at every point. -/
 theorem isSubmersionOfComplement_iff :
     IsSubmersionOfComplement F I J n f ↔ ∀ x, IsSubmersionAtOfComplement F I J n f x :=
   Iff.rfl
+
+/-- A `C^n` submersion at `x` with complement `F` is also a `C^m` submersion at `x` with
+complement `F` whenever `m ≤ n`. -/
+theorem IsSubmersionAtOfComplement.of_le {x : M} (h : IsSubmersionAtOfComplement F I J n f x)
+    (hm : m ≤ n) : IsSubmersionAtOfComplement F I J m f x :=
+  .mk_of_continuousAt h.contMDiffAt.continuousAt h.equiv h.domChart h.codChart
+    h.mem_domChart_source h.mem_codChart_source
+    (IsManifold.maximalAtlas_subset_of_le hm h.domChart_mem_maximalAtlas)
+    (IsManifold.maximalAtlas_subset_of_le hm h.codChart_mem_maximalAtlas) h.writtenInCharts
+
+/-- A `C^n` submersion at `x` is also a `C^m` submersion at `x` whenever `m ≤ n`. -/
+theorem IsSubmersionAt.of_le {x : M} (h : IsSubmersionAt I J n f x) (hm : m ≤ n) :
+    IsSubmersionAt I J m f x :=
+  (h.isSubmersionAtOfComplement_complement.of_le hm).isSubmersionAt
+
+/-- A `C^n` submersion with complement `F` is also a `C^m` submersion with complement `F`
+whenever `m ≤ n`. -/
+theorem IsSubmersionOfComplement.of_le (h : IsSubmersionOfComplement F I J n f) (hm : m ≤ n) :
+    IsSubmersionOfComplement F I J m f :=
+  fun x ↦ (h x).of_le hm
+
+/-- A `C^n` submersion is also a `C^m` submersion whenever `m ≤ n`. -/
+theorem IsSubmersion.of_le (h : IsSubmersion I J n f) (hm : m ≤ n) : IsSubmersion I J m f :=
+  (h.isSubmersionOfComplement_complement.of_le hm).isSubmersion
 
 /-- The first projection of a product of manifolds is a submersion, with the second model
 space as complement. No nonemptiness assumption on either factor is needed. -/
