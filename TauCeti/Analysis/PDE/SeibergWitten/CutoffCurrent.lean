@@ -109,12 +109,14 @@ Taubes's analysis these bound the negative mass of the slices of the cutoff curr
 discs of a pseudoholomorphic curve, and the distance of the cutoff current to the cone of positive
 `(1,1)`-forms.
 
-The cutoff phase form, the cutoff current, their regularity, support and gauge invariance are
-stated on an arbitrary real normed space, which plays the role of a coordinate chart; the gauge
-invariance makes the constructions independent of the trivialization. The flux identity is
-stated on the plane `ℂ`, and the modulus-potential decomposition, the bound on the correction
-form and the statements on complex lines on a finite-dimensional real normed space carrying an
-almost complex structure.
+The cutoff phase form, the cutoff current, their regularity, support and gauge invariance, together
+with `covariantDBarField` and the varying-endomorphism modulus-potential identity and bound
+(`cutoffPhaseForm_sub_twistedDifferentialForm_apply`,
+`norm_cutoffPhaseForm_sub_twistedDifferentialForm_le`), are stated on an arbitrary real normed
+space, which plays the role of a coordinate chart; the gauge invariance makes the constructions
+independent of the trivialization. The flux identity is stated on the plane `ℂ`, and the
+`AlmostComplexStructure` specializations (`cutoffDBarForm` and the statements on complex lines) on
+a finite-dimensional real normed space carrying an almost complex structure.
 
 The phase form `Im (α⁻¹ dα)` (`TauCeti.phaseForm`) and the twisted differential `d^c_J`
 (`TauCeti.AlmostComplexStructure.twistedDifferential`) are general constructions defined in
@@ -128,6 +130,8 @@ The phase form `Im (α⁻¹ dα)` (`TauCeti.phaseForm`) and the twisted differen
 * `TauCeti.SeibergWitten.cutoffPhaseForm χ b α`: the one-form `χ(|α|²) τ`.
 * `TauCeti.SeibergWitten.cutoffCurrent χ b α`: the two-form `Θ = -db + d(χ(|α|²) τ)`.
 * `TauCeti.SeibergWitten.covariantDBar J b α`: the `J`-antilinear part `∂bar_a α`.
+* `TauCeti.SeibergWitten.covariantDBarField J b α`: the `(0, 1)`-part `(∇_a α + i ∇_a α ∘ J) / 2`
+  for a varying continuous-linear endomorphism field `J : E → E →L[ℝ] E`.
 * `TauCeti.SeibergWitten.cutoffDBarForm J χ b α`: the one-form `2 χ(|α|²) Re (α⁻¹ ∂bar_a α) ∘ J`.
 * `TauCeti.SeibergWitten.modulusPotential χ`: the integral `H(s) = ∫₁ˢ χ(t) / t dt`, a primitive of
   `χ(s) / s` when `χ` is continuous and vanishes near `0`.
@@ -165,6 +169,18 @@ theorem covariantDeriv_apply (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → 
     covariantDeriv b α x v = fderiv ℝ α x v + I * b x (fun _ ↦ v) * α x := by
   simp [covariantDeriv, ofSubsingletonLIE_symm_apply]
   ring
+
+/-- The covariant derivative is continuous at `x` when `α` is `C¹` at `x` and `b` is continuous
+at `x`. -/
+theorem continuousAt_covariantDeriv (hα : ContDiffAt ℝ 1 α x) (hb : ContinuousAt b x) :
+    ContinuousAt (covariantDeriv b α) x := by
+  have hf : ContinuousAt (fderiv ℝ α) x := (hα.fderiv_right (m := 0) (by simp)).continuousAt
+  have hdef : covariantDeriv b α = fun y ↦ fderiv ℝ α y + ContinuousLinearMap.smulRightL ℝ E ℂ
+      ((ofSubsingletonLIE (0 : Fin 1)).symm (b y)) (I * α y) := rfl
+  rw [hdef]
+  exact hf.add ((((ContinuousLinearMap.smulRightL ℝ E ℂ).continuous.continuousAt.comp
+    ((ofSubsingletonLIE (0 : Fin 1)).symm.continuous.continuousAt.comp hb)).clm_apply
+    (continuousAt_const.mul hα.continuousAt)))
 
 /-- The covariant derivative of a `C¹` section for a continuous connection form is
 continuous. -/
@@ -372,6 +388,18 @@ section Pullback
 
 variable {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] {f : F → E}
 
+/-- **Naturality of the covariant derivative.** At a point `y` where `f` is differentiable and `α`
+is differentiable at `f y`, the covariant derivative of the pulled-back pair `(f^* b, α ∘ f)` is
+the precomposition with `df(y)` of the covariant derivative of `(b, α)` at `f y`. -/
+theorem covariantDeriv_comp {y : F} (hα : DifferentiableAt ℝ α (f y))
+    (hf : DifferentiableAt ℝ f y) :
+    covariantDeriv (fun z ↦ (b (f z)).compContinuousLinearMap (fderiv ℝ f z)) (α ∘ f) y =
+      (covariantDeriv b α (f y)).comp (fderiv ℝ f y) := by
+  ext v
+  rw [covariantDeriv_apply, ContinuousLinearMap.comp_apply, covariantDeriv_apply,
+    fderiv_comp y hα hf]
+  simp [Function.comp_def]
+
 /-- **Naturality of the cutoff phase form.** The cutoff phase form of the pulled-back pair
 `(f^* b, α ∘ f)` is the pullback by `f` of the cutoff phase form of `(b, α)`. -/
 theorem cutoffPhaseForm_comp {y : F} (hα : DifferentiableAt ℝ α (f y))
@@ -558,6 +586,127 @@ theorem abs_modulusPotential_le {c : ℝ} (hc : 0 < c) (hχc : ∀ t, 0 < t → 
       _ ≤ 1 / c := one_div_le_one_div_of_le hc htc
       _ = c⁻¹ := one_div c
 
+/-! ### The `(0, 1)`-covariant derivative for a varying endomorphism field -/
+
+section VaryingAlmostComplex
+
+/-- The `(0, 1)`-part `∂bar_{J, a} α = (∇_a α + i ∇_a α ∘ J) / 2` of the covariant derivative for a
+varying continuous-linear endomorphism field `J : E → E →L[ℝ] E` on an arbitrary real normed space.
+No finite-dimensionality or `J² = -1` hypothesis is needed to form the operator. -/
+def covariantDBarField (J : E → E →L[ℝ] E) (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ) (x : E) :
+    E →L[ℝ] ℂ :=
+  (2⁻¹ : ℂ) • (covariantDeriv b α x + I • (covariantDeriv b α x).comp (J x))
+
+/-- `covariantDBarField` evaluated on a vector. -/
+@[simp]
+theorem covariantDBarField_apply (J : E → E →L[ℝ] E) (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ)
+    (x v : E) :
+    covariantDBarField J b α x v =
+      (covariantDeriv b α x v + I * covariantDeriv b α x (J x v)) / 2 := by
+  simp [covariantDBarField, div_eq_inv_mul, mul_add]
+
+@[simp]
+theorem covariantDBarField_zero_right (J : E → E →L[ℝ] E) (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (x : E) :
+    covariantDBarField J b 0 x = 0 := by
+  ext v
+  simp
+
+/-- `covariantDBarField J b α` is continuous at `x` when `α` is `C¹` at `x` and `b` and `J` are
+continuous at `x`. -/
+theorem continuousAt_covariantDBarField {J : E → E →L[ℝ] E} (hJ : ContinuousAt J x)
+    (hα : ContDiffAt ℝ 1 α x) (hb : ContinuousAt b x) :
+    ContinuousAt (covariantDBarField J b α) x := by
+  have hd : ContinuousAt (covariantDeriv b α) x := continuousAt_covariantDeriv hα hb
+  unfold covariantDBarField
+  exact (hd.add ((hd.clm_comp hJ).const_smul I)).const_smul (2⁻¹ : ℂ)
+
+/-- **Pullback naturality of `covariantDBarField`.** If `f : F → E` is differentiable at `y`, `α`
+is differentiable at `f y`, and `df(y)` intertwines `J₁(y)` with `J₂(f y)`, then
+`∂bar_{J₁, f^* a}(α ∘ f)(y) = ∂bar_{J₂, a} α (f y) ∘ df(y)`. -/
+theorem covariantDBarField_comp_of_comp_eq {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F]
+    {J₁ : F → F →L[ℝ] F} {J₂ : E → E →L[ℝ] E} {f : F → E} {y : F}
+    (hα : DifferentiableAt ℝ α (f y)) (hf : DifferentiableAt ℝ f y)
+    (hJ : (fderiv ℝ f y).comp (J₁ y) = (J₂ (f y)).comp (fderiv ℝ f y)) :
+    covariantDBarField J₁ (fun z ↦ (b (f z)).compContinuousLinearMap (fderiv ℝ f z)) (α ∘ f) y =
+      (covariantDBarField J₂ b α (f y)).comp (fderiv ℝ f y) := by
+  ext v
+  have hv : fderiv ℝ f y (J₁ y v) = J₂ (f y) (fderiv ℝ f y v) :=
+    congrArg (fun L : F →L[ℝ] E ↦ L v) hJ
+  simp [covariantDeriv_comp hα hf, hv]
+
+/-- **Pointwise modulus-potential identity for a varying endomorphism field.** If `χ(0) = 0` and
+`H` has derivative `χ(s) / s` at `s = |α x|²`, then for any continuous-linear endomorphism field
+`J : E → E →L[ℝ] E`, `(χ(|α|²) τ - d^c_J H(|α|²)) v = 2 χ(|α|²) Im (α⁻¹ ∂bar_{J, a} α (v 0))`.
+Neither finite-dimensionality nor `J² = -1` is needed. -/
+theorem cutoffPhaseForm_sub_twistedDifferentialForm_apply {J : E → E →L[ℝ] E} {H : ℝ → ℝ}
+    (hH : HasDerivAt H (χ (normSq (α x)) / normSq (α x)) (normSq (α x))) (hχ : χ 0 = 0)
+    (hα : DifferentiableAt ℝ α x) (v : Fin 1 → E) :
+    (cutoffPhaseForm χ b α x - twistedDifferentialForm J (fun y ↦ H (normSq (α y))) x) v =
+      2 * χ (normSq (α x)) * ((α x)⁻¹ * covariantDBarField J b α x (v 0)).im := by
+  have hd : HasFDerivAt (fun y ↦ normSq (α y))
+      (2 • (innerSL ℝ (α x)).comp (fderiv ℝ α x)) x := by
+    simp_rw [normSq_eq_norm_sq]
+    exact hα.hasFDerivAt.norm_sq
+  have hc := twistedDifferentialForm_comp J hH hd.differentiableAt
+  rw [Function.comp_def] at hc
+  obtain ⟨w, rfl⟩ : ∃ w, v = fun _ ↦ w := ⟨v 0, funext fun i ↦ by fin_cases i; rfl⟩
+  simp only [ContinuousAlternatingMap.sub_apply, ContinuousAlternatingMap.add_apply, hc,
+    ContinuousAlternatingMap.smul_apply, twistedDifferentialForm_apply, hd.fderiv,
+    covariantDBarField_apply, cutoffPhaseForm_apply, covariantPhaseForm_apply, phaseForm_apply,
+    _root_.smul_apply, ContinuousLinearMap.comp_apply, innerSL_apply_apply, Complex.inner,
+    covariantDeriv_apply, smul_eq_mul, nsmul_eq_mul, Nat.cast_ofNat]
+  by_cases h : α x = 0
+  · simp [h, hχ]
+  · have hn := (normSq_pos.2 h).ne'
+    simp only [mul_re, mul_im, add_re, add_im, conj_re, conj_im, ofReal_re, ofReal_im, I_re, I_im,
+      div_ofNat_re, div_ofNat_im, inv_re, inv_im]
+    field_simp
+    rw [normSq_apply]
+    ring
+
+omit [NormedAddCommGroup E] [NormedSpace ℝ E] in
+private theorem abs_two_mul_im_inv_mul_le {c : ℝ} (hc : 0 < c)
+    (hχc : ∀ t, 0 ≤ t → t < c → χ t = 0) (hχ₁ : ∀ t, |χ t| ≤ 1) (a z : ℂ) :
+    |2 * χ (normSq a) * (a⁻¹ * z).im| ≤ 2 / √c * ‖z‖ := by
+  rcases lt_or_ge (normSq a) c with hlt | hge
+  · rw [hχc _ (normSq_nonneg _) hlt]
+    simp only [mul_zero, zero_mul, abs_zero]
+    positivity
+  · have ha : √c ≤ ‖a‖ := by
+      rw [← Real.sqrt_sq (norm_nonneg a), ← normSq_eq_norm_sq]
+      exact Real.sqrt_le_sqrt hge
+    have hsc : 0 < √c := Real.sqrt_pos.2 hc
+    calc |2 * χ (normSq a) * (a⁻¹ * z).im|
+        ≤ 2 * 1 * (‖a‖⁻¹ * ‖z‖) := by
+          rw [abs_mul, abs_mul, abs_two]
+          gcongr
+          · exact hχ₁ _
+          · exact (abs_im_le_norm _).trans (by rw [norm_mul, norm_inv])
+      _ ≤ 2 / √c * ‖z‖ := by
+          have hinv := inv_anti₀ hsc ha
+          rw [mul_one, div_eq_mul_inv]
+          nlinarith [norm_nonneg z]
+
+/-- **Pointwise modulus-potential bound for a varying endomorphism field.** If `χ` vanishes on
+`[0, c)` (`c > 0`) with `|χ| ≤ 1`, `H` has derivative `χ(s) / s` at `s = |α x|²`, and `α` is
+differentiable at `x`, then `χ(|α|²) τ` differs from `d^c_J H(|α|²)` by at most
+`(2 / √c) ‖∂bar_{J, a} α (x)‖`. -/
+theorem norm_cutoffPhaseForm_sub_twistedDifferentialForm_le {J : E → E →L[ℝ] E} {H : ℝ → ℝ}
+    {c : ℝ} (hc : 0 < c) (hχc : ∀ t, 0 ≤ t → t < c → χ t = 0) (hχ₁ : ∀ t, |χ t| ≤ 1)
+    (hH : HasDerivAt H (χ (normSq (α x)) / normSq (α x)) (normSq (α x)))
+    (hα : DifferentiableAt ℝ α x) :
+    ‖cutoffPhaseForm χ b α x - twistedDifferentialForm J (fun y ↦ H (normSq (α y))) x‖ ≤
+      2 / √c * ‖covariantDBarField J b α x‖ := by
+  refine (cutoffPhaseForm χ b α x -
+      twistedDifferentialForm J (fun y ↦ H (normSq (α y))) x).opNorm_le_bound (by positivity)
+    fun v ↦ ?_
+  rw [Fin.prod_univ_one,
+    cutoffPhaseForm_sub_twistedDifferentialForm_apply hH (hχc 0 le_rfl hc) hα, Real.norm_eq_abs]
+  exact (abs_two_mul_im_inv_mul_le hc hχc hχ₁ (α x) _).trans
+    (by rw [mul_assoc]; gcongr; exact (covariantDBarField J b α x).le_opNorm (v 0))
+
+end VaryingAlmostComplex
+
 /-! ### The modulus-potential decomposition of the cutoff phase form -/
 
 section AlmostComplex
@@ -574,6 +723,13 @@ def covariantDBar (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ) (x : E
 theorem covariantDBar_apply (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ) (x v : E) :
     covariantDBar J b α x v = (covariantDeriv b α x v + I * covariantDeriv b α x (J v)) / 2 := by
   simp [covariantDBar, div_eq_inv_mul, mul_add]
+
+/-- A constant `AlmostComplexStructure` gives a special case of `covariantDBarField`. -/
+theorem covariantDBar_eq_covariantDBarField (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ) (x : E) :
+    covariantDBar J b α x =
+      covariantDBarField (fun _ ↦ LinearMap.toContinuousLinearMap J.toLinearMap) b α x := by
+  ext v
+  simp
 
 /-- `∂bar_a α` is the complex-antilinear part `TauCeti.complexAntilinearPart` of `∇_a α`, for the
 structure `J` on `E` and multiplication by `I` on `ℂ`. -/
@@ -694,29 +850,10 @@ theorem cutoffPhaseForm_eq_twistedDifferential_add {H : ℝ → ℝ}
     (hα : DifferentiableAt ℝ α x) :
     cutoffPhaseForm χ b α x =
       J.twistedDifferential (fun y ↦ H (normSq (α y))) x + cutoffDBarForm J χ b α x := by
-  -- The derivative of `|α|²` is `2 Re (conj α dα)`.
-  have hd : HasFDerivAt (fun y ↦ normSq (α y))
-      (2 • (innerSL ℝ (α x)).comp (fderiv ℝ α x)) x := by
-    simp_rw [normSq_eq_norm_sq]
-    exact hα.hasFDerivAt.norm_sq
-  have hc := J.twistedDifferential_comp hH hd.differentiableAt
-  rw [Function.comp_def] at hc
-  rw [hc]
+  rw [← sub_eq_iff_eq_add', J.twistedDifferential_eq_twistedDifferentialForm]
   ext v
-  obtain ⟨w, rfl⟩ : ∃ w, v = fun _ ↦ w := ⟨v 0, funext fun i ↦ by fin_cases i; rfl⟩
-  simp only [ContinuousAlternatingMap.add_apply, J.twistedDifferential_apply, cutoffDBarForm_apply,
-    hd.fderiv, covariantDBar_apply, J.apply_apply, map_neg, cutoffPhaseForm_apply,
-    ContinuousAlternatingMap.smul_apply, covariantPhaseForm_apply, phaseForm_apply,
-    _root_.smul_apply, ContinuousLinearMap.comp_apply, innerSL_apply_apply, Complex.inner,
-    covariantDeriv_apply, smul_eq_mul, nsmul_eq_mul, Nat.cast_ofNat]
-  by_cases h : α x = 0
-  · simp [h, hχ]
-  · have hn := (normSq_pos.2 h).ne'
-    simp only [mul_re, mul_im, add_re, add_im, neg_re, neg_im, conj_re, conj_im, ofReal_re,
-      ofReal_im, I_re, I_im, div_ofNat_re, div_ofNat_im, inv_re, inv_im]
-    field_simp
-    rw [normSq_apply]
-    ring
+  rw [cutoffPhaseForm_sub_twistedDifferentialForm_apply hH hχ hα, cutoffDBarForm_apply_eq_im,
+    covariantDBar_eq_covariantDBarField]
 
 /-- **The phase form of a holomorphic section.** At a point where `α` does not vanish and
 `∂bar_a α = 0`, the phase form `τ = Im (α⁻¹ dα) + b` is the twisted differential of `log |α|²`:
@@ -779,32 +916,10 @@ theorem covariantDBar_sub_eq_zero_of_dense {h α' : E → ℂ} {b' : E → E [�
 theorem norm_cutoffDBarForm_le {c : ℝ} (hc : 0 < c) (hχc : ∀ t, 0 ≤ t → t < c → χ t = 0)
     (hχ₁ : ∀ t, |χ t| ≤ 1) (b : E → E [⋀^Fin 1]→L[ℝ] ℝ) (α : E → ℂ) (x : E) :
     ‖cutoffDBarForm J χ b α x‖ ≤ 2 / √c * ‖covariantDBar J b α x‖ := by
-  have hB : 0 ≤ 2 / √c * ‖covariantDBar J b α x‖ := by positivity
-  refine (cutoffDBarForm J χ b α x).opNorm_le_bound hB fun v ↦ ?_
+  refine (cutoffDBarForm J χ b α x).opNorm_le_bound (by positivity) fun v ↦ ?_
   rw [Fin.prod_univ_one, cutoffDBarForm_apply_eq_im, Real.norm_eq_abs]
-  rcases lt_or_ge (normSq (α x)) c with hlt | hge
-  · rw [hχc _ (normSq_nonneg _) hlt]
-    simp only [mul_zero, zero_mul, abs_zero]
-    positivity
-  · have hα : √c ≤ ‖α x‖ := by
-      rw [← Real.sqrt_sq (norm_nonneg (α x)), ← normSq_eq_norm_sq]
-      exact Real.sqrt_le_sqrt hge
-    have hsc : 0 < √c := Real.sqrt_pos.2 hc
-    have hα₀ : 0 < ‖α x‖ := hsc.trans_le hα
-    calc |2 * χ (normSq (α x)) * ((α x)⁻¹ * covariantDBar J b α x (v 0)).im|
-        ≤ 2 * 1 * (‖α x‖⁻¹ * (‖covariantDBar J b α x‖ * ‖v 0‖)) := by
-          rw [abs_mul, abs_mul, abs_two]
-          gcongr
-          · exact hχ₁ _
-          · refine (abs_im_le_norm _).trans ?_
-            rw [norm_mul, norm_inv]
-            gcongr
-            exact (covariantDBar J b α x).le_opNorm (v 0)
-      _ ≤ 2 / √c * ‖covariantDBar J b α x‖ * ‖v 0‖ := by
-          have hinv := inv_anti₀ hsc hα
-          have hD := mul_nonneg (norm_nonneg (covariantDBar J b α x)) (norm_nonneg (v 0))
-          rw [mul_one, div_eq_mul_inv]
-          nlinarith
+  exact (abs_two_mul_im_inv_mul_le hc hχc hχ₁ (α x) _).trans
+    (by rw [mul_assoc]; gcongr; exact (covariantDBar J b α x).le_opNorm (v 0))
 
 /-! ### The cutoff current on complex lines -/
 

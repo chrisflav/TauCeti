@@ -54,9 +54,13 @@ tubular map defined on a disk bundle. This file proves:
   converge to those of `J_N` uniformly on every compact set `K` with `(z, 0) ∈ Ω` for
   `(z, W) ∈ K`, as `a → 0`, `a ≠ 0`
   (`TauCeti.tendstoUniformlyOn_iteratedFDeriv_normalDilation_of_isOpen`;
-  `TauCeti.tendstoUniformlyOn_normalDilation_of_isOpen` for the fields themselves when `J` is
-  `C¹`, and `TauCeti.tendstoUniformlyOn_iteratedFDeriv_normalDilation`,
-  `TauCeti.tendstoUniformlyOn_normalDilation` for globally defined fields). The proof writes
+  `TauCeti.tendstoUniformlyOn_normalDilation_of_isOpen` and
+  `TauCeti.tendstoUniformlyOn_fderiv_normalDilation_of_isOpen` for the fields and their first
+  derivatives, `TauCeti.exists_eventually_norm_normalDilation_le_of_isOpen` for the resulting
+  uniform `C¹` bounds on `K` for small `a ≠ 0`, and
+  `TauCeti.tendstoUniformlyOn_iteratedFDeriv_normalDilation`,
+  `TauCeti.tendstoUniformlyOn_normalDilation`, `TauCeti.tendstoUniformlyOn_fderiv_normalDilation`
+  for globally defined fields). The proof writes
   `δ_a^* J` through Hadamard's lemma as a field depending smoothly on `(a, z, W)` jointly,
   including `a = 0`, where its value is `J_N`. These statements take `N` complete, so that the
   average in Hadamard's lemma is a Bochner integral;
@@ -187,6 +191,18 @@ theorem normalDilation_apply_normalDilation_apply {J : E × N → E × N →L[�
   simp only [normalDilation_apply, hw, hJ, Prod.fst_neg, Prod.snd_neg, smul_neg,
     inv_smul_smul₀ ha]
   rfl
+
+/-- For `a ≠ 0`, the partial dilation `S_a(v, n) = (v, a • n)` intertwines `(δ_a^* J)(p)` with
+`J(p.1, a • p.2)`: `S_a ∘ (δ_a^* J)(p) = J(p.1, a • p.2) ∘ S_a`. -/
+theorem prodMap_comp_normalDilation (J : E × N → E × N →L[ℝ] E × N) {a : ℝ} (ha : a ≠ 0)
+    (p : E × N) :
+    ((ContinuousLinearMap.id ℝ E).prodMap (a • ContinuousLinearMap.id ℝ N)).comp
+        (normalDilation J a p) =
+      (J (p.1, a • p.2)).comp
+        ((ContinuousLinearMap.id ℝ E).prodMap (a • ContinuousLinearMap.id ℝ N)) := by
+  refine ContinuousLinearMap.ext fun v ↦ Prod.ext ?_ ?_
+  · simp [normalDilation_apply, Prod.map]
+  · simp [normalDilation_apply, Prod.map, inv_smul_smul₀ ha]
 
 /-- **The normal linearization is invariant under nonzero normal dilations**: its block `E → N`
 is linear in the normal coordinate and its other blocks do not depend on it. -/
@@ -560,5 +576,92 @@ theorem tendstoUniformlyOn_normalDilation (hJ : ContDiff ℝ 1 J)
     TendstoUniformlyOn (normalDilation J) (normalLinearization J) (𝓝[≠] 0) K :=
   tendstoUniformlyOn_normalDilation_of_isOpen isOpen_univ hJ.contDiffOn (fun z _ ↦ hJ₀ z) hK
     fun _ _ ↦ mem_univ _
+
+/-- **First derivatives of the normal dilations converge uniformly on compact sets.** If `J` is
+`C²` on an open set `Ω` and the zero section is `J`-holomorphic where it meets `Ω`, then
+`fderiv ℝ (δ_a^* J) → fderiv ℝ J_N` uniformly on every compact set `K` with `(z, 0) ∈ Ω` for
+`(z, W) ∈ K`, as `a → 0`, `a ≠ 0`. -/
+theorem tendstoUniformlyOn_fderiv_normalDilation_of_isOpen {Ω K : Set (E × N)} (hΩ : IsOpen Ω)
+    (hJ : ContDiffOn ℝ 2 J Ω) (hJ₀ : ∀ z, (z, 0) ∈ Ω → ∀ v, (J (z, 0) (v, 0)).2 = 0)
+    (hK : IsCompact K) (hKΩ : ∀ p ∈ K, (p.1, 0) ∈ Ω) :
+    TendstoUniformlyOn (fun a ↦ fderiv ℝ (normalDilation J a))
+      (fderiv ℝ (normalLinearization J)) (𝓝[≠] 0) K := by
+  have h := (continuousMultilinearCurryFin1 ℝ (E × N) (E × N →L[ℝ] E × N)).isometry
+    |>.uniformContinuous.comp_tendstoUniformlyOn
+      (tendstoUniformlyOn_iteratedFDeriv_normalDilation_of_isOpen (i := 1) hΩ hJ hJ₀ (by norm_num)
+        hK hKΩ)
+  have hcurry (g : E × N → E × N →L[ℝ] E × N) (p : E × N) :
+      continuousMultilinearCurryFin1 ℝ (E × N) (E × N →L[ℝ] E × N)
+        (iteratedFDeriv ℝ 1 g p) = fderiv ℝ g p := by
+    refine ContinuousLinearMap.ext fun v ↦ ?_
+    simp
+  simpa only [Function.comp_def, hcurry] using h
+
+/-- **First derivatives of the normal dilations converge uniformly on compact sets.** If `J` is
+`C²` and the zero section `E × {0}` is `J`-holomorphic, then `fderiv ℝ (δ_a^* J) → fderiv ℝ J_N`
+uniformly on every compact set as `a → 0`, `a ≠ 0`. -/
+theorem tendstoUniformlyOn_fderiv_normalDilation (hJ : ContDiff ℝ 2 J)
+    (hJ₀ : ∀ z v, (J (z, 0) (v, 0)).2 = 0) {K : Set (E × N)} (hK : IsCompact K) :
+    TendstoUniformlyOn (fun a ↦ fderiv ℝ (normalDilation J a))
+      (fderiv ℝ (normalLinearization J)) (𝓝[≠] 0) K :=
+  tendstoUniformlyOn_fderiv_normalDilation_of_isOpen isOpen_univ hJ.contDiffOn (fun z _ ↦ hJ₀ z) hK
+    fun _ _ ↦ mem_univ _
+
+/-- **Uniform `C¹` bounds on the normal dilations on a compact set.** If `J` is `C²` on an open
+set `Ω`, the zero section is `J`-holomorphic where it meets `Ω`, and `K` is compact with
+`(p.1, 0) ∈ Ω` for every `p ∈ K`, then there exist scale-independent constants `M₀, M₁ ≥ 0` such
+that for all sufficiently small `a ≠ 0`, `(p.1, a • p.2) ∈ Ω`, `‖δ_a^* J (p)‖ ≤ M₀`, and
+`‖fderiv ℝ (δ_a^* J) p‖ ≤ M₁` for every `p ∈ K`. -/
+theorem exists_eventually_norm_normalDilation_le_of_isOpen {Ω K : Set (E × N)} (hΩ : IsOpen Ω)
+    (hJ : ContDiffOn ℝ 2 J Ω) (hJ₀ : ∀ z, (z, 0) ∈ Ω → ∀ v, (J (z, 0) (v, 0)).2 = 0)
+    (hK : IsCompact K) (hKΩ : ∀ p ∈ K, (p.1, 0) ∈ Ω) :
+    ∃ M₀ M₁, 0 ≤ M₀ ∧ 0 ≤ M₁ ∧ ∀ᶠ a in 𝓝[≠] 0,
+      (∀ p ∈ K, (p.1, a • p.2) ∈ Ω) ∧
+      (∀ p ∈ K, ‖normalDilation J a p‖ ≤ M₀) ∧
+      (∀ p ∈ K, ‖fderiv ℝ (normalDilation J a) p‖ ≤ M₁) := by
+  have hΩ₀ : IsOpen {p : E × N | (p.1, 0) ∈ Ω} :=
+    hΩ.preimage (continuous_fst.prodMk continuous_const)
+  have hNL : ContDiffOn ℝ 1 (normalLinearization J) {p | (p.1, 0) ∈ Ω} :=
+    contDiffOn_normalLinearization hΩ hJ (by norm_num)
+  obtain ⟨C₀, hC₀⟩ := hK.exists_bound_of_continuousOn (hNL.continuousOn.mono hKΩ)
+  obtain ⟨C₁, hC₁⟩ := hK.exists_bound_of_continuousOn
+    ((hNL.fderiv_of_isOpen hΩ₀ (m := 0) (by norm_num)).continuousOn.mono hKΩ)
+  have hmem : ∀ᶠ a : ℝ in 𝓝[≠] 0, ∀ p ∈ K, (p.1, a • p.2) ∈ Ω :=
+    nhdsWithin_le_nhds <|
+      hK.eventually_forall_of_forall_eventually (P := fun (a : ℝ) (p : E × N) ↦ (p.1, a • p.2) ∈ Ω)
+        fun p hp ↦ (by fun_prop : Continuous fun z : ℝ × (E × N) ↦
+          ((z.2.1, z.1 • z.2.2) : E × N)).continuousAt (x := ((0 : ℝ), p)) |>.preimage_mem_nhds
+            (hΩ.mem_nhds (by simpa using hKΩ p hp))
+  have hu₀ := Metric.tendstoUniformlyOn_iff.1
+    (tendstoUniformlyOn_normalDilation_of_isOpen hΩ (hJ.of_le one_le_two) hJ₀ hK hKΩ) 1 one_pos
+  have hu₁ := Metric.tendstoUniformlyOn_iff.1
+    (tendstoUniformlyOn_iteratedFDeriv_normalDilation_of_isOpen (i := 1) hΩ hJ hJ₀ (by norm_num)
+      hK hKΩ) 1 one_pos
+  refine ⟨max C₀ 0 + 1, max C₁ 0 + 1, by positivity, by positivity, ?_⟩
+  filter_upwards [hmem, hu₀, hu₁] with a ha₀ ha₁ ha₂
+  refine ⟨ha₀, fun p hp ↦ ?_, fun p hp ↦ ?_⟩
+  · have hd : ‖normalDilation J a p - normalLinearization J p‖ ≤ 1 := by
+      rw [← dist_eq_norm_sub']
+      exact (ha₁ p hp).le
+    calc ‖normalDilation J a p‖
+        ≤ ‖normalLinearization J p‖ + ‖normalDilation J a p - normalLinearization J p‖ :=
+          norm_le_insert' _ _
+      _ ≤ max C₀ 0 + 1 := add_le_add ((hC₀ p hp).trans (le_max_left _ _)) hd
+  · have hd :
+        ‖iteratedFDeriv ℝ 1 (normalDilation J a) p -
+          iteratedFDeriv ℝ 1 (normalLinearization J) p‖ ≤ 1 := by
+      rw [← dist_eq_norm_sub']
+      exact (ha₂ p hp).le
+    rw [← norm_iteratedFDeriv_one]
+    calc ‖iteratedFDeriv ℝ 1 (normalDilation J a) p‖
+        ≤ ‖iteratedFDeriv ℝ 1 (normalLinearization J) p‖ +
+            ‖iteratedFDeriv ℝ 1 (normalDilation J a) p -
+              iteratedFDeriv ℝ 1 (normalLinearization J) p‖ :=
+          norm_le_insert' _ _
+      _ = ‖fderiv ℝ (normalLinearization J) p‖ +
+            ‖iteratedFDeriv ℝ 1 (normalDilation J a) p -
+              iteratedFDeriv ℝ 1 (normalLinearization J) p‖ := by
+          rw [norm_iteratedFDeriv_one]
+      _ ≤ max C₁ 0 + 1 := add_le_add ((hC₁ p hp).trans (le_max_left _ _)) hd
 
 end TauCeti

@@ -19,7 +19,8 @@ determinant of its values at `1` and `I` in the basis `(1,I)`.
 The real determinant of a complex-linear endomorphism of a complex module is the squared modulus
 of its complex determinant (`LinearMap.det_restrictScalars_eq_normSq`). In particular it is
 nonnegative, and positive for complex-linear automorphisms; this is why complex-linear maps
-preserve real orientations.
+preserve real orientations. As a consequence, every real-linear endomorphism squaring to `-id`
+has determinant `1` (`LinearMap.det_eq_one_of_comp_self_eq_neg_id`).
 -/
 
 public section
@@ -51,6 +52,25 @@ theorem det_restrictScalars_pos {f : E →ₗ[ℂ] E} (hf : f.det ≠ 0) :
     0 < (f.restrictScalars ℝ).det := by
   rw [det_restrictScalars_eq_normSq]
   exact Complex.normSq_pos.mpr hf
+
+/-- A real-linear endomorphism squaring to `-id` has determinant `1`. Extending scalars via
+`Complex.liftAux` realizes it as multiplication by `I` on a complex vector space, whose real
+determinant is `|I ^ n|² = 1`. -/
+theorem det_eq_one_of_comp_self_eq_neg_id {V : Type*} [AddCommGroup V] [Module ℝ V]
+    {L : V →ₗ[ℝ] V} (hL : L ∘ₗ L = -LinearMap.id) : L.det = 1 := by
+  let _ : Module ℂ V :=
+    Module.compHom V (Complex.liftAux L (by
+      simpa only [Module.End.mul_eq_comp, Module.End.one_eq_id] using hL)).toRingHom
+  have : IsScalarTower ℝ ℂ V := .of_algebraMap_smul fun r v ↦ by
+    rw [MulAction.compHom_smul_def, Module.End.smul_def]
+    simp
+  have hLI : ((Complex.I • (LinearMap.id : V →ₗ[ℂ] V)).restrictScalars ℝ) = L := by
+    ext v
+    simp [MulAction.compHom_smul_def, Module.End.smul_def]
+  rw [← hLI, det_restrictScalars_eq_normSq]
+  by_cases h : Module.Finite ℂ V
+  · rw [LinearMap.det_smul, LinearMap.det_id, mul_one, map_pow, Complex.normSq_I, one_pow]
+  · rw [LinearMap.det_eq_one_of_not_module_finite h, map_one]
 
 end LinearMap
 

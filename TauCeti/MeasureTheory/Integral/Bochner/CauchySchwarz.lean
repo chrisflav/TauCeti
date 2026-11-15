@@ -19,7 +19,10 @@ For square-integrable real functions `f` and `g`,
 (`TauCeti.sq_integral_mul_le_integral_sq_mul_integral_sq`). Mathlib states Hölder's inequality
 for real integrals with real exponents and roots
 (`MeasureTheory.integral_mul_le_Lp_mul_Lq_of_nonneg`); this is the squared form for `p = q = 2`,
-without roots or sign conditions, as it is used in energy estimates.
+without roots or sign conditions, as it is used in energy estimates. Specializing one factor to
+`1` on a set `s` of finite measure gives `(∫_s f)² ≤ μ(s) ∫_s f²` and `|∫_s f| ≤ √μ(s) √(∫_s f²)`
+(`TauCeti.sq_setIntegral_le_measureReal_mul_setIntegral_sq`,
+`TauCeti.abs_setIntegral_le_sqrt_measureReal_mul_sqrt_setIntegral_sq`).
 -/
 
 public section
@@ -49,5 +52,24 @@ theorem sq_integral_mul_le_integral_sq_mul_integral_sq {α : Type*} [MeasurableS
         pow_le_pow_left₀ (integral_nonneg fun x ↦ by positivity) h 2
     _ = (∫ x, f x ^ 2 ∂μ) * ∫ x, g x ^ 2 ∂μ := by
         rw [mul_pow, Real.sq_sqrt hF, Real.sq_sqrt hG]
+
+/-- On a set `s` of finite measure, `(∫_s f)² ≤ μ(s) ∫_s f²` for every square-integrable real
+function `f` on `s`. -/
+theorem sq_setIntegral_le_measureReal_mul_setIntegral_sq {α : Type*} [MeasurableSpace α]
+    {μ : Measure α} {s : Set α} {f : α → ℝ} (hs : μ s ≠ ⊤) (hf : MemLp f 2 (μ.restrict s)) :
+    (∫ x in s, f x ∂μ) ^ 2 ≤ μ.real s * ∫ x in s, f x ^ 2 ∂μ := by
+  have : IsFiniteMeasure (μ.restrict s) := isFiniteMeasure_restrict.2 hs
+  have h := sq_integral_mul_le_integral_sq_mul_integral_sq (memLp_const (1 : ℝ)) hf
+  simpa only [one_mul, one_pow, integral_const, measureReal_restrict_apply_univ, smul_eq_mul,
+    mul_one] using h
+
+/-- On a set `s` of finite measure, `|∫_s f| ≤ √μ(s) √(∫_s f²)` for every square-integrable real
+function `f` on `s`. -/
+theorem abs_setIntegral_le_sqrt_measureReal_mul_sqrt_setIntegral_sq {α : Type*}
+    [MeasurableSpace α] {μ : Measure α} {s : Set α} {f : α → ℝ} (hs : μ s ≠ ⊤)
+    (hf : MemLp f 2 (μ.restrict s)) :
+    |∫ x in s, f x ∂μ| ≤ √(μ.real s) * √(∫ x in s, f x ^ 2 ∂μ) := by
+  rw [← Real.sqrt_sq_eq_abs, ← Real.sqrt_mul measureReal_nonneg]
+  exact Real.sqrt_le_sqrt (sq_setIntegral_le_measureReal_mul_setIntegral_sq hs hf)
 
 end TauCeti
