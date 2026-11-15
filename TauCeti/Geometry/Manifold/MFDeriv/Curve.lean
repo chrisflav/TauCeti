@@ -12,6 +12,7 @@ public import Mathlib.Geometry.Manifold.IntegralCurve.Basic
 public import Mathlib.Geometry.Manifold.VectorBundle.Basic
 import Mathlib.Analysis.Calculus.ContDiff.Deriv
 import Mathlib.Analysis.Calculus.Deriv.Add
+import Mathlib.Analysis.Calculus.Deriv.Inv
 import Mathlib.Analysis.Calculus.Deriv.Mul
 
 import Mathlib.Geometry.Manifold.MFDeriv.Tangent
@@ -43,8 +44,10 @@ curve need not carry a `HasMFDerivWithinAt` witness for it.
 * `TauCeti.Manifold.hasDerivWithinAt_comp_curve`: the chain rule
   `(g ∘ γ)' (t) = d g (γ t) (γ' t)` for a function `g` from the manifold to a normed space,
   with `TauCeti.Manifold.hasDerivAt_comp_curve` its unrestricted case.
-* `TauCeti.Manifold.exists_contMDiffAt_curveVelocity_eq`: every tangent vector on a
-  boundaryless manifold is realized by a curve of the given regularity at the given parameter.
+* `TauCeti.Manifold.exists_contMDiffAt_curveVelocity_eq` and
+  `TauCeti.Manifold.exists_contMDiff_curveVelocity_eq`: every tangent vector on a boundaryless
+  manifold is realized by a curve of the given regularity (locally over any normed field, and
+  globally on `ℝ`) at the given parameter.
 * `TauCeti.Manifold.curveVelocityWithin` and `TauCeti.Manifold.curveVelocity`: the velocity of a
   curve within a parameter set and its unrestricted case, computed by
   `TauCeti.Manifold.curveVelocityWithin_apply` and `TauCeti.Manifold.curveVelocity_apply` and
@@ -1029,6 +1032,66 @@ namespace TauCeti.Manifold
 variable {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
   {H : Type*} [TopologicalSpace H] {I : ModelWithCorners ℝ E H}
   {M : Type*} [TopologicalSpace M] [ChartedSpace H M]
+
+/-- Every tangent vector to a boundaryless real manifold is the velocity at a prescribed time of a
+globally `C^n` curve `ℝ → M`. No completeness or metric is required. -/
+theorem exists_contMDiff_curveVelocity_eq {n : ℕ∞ω} [IsManifold I n M] [I.Boundaryless]
+    (hn : 1 ≤ n) (p : M) (v : TangentSpace I p) (t : ℝ) :
+    ∃ γ : ℝ → M, γ t = p ∧ ContMDiff 𝓘(ℝ, ℝ) I n γ ∧ curveVelocity I γ t = v := by
+  have : IsManifold I 1 M := IsManifold.of_le hn
+  let c := extChartAt I p
+  obtain ⟨ε, hε, hball⟩ := Metric.mem_nhds_iff.1 (extChartAt_target_mem_nhds (I := I) p)
+  -- Use the model-space instances for the bounded rational curve in the chart, rather than the
+  -- fibre instances.
+  let v' : E := v
+  let a : ℝ := (‖v'‖ + 1) / ε
+  have ha : 0 < a := by positivity
+  let q : ℝ → ℝ := fun r ↦ a * (r - t)
+  let ψ : ℝ → ℝ := fun r ↦ (r - t) / (1 + q r * q r)
+  have hden (r : ℝ) : 0 < 1 + q r * q r := add_pos_of_pos_of_nonneg zero_lt_one (mul_self_nonneg _)
+  have hq : ContDiff ℝ n q := contDiff_const.mul (contDiff_id.sub contDiff_const)
+  have hψ : ContDiff ℝ n ψ :=
+    (contDiff_id.sub contDiff_const).div (contDiff_const.add (hq.mul hq)) fun r ↦ (hden r).ne'
+  let l : ℝ → E := fun r ↦ c p + ψ r • v'
+  have hl : ContDiff ℝ n l := contDiff_const.add (hψ.smul contDiff_const)
+  have hl_mem (r : ℝ) : l r ∈ c.target := by
+    apply hball
+    rw [Metric.mem_ball, dist_eq_norm, add_sub_cancel_left, norm_smul, Real.norm_eq_abs]
+    have hlt_one : a * |ψ r| < 1 := by
+      have hsq : |q r| < 1 + q r * q r := by
+        nlinarith [sq_nonneg (|q r| - 1 / 2), abs_nonneg (q r), abs_mul_abs_self (q r)]
+      have hψ_abs : a * |ψ r| = |q r| / (1 + q r * q r) := by
+        dsimp only [ψ]
+        rw [abs_div, abs_of_pos (hden r), ← mul_div_assoc]
+        congr 1
+        rw [← abs_of_pos ha, ← abs_mul]
+      rwa [hψ_abs, div_lt_one (hden r)]
+    have hmul : |ψ r| * (‖v'‖ + 1) < ε := by
+      have h1 := mul_lt_mul_of_pos_right hlt_one hε
+      have h2 : a * |ψ r| * ε = |ψ r| * (‖v'‖ + 1) := by dsimp only [a]; field_simp
+      rwa [h2, one_mul] at h1
+    exact lt_of_le_of_lt (mul_le_mul_of_nonneg_left (le_add_of_nonneg_right zero_le_one)
+      (abs_nonneg _)) hmul
+  have hγ : ContMDiff 𝓘(ℝ, ℝ) I n (c.symm ∘ l) :=
+    contMDiffOn_univ.1
+      ((contMDiffOn_extChartAt_symm p).comp hl.contMDiff.contMDiffOn fun r _ ↦ hl_mem r)
+  have hlt : l t = c p := by simp [l, ψ]
+  have hγt : (c.symm ∘ l) t = p := by simp [Function.comp_apply, hlt, c]
+  refine ⟨c.symm ∘ l, hγt, hγ, ?_⟩
+  have heq : c ∘ (c.symm ∘ l) = l := funext fun r ↦ c.right_inv (hl_mem r)
+  have hq_deriv : HasDerivAt q a t := by
+    simpa only [q, id_eq, mul_one] using! ((hasDerivAt_id t).sub_const t).const_mul a
+  have hψ_deriv : HasDerivAt ψ 1 t := by
+    have hd := ((hasDerivAt_id t).sub_const t).div
+      ((hasDerivAt_const t (1 : ℝ)).add (hq_deriv.mul hq_deriv)) (hden t).ne'
+    simpa [ψ, q] using! hd
+  have hderiv : HasDerivAt l v' t := by
+    simpa only [l, Pi.add_apply, zero_add, one_smul] using
+      (hasDerivAt_const t (c p)).fun_add (hψ_deriv.smul_const v')
+  have hchart := hasDerivAt_extChartAt_comp_curve
+    (hasMFDerivAt_curveVelocity ((hγ t).mdifferentiableAt (by positivity)))
+  rw [hγt, heq] at hchart
+  exact hchart.unique hderiv
 
 /-- **Integral curves through their velocity.** A curve is an integral curve of `v` exactly when
 it is differentiable at every time `t` with velocity `v (γ t)`. -/
