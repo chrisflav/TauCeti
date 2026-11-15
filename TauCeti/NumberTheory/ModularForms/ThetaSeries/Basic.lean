@@ -51,8 +51,9 @@ the series `θ_{γ+y+M}` over those classes, and in particular `Θ_L` as the sum
 
 * `Complex.norm_exp_pi_mul_I_mul_ofReal_mul`: `‖exp (π i t z)‖ = exp (-π t im z)` for real `t`,
   so the term of index `v` has norm `exp (-π ‖γ + v‖² im τ)`.
-* `ZLattice.thetaCoset_eq_of_sub_mem`, `ZLattice.thetaCoset_neg`: `θ_{γ+L}` depends only on
-  `γ` modulo `L`, and `θ_{-γ+L} = θ_{γ+L}`.
+* `ZLattice.thetaCoset_eq_of_sub_mem`, `ZLattice.thetaCoset_neg`, `ZLattice.thetaCoset_bot`,
+  `ZLattice.thetaSeries_bot`: `θ_{γ+L}` depends only on `γ` modulo `L`, `θ_{-γ+L} = θ_{γ+L}`, and
+  `Θ_⊥ = 1`.
 * `ZLattice.summable_norm_thetaCoset`, `ZLattice.summable_thetaCoset`: the series converge
   absolutely at every `τ : ℍ`.
 * `ZLattice.hasSum_thetaCoset_add_out`, `ZLattice.hasSum_thetaCoset_out`: for `M ≤ L`, `θ_{γ+L}`
@@ -168,6 +169,22 @@ theorem thetaCoset_neg (γ : E) : thetaCoset L (-γ) = thetaCoset L γ := by
     ← (Equiv.neg L).tsum_eq fun v : L => cexp (π * I * (‖-γ + (v : E)‖ ^ 2 : ℝ) * τ)]
   refine tsum_congr fun v => ?_
   rw [Equiv.neg_apply, Submodule.coe_neg, ← neg_add, norm_neg]
+
+/-- The theta series of the translate `γ + ⊥` of the zero submodule has the single term of `0`:
+`θ_{γ+⊥}(τ) = exp (π i ‖γ‖² τ)`. -/
+@[simp]
+theorem thetaCoset_bot (γ : E) (τ : ℍ) :
+    thetaCoset (⊥ : Submodule ℤ E) γ τ = cexp (π * I * (‖γ‖ ^ 2 : ℝ) * τ) := by
+  rw [thetaCoset_apply, tsum_fintype, Fintype.sum_unique,
+    Subsingleton.elim (default : (⊥ : Submodule ℤ E)) 0]
+  simp
+
+/-- The theta series of the zero submodule `⊥` is the constant function `1`. -/
+@[simp]
+theorem thetaSeries_bot : thetaSeries (⊥ : Submodule ℤ E) = 1 := by
+  ext τ
+  rw [← thetaCoset_zero, thetaCoset_bot]
+  simp
 
 /-- The sum of the terms of `θ_{γ+L}` over the fiber of the quotient map `L → L / M` is the theta
 series of the translate of `M` by `γ` plus a representative of that class. -/

@@ -62,6 +62,8 @@ defined from it.
 * `ZLattice.dual_span_singleton`: the dual of `c ℤ ⊆ ℝ` (`c ≠ 0`) is `c⁻¹ ℤ`.
 * `ZLattice.inf_dual_span_singleton_eq_bot_of_irrational_sq`: when `c²` is irrational, `c ℤ ⊆ ℝ`
   meets its dual `c⁻¹ ℤ` only at `0`.
+* `ZLattice.discreteTopology_dual_of_span_eq_top`: if `L` spans a finite-dimensional real inner
+  product space over `ℝ`, then `dual L` is discrete.
 * `ZLattice.dual_dual`: the dual of the dual of a full lattice is the lattice itself.
 * `ZLattice.dual_comap`: the dual commutes with pulling back along a linear isometry equivalence.
 * `ZLattice.dual_comap_continuousLinearEquiv`: the dual of the pullback along a continuous linear
@@ -251,12 +253,28 @@ theorem dual_comap_continuousLinearEquiv [CompleteSpace E] [CompleteSpace F] (L 
 
 section FiniteDimensional
 
-variable [FiniteDimensional ℝ E] (L : Submodule ℤ E) [DiscreteTopology L] [IsZLattice ℝ L]
+variable [FiniteDimensional ℝ E]
 
-instance : DiscreteTopology (dual L) := by
-  obtain ⟨ι, _, _, b, rfl⟩ := exists_basis_span_eq ℝ L
-  rw [dual_span_basis]
-  infer_instance
+/-- If a `ℤ`-submodule `L` spans a finite-dimensional real inner product space over `ℝ`, then its
+dual `dual L` is discrete: `L` contains the `ℤ`-span of an `ℝ`-basis, whose dual is discrete and
+contains `dual L`. -/
+theorem discreteTopology_dual_of_span_eq_top {L : Submodule ℤ E} (h : span ℝ (L : Set E) = ⊤) :
+    DiscreteTopology (dual L) := by
+  classical
+  obtain ⟨s, hsL, hspan, hli⟩ := exists_linearIndependent ℝ (L : Set E)
+  have := hli.finite_of_isNoetherian
+  cases nonempty_fintype s
+  let b : Basis s ℝ E := Basis.mk hli (by rw [Subtype.range_val, hspan, h])
+  have hbL : span ℤ (Set.range b) ≤ L := by rwa [Basis.coe_mk, Subtype.range_val, span_le]
+  have hd : DiscreteTopology (dual (span ℤ (Set.range b))) := by
+    rw [dual_span_basis]
+    infer_instance
+  exact DiscreteTopology.of_subset hd (dual_anti hbL)
+
+variable (L : Submodule ℤ E) [DiscreteTopology L] [IsZLattice ℝ L]
+
+instance : DiscreteTopology (dual L) :=
+  discreteTopology_dual_of_span_eq_top IsZLattice.span_top
 
 instance : IsZLattice ℝ (dual L) where
   span_top := by
