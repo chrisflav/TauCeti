@@ -7,6 +7,7 @@ module
 
 public import TauCeti.Algebra.TemperleyLieb.MarkovTrace
 public import TauCeti.Algebra.TemperleyLieb.Star
+public import TauCeti.RingTheory.Ideal.Quotient.Star
 public import TauCeti.RingTheory.TraceFunctional.Star
 import Mathlib.Algebra.Star.LinearMap
 
@@ -19,9 +20,10 @@ this form by the loop parameter. This holds over any commutative star semiring, 
 or invertibility assumptions on the parameter.
 
 Together with `LinearMap.star_mem_traceRadical_iff` and `LinearMap.ker_traceSesqForm`, the adjoint
-identity shows that the trace radical is star-stable and is precisely the kernel of the Hermitian
-form. Positivity and the identification of that kernel with the zero-length vectors are separate
-questions.
+identity shows that the trace radical is star-stable (`IsMarkovTrace.isStar_traceRadical`) and is
+precisely the kernel of the Hermitian form, so its quotient inherits a star-algebra structure via
+`Ideal.Quotient.instStarRing`. Positivity and the identification of that kernel with the
+zero-length vectors are separate questions.
 
 ## References
 
@@ -84,11 +86,25 @@ end Semiring
 
 variable {R : Type*} [CommRing R] [StarRing R] {δ : R} [Fact (IsSelfAdjoint δ)]
 
+/-- At a self-adjoint loop parameter, the multiplication-pairing radical of every Markov trace is
+stable under the analytic adjoint. Install this with `have` when taking star quotients by an
+abstract Markov trace's radical. -/
+theorem IsMarkovTrace.isStar_traceRadical {tr : ∀ n : ℕ, TemperleyLieb R δ n →ₗ[R] R}
+    (htr : IsMarkovTrace R δ tr) (n : ℕ) :
+    ((tr n).traceRadical (htr.map_mul_comm n)).IsStar where
+  star_mem ha := ((tr n).star_mem_traceRadical_iff (htr.map_mul_comm n) (htr.map_star n)).mpr ha
+
 /-- The spin-model Markov trace preserves the analytic adjoint, even when its unit parameter
 is not self-adjoint: only the loop parameter must be self-adjoint. -/
 @[simp]
 theorem markovTrace_star (q : Rˣ) (h : δ = -((q : R) + ((q⁻¹ : Rˣ) : R))) {n : ℕ}
     (x : TemperleyLieb R δ n) : markovTrace q h (star x) = star (markovTrace q h x) :=
   (isMarkovTrace_markovTrace q h).map_star n x
+
+/-- At a self-adjoint loop parameter, the trace radical of the spin-model Markov trace is
+star-stable, giving its quotient a canonical `StarRing` instance. -/
+instance instIsStarTraceRadicalMarkovTrace (q : Rˣ) (h : δ = -((q : R) + ((q⁻¹ : Rˣ) : R)))
+    (n : ℕ) : ((markovTrace q h (n := n)).traceRadical (markovTrace_mul_comm q h)).IsStar :=
+  (isMarkovTrace_markovTrace q h).isStar_traceRadical n
 
 end TauCeti.TemperleyLieb
