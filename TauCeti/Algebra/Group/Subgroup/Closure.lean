@@ -42,6 +42,8 @@ most `|R| * |K|` elements.
   hence a finite one when `K` is finite.
 * `Subgroup.natCard_closure_le_ncard_mul`: the covering bound `|⟨S⟩| ≤ |R| * |K|` for a set `S`
   whose left multiplications map `R * K` into itself.
+* `Subgroup.coe_closure_eq_of_forall_mul_mem`: a finite set containing `1`, contained in
+  `closure S`, and closed under left multiplication by `S` is the carrier of `closure S`.
 -/
 
 public section
@@ -162,6 +164,20 @@ theorem natCard_closure_le_ncard_mul {G : Type*} [Group G] {S R : Set G} {K : Su
         Nat.card_le_card_of_injective f hf
     _ ≤ Nat.card R * Nat.card (K : Set G) := Set.natCard_mul_le
     _ = R.ncard * Nat.card K := by rw [Nat.card_coe_set_eq, SetLike.coe_sort_coe]
+
+/-- If `T` is a finite subset of a group `G` containing `1`, `T ⊆ closure S`, and left
+multiplication by every element of `S` maps `T` into itself, then `T` is the carrier of
+`closure S`. -/
+@[to_additive /-- If `T` is a finite subset of an additive group `G` containing `0`,
+`T ⊆ AddSubgroup.closure S`, and left addition by every element of `S` maps `T` into itself, then
+`T` is the carrier of `AddSubgroup.closure S`. -/]
+theorem coe_closure_eq_of_forall_mul_mem {G : Type*} [Group G] {S T : Set G} (hT : T.Finite)
+    (h1 : (1 : G) ∈ T) (hsub : T ⊆ closure S) (hmul : ∀ s ∈ S, ∀ t ∈ T, s * t ∈ T) :
+    (closure S : Set G) = T := by
+  refine Set.Subset.antisymm (fun g hg => ?_) hsub
+  have hle : closure S ≤ stabilizer G T :=
+    (closure_le _).2 fun s hs => (mem_stabilizer_set' hT).2 (hmul s hs)
+  simpa using (mem_stabilizer_set.1 (hle hg) 1).2 h1
 
 end Cover
 
