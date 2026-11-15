@@ -5,10 +5,11 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.Topology.Sets.Opens
 public import TauCeti.Topology.Algebra.Projectivization.ZeroLocus
 
 /-!
-# Base change and fibers of projective incidence families
+# Base change, fibers, and the open full-rank locus of projective incidence families
 
 A map into the coefficient space of homogeneous equations determines a family of projective
 zero loci, with the subspace topology from the product of the parameter space and projective
@@ -20,6 +21,13 @@ empty.
 fiber product, retaining both projections. `ComplexProjectiveFamily.fiberHomeomorph` identifies
 each actual fiber of the projection with the existing projective zero locus. These comparisons
 do not require smoothness or a choice of projective representatives.
+
+Complementing the closed bad-rank locus `TauCeti.complexProjectiveBadRankLocus`, the open subset
+`TauCeti.complexProjectiveFullRankParams N d` (bundled as `TopologicalSpace.Opens` in
+`TauCeti.complexProjectiveFullRankParamsOpens N d`) consists of the coefficient families whose cone
+Jacobian is surjective at every point of their projective zero locus. Coordinate linear subspaces
+of any codimension at most `N` and Fermat hypersurfaces of any positive degree provide explicit
+full-rank families.
 
 ## References
 
@@ -34,6 +42,12 @@ open scoped LinearAlgebra.Projectivization
 namespace TauCeti
 
 variable {N : ℕ} {ι A B D : Type*} {d : ι → ℕ}
+
+/-- In `ℂ⁰` there are no lines, so the universal incidence variety is empty. -/
+@[simp]
+theorem complexProjectiveIncidence_of_fin_zero (d : ι → ℕ) :
+    complexProjectiveIncidence 0 d = ∅ :=
+  Set.eq_empty_of_isEmpty _
 
 /-- The family of projective zero loci associated to a coefficient map `c`, with the subspace
 topology from the product of its parameter space and the native projective space. -/
@@ -50,6 +64,13 @@ theorem mem_complexProjectiveFamily
   rw [complexProjectiveFamily, Set.mem_preimage, mem_complexProjectiveIncidence]
   rfl
 
+/-- In `ℂ⁰` there are no lines, so every projective family is empty. -/
+@[simp]
+theorem complexProjectiveFamily_of_fin_zero
+    (c : B → ∀ i, homogeneousSubmodule (Fin 0) ℂ (d i)) :
+    complexProjectiveFamily c = ∅ :=
+  Set.eq_empty_of_isEmpty _
+
 /-- The family over the coefficient space itself is the original incidence variety. -/
 @[simp]
 theorem complexProjectiveFamily_id :
@@ -57,6 +78,133 @@ theorem complexProjectiveFamily_id :
       complexProjectiveIncidence N d := by
   ext x
   simp only [mem_complexProjectiveFamily, mem_complexProjectiveIncidence, id_eq]
+
+/-! ### The open full-rank parameter locus -/
+
+section FullRank
+
+variable (N) in
+/-- The **full-rank parameter locus** in the space of homogeneous polynomial families of degrees `d`
+in `N` variables: the families `c` whose cone Jacobian is surjective at every nonzero common zero
+(equivalently, at every point of `TauCeti.complexProjectiveZeroLocus`). -/
+def complexProjectiveFullRankParams (d : ι → ℕ) :
+    Set (∀ i, homogeneousSubmodule (Fin N) ℂ (d i)) :=
+  {c | ∀ v : Fin N → ℂ, v ≠ 0 → (∀ i, eval v (c i : MvPolynomial (Fin N) ℂ) = 0) →
+    (jacobiMatrixAt (fun i ↦ (c i : MvPolynomial (Fin N) ℂ)) v).mulVec.Surjective}
+
+@[simp]
+theorem mem_complexProjectiveFullRankParams
+    {c : ∀ i, homogeneousSubmodule (Fin N) ℂ (d i)} :
+    c ∈ complexProjectiveFullRankParams N d ↔
+      ∀ v : Fin N → ℂ, v ≠ 0 → (∀ i, eval v (c i : MvPolynomial (Fin N) ℂ) = 0) →
+        (jacobiMatrixAt (fun i ↦ (c i : MvPolynomial (Fin N) ℂ)) v).mulVec.Surjective :=
+  Iff.rfl
+
+/-- A coefficient family lies in `TauCeti.complexProjectiveFullRankParams` if and only if its cone
+Jacobian is surjective at a representative of every point of its projective zero locus. -/
+theorem mem_complexProjectiveFullRankParams_iff_forall_zeroLocus
+    {c : ∀ i, homogeneousSubmodule (Fin N) ℂ (d i)} :
+    c ∈ complexProjectiveFullRankParams N d ↔
+      ∀ L ∈ complexProjectiveZeroLocus (fun i ↦ (c i : MvPolynomial (Fin N) ℂ)),
+        (jacobiMatrixAt (fun i ↦ (c i : MvPolynomial (Fin N) ℂ)) L.rep).mulVec.Surjective := by
+  have hc : ∀ i, (c i : MvPolynomial (Fin N) ℂ).IsHomogeneous (d i) :=
+    fun i ↦ (mem_homogeneousSubmodule _ _).mp (c i).2
+  refine ⟨fun h L hL ↦ h L.rep L.rep_ne_zero
+    ((mem_complexProjectiveZeroLocus_iff_eval_rep hc L).mp hL), fun h v hv hz ↦ ?_⟩
+  let L := Projectivization.mk ℂ v hv
+  have hL : L ∈ complexProjectiveZeroLocus fun i ↦ (c i : MvPolynomial (Fin N) ℂ) :=
+    (complexProjectiveZeroLocus_mk_iff hc v hv).mpr hz
+  exact (mulVec_surjective_jacobiMatrixAt_iff_of_mk_eq_mk hc L.rep_ne_zero hv L.mk_rep).mp (h L hL)
+
+/-- The full-rank parameter locus is the complement of the projection of the bad-rank locus. -/
+theorem complexProjectiveFullRankParams_eq_compl_image_fst_badRankLocus (d : ι → ℕ) :
+    complexProjectiveFullRankParams N d =
+      (Prod.fst '' complexProjectiveBadRankLocus N d)ᶜ := by
+  ext c
+  rw [mem_complexProjectiveFullRankParams_iff_forall_zeroLocus, Set.mem_compl_iff, Set.mem_image]
+  constructor
+  · rintro h ⟨⟨c', L⟩, hbad, rfl⟩
+    obtain ⟨hL, hrank⟩ := mem_complexProjectiveBadRankLocus.mp hbad
+    exact hrank (h L (mem_complexProjectiveIncidence.mp hL))
+  · intro h L hL
+    by_contra hrank
+    exact h ⟨(c, L), mem_complexProjectiveBadRankLocus.mpr
+      ⟨mem_complexProjectiveIncidence.mpr hL, hrank⟩, rfl⟩
+
+/-- The full-rank parameter locus is open in the coefficient space. -/
+theorem isOpen_complexProjectiveFullRankParams (d : ι → ℕ) :
+    IsOpen (complexProjectiveFullRankParams N d) :=
+  isOpen_setOfPred_forall_mulVec_surjective_jacobiMatrixAt d
+
+variable (N) in
+/-- The full-rank parameter locus bundled as a `TopologicalSpace.Opens` of the coefficient space. -/
+def complexProjectiveFullRankParamsOpens (d : ι → ℕ) :
+    TopologicalSpace.Opens (∀ i, homogeneousSubmodule (Fin N) ℂ (d i)) :=
+  ⟨complexProjectiveFullRankParams N d, isOpen_complexProjectiveFullRankParams d⟩
+
+@[simp]
+theorem coe_complexProjectiveFullRankParamsOpens (d : ι → ℕ) :
+    (complexProjectiveFullRankParamsOpens N d : Set (∀ i, homogeneousSubmodule (Fin N) ℂ (d i))) =
+      complexProjectiveFullRankParams N d :=
+  (rfl)
+
+@[simp]
+theorem mem_complexProjectiveFullRankParamsOpens
+    {c : ∀ i, homogeneousSubmodule (Fin N) ℂ (d i)} :
+    c ∈ complexProjectiveFullRankParamsOpens N d ↔ c ∈ complexProjectiveFullRankParams N d :=
+  Iff.rfl
+
+/-- In `0` variables there are no nonzero vectors, so every coefficient family vacuously has full
+Jacobian rank. -/
+@[simp]
+theorem complexProjectiveFullRankParams_of_fin_zero (d : ι → ℕ) :
+    complexProjectiveFullRankParams 0 d = Set.univ :=
+  Set.eq_univ_of_forall fun _ v hv ↦ (hv (Subsingleton.elim v 0)).elim
+
+/-- With no equations (`[IsEmpty ι]`), every coefficient family has surjective cone Jacobian. -/
+@[simp]
+theorem complexProjectiveFullRankParams_of_isEmpty [IsEmpty ι] (d : ι → ℕ) :
+    complexProjectiveFullRankParams N d = Set.univ :=
+  Set.eq_univ_of_forall fun _ _ _ _ y ↦ ⟨0, Subsingleton.elim _ y⟩
+
+/-- **Coordinate complete intersections have full Jacobian rank.** Any family of distinct coordinate
+linear forms `X (e k)` along an injection `e : ι ↪ Fin N` lies in
+`TauCeti.complexProjectiveFullRankParams N (fun _ ↦ 1)`. -/
+theorem coordinateSubspace_mem_complexProjectiveFullRankParams (e : ι ↪ Fin N) :
+    (fun k ↦ ⟨X (e k), isHomogeneous_X ℂ (e k)⟩ :
+      ∀ _ : ι, homogeneousSubmodule (Fin N) ℂ 1) ∈
+        complexProjectiveFullRankParams N (fun _ ↦ 1) := by
+  classical
+  intro v _ _ y
+  refine ⟨Function.extend e y 0, funext fun k ↦ ?_⟩
+  rw [Matrix.mulVec, dotProduct, Finset.sum_eq_single (e k)]
+  · simp [jacobiMatrixAt_apply, pderiv_X, e.injective.extend_apply]
+  · intro j _ hj
+    simp [jacobiMatrixAt_apply, pderiv_X, hj.symm]
+  · simp
+
+/-- **Fermat hypersurfaces have full Jacobian rank.** For a single equation of positive degree `m`,
+the Fermat polynomial `∑ j, X j ^ m` has surjective cone Jacobian at every nonzero vector, hence
+lies in `TauCeti.complexProjectiveFullRankParams`. -/
+theorem sum_X_pow_mem_complexProjectiveFullRankParams [Unique ι] {d : ι → ℕ}
+    (hd : d default ≠ 0) :
+    (fun k ↦ ⟨∑ j : Fin N, (X j : MvPolynomial (Fin N) ℂ) ^ d k,
+      Submodule.sum_mem _ fun j _ ↦ by
+        rw [mem_homogeneousSubmodule]
+        simpa using (isHomogeneous_X ℂ j).pow (d k)⟩) ∈
+        complexProjectiveFullRankParams N d := by
+  intro v hv _
+  obtain ⟨j, hj⟩ := Function.ne_iff.mp hv
+  rw [mulVec_surjective_jacobiMatrixAt_iff_exists_eval_pderiv_ne_zero]
+  refine ⟨j, ?_⟩
+  rw [map_sum, map_sum, Finset.sum_eq_single j]
+  · rw [pderiv_pow, pderiv_X_self, mul_one, map_mul, map_natCast, map_pow, eval_X]
+    exact mul_ne_zero (Nat.cast_ne_zero.mpr hd) (pow_ne_zero _ hj)
+  · intro l _ hlj
+    rw [pderiv_pow, pderiv_X_of_ne hlj, mul_zero, map_zero]
+  · simp
+
+end FullRank
 
 namespace ComplexProjectiveFamily
 
