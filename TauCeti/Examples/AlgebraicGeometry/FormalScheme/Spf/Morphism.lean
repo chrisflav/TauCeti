@@ -90,6 +90,15 @@ example (φ : B →+* A) (hφ : Continuous φ) (ψ : C →+* B) (hψ : Continuou
 
 example : map (RingHom.id A) continuous_id = 𝟙 (Spf A) := map_id
 
+-- The full morphism correspondence `Spf.homEquiv` identifies `Spf A ⟶ Spf B` with continuous
+-- ring homomorphisms `B →+* A`, inverse to `sectionsRingHom`.
+example (f : Spf A ⟶ Spf B) :
+    map (sectionsRingHom f) (continuous_sectionsRingHom f) = f :=
+  map_sectionsRingHom f
+
+example : (Spf A ⟶ Spf B) ≃ { φ : B →+* A // Continuous φ } :=
+  homEquiv
+
 end Composition
 
 section Zero
@@ -111,10 +120,25 @@ private local instance : IsAdicRing ℤ_[p] :=
     by rw [PadicInt.maximalIdeal_eq_span_p]; exact Submodule.fg_span_singleton _,
     Huber.PadicInt.isAdic_maximalIdeal, inferInstance⟩
 
--- A continuous map from a nondiscrete adic ring also gives a local morphism.
+-- A continuous map from a nondiscrete adic ring also gives a local morphism, and `sectionsRingHom`
+-- recovers the quotient map on global sections.
 example (J : Ideal ℤ_[p]) :
-    Spf (ℤ_[p] ⧸ J) ⟶ Spf ℤ_[p] :=
-  map (Ideal.Quotient.mk J) (QuotientRing.isOpenQuotientMap_mk J).continuous
+    sectionsRingHom (map (Ideal.Quotient.mk J) (QuotientRing.isOpenQuotientMap_mk J).continuous) =
+      Ideal.Quotient.mk J :=
+  sectionsRingHom_map _ _
+
+-- Testing continuity of a homomorphism `ℤ_[p] →+* ℤ_[p]` via ideal powers (`homEquiv_pow`).
+example (θ : ℤ_[p] →+* ℤ_[p]) :
+    ((∃ f : Spf ℤ_[p] ⟶ Spf ℤ_[p], sectionsRingHom f = θ) ↔ Continuous θ) ∧
+      (Continuous θ ↔
+        Ideal.map θ (IsLocalRing.maximalIdeal ℤ_[p]) ≤
+          (IsLocalRing.maximalIdeal ℤ_[p]).radical) ∧
+      (Ideal.map θ (IsLocalRing.maximalIdeal ℤ_[p]) ≤
+        (IsLocalRing.maximalIdeal ℤ_[p]).radical ↔
+        ∃ k > 0, Ideal.map θ (IsLocalRing.maximalIdeal ℤ_[p] ^ k) ≤
+          IsLocalRing.maximalIdeal ℤ_[p]) :=
+  homEquiv_pow (Huber.PadicInt.isAdic_maximalIdeal (p := p))
+    (Huber.PadicInt.isAdic_maximalIdeal (p := p)) θ
 
 end Padic
 

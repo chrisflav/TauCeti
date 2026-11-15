@@ -48,11 +48,16 @@ generated one.
   local rings.
 * `TauCeti.FormalScheme.Spf.stalkResidueFieldEquiv_residue_germ`: the residue field
   isomorphism sends the residue class of `a ∈ A` to the image of `a` in `Frac(A ⧸ p)`.
+* `TauCeti.FormalScheme.Spf.Γevaluation_globalSectionsIso_inv_eq_zero_iff`: the global section
+  associated with `a ∈ A` vanishes in the residue field at `p` if and only if `a ∈ p`.
+* `TauCeti.FormalScheme.Spf.Γevaluation_c_app_top_eq_zero_iff`: along any morphism `f : X ⟶ Spf A`
+  of locally ringed spaces, the global section associated with `a ∈ A` pulls back to zero in the
+  residue field at `x` if and only if `a ∈ f x`.
 
 ## References
 
 * A. Grothendieck and J. Dieudonné, *Éléments de géométrie algébrique I*, Ch. 0, 7.6.17, and
-  Ch. I, §10.1 (10.1.2, 10.1.5, 10.1.6).
+  Ch. I, §10.1 (10.1.2, 10.1.5, 10.1.6), 10.2.2.
 * [Stacks Project, Tag 0AHY](https://stacks.math.columbia.edu/tag/0AHY).
 -/
 
@@ -228,6 +233,74 @@ theorem stalkResidueFieldEquiv_residue_germ {p : carrier A} (f : BasicNeighbourh
   -- `stalkResidueIso`, so the residue class of the germ is that of `a` in the colimit
   exact (congrArg (fun x ↦ stalkResidueIso p (IsLocalRing.residue _ x)) h).trans
     (stalkResidueIso_coeff p f a)
+
+/-- Evaluating the global section of `Spf A` associated with `a ∈ A` in the residue field at an
+open prime `p` sends `a` to its image in `Frac(A ⧸ p)`. -/
+@[simp]
+theorem stalkResidueFieldEquiv_Γevaluation (p : carrier A) (a : A) :
+    have := (IsAdicRing.ideal_spec A).2.2
+    stalkResidueFieldEquiv p
+        ((Spf A).Γevaluation p ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a)) =
+      algebraMap (A ⧸ (p : PrimeSpectrum A).asIdeal)
+        (FractionRing (A ⧸ (p : PrimeSpectrum A).asIdeal)) (Ideal.Quotient.mk _ a) := by
+  intro _
+  let f1 : BasicNeighbourhood p := ⟨1, (Ideal.ne_top_iff_one _).mp p.1.isPrime.ne_top⟩
+  have hcat : (globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv ≫
+      (structureSheaf (IsAdicRing.ideal_spec A).2.1).obj.map
+        (homOfLE (le_top : basicOpen f1.elem ≤ ⊤)).op =
+      CommRingCat.ofHom (algebraMap A (AdicRing.CompletedAway A f1.elem)) ≫
+        (basicOpenSectionsIso (IsAdicRing.ideal_spec A).2.1
+          (IsAdicRing.ideal_spec A).1 f1.elem).inv := by
+    rw [← cancel_mono (basicOpenSectionsIso (IsAdicRing.ideal_spec A).2.1
+      (IsAdicRing.ideal_spec A).1 f1.elem).hom, Category.assoc, Category.assoc, Iso.inv_hom_id,
+      Category.comp_id]
+    exact globalSectionsIso_inv_comp_basicOpenSectionsIso_hom
+      (IsAdicRing.ideal_spec A).2.1 (IsAdicRing.ideal_spec A).1 f1.elem
+  have hgerm : (Spf A).Γevaluation p ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a) =
+      (Spf A).residue p ((Spf A).presheaf.germ (basicOpen f1.elem) p
+        (mem_basicOpen.mpr f1.notMem)
+        ((basicOpenSectionsIso (IsAdicRing.ideal_spec A).2.1 (IsAdicRing.ideal_spec A).1
+          f1.elem).inv (algebraMap A (AdicRing.CompletedAway A f1.elem) a))) := by
+    have hg := TopCat.Presheaf.germ_res_apply (Spf A).presheaf
+      (homOfLE (le_top : basicOpen f1.elem ≤ ⊤)) p (mem_basicOpen.mpr f1.notMem)
+      ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a)
+    have hres := congrArg ((Spf A).presheaf.germ (basicOpen f1.elem) p
+      (mem_basicOpen.mpr f1.notMem)) (ConcreteCategory.congr_hom hcat a)
+    exact congrArg ((Spf A).residue p) (hg.symm.trans hres)
+  exact (congrArg (stalkResidueFieldEquiv p) hgerm).trans
+    (stalkResidueFieldEquiv_residue_germ f1 a)
+
+/-- The global section of `Spf A` associated with `a ∈ A` vanishes in the residue field at `p`
+if and only if `a` belongs to the open prime ideal `p`. -/
+@[simp]
+theorem Γevaluation_globalSectionsIso_inv_eq_zero_iff (p : carrier A) (a : A) :
+    have := (IsAdicRing.ideal_spec A).2.2
+    (Spf A).Γevaluation p ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a) = 0 ↔
+      a ∈ (p : PrimeSpectrum A).asIdeal := by
+  intro _
+  have := Ideal.Quotient.isDomain (p : PrimeSpectrum A).asIdeal
+  rw [← map_eq_zero_iff (stalkResidueFieldEquiv p) (stalkResidueFieldEquiv p).injective,
+    stalkResidueFieldEquiv_Γevaluation,
+    map_eq_zero_iff _ (IsFractionRing.injective (A ⧸ (p : PrimeSpectrum A).asIdeal)
+      (FractionRing (A ⧸ (p : PrimeSpectrum A).asIdeal))),
+    Ideal.Quotient.eq_zero_iff_mem]
+
+/-- Along any morphism of locally ringed spaces `f : X ⟶ Spf A`, the image of `a ∈ A` on global
+sections vanishes in the residue field of `X` at `x` if and only if `a` belongs to the open prime
+`f x` of `A` (EGA I, Ch. I, 10.2.2). -/
+theorem Γevaluation_c_app_top_eq_zero_iff {X : LocallyRingedSpace.{u}} (f : X ⟶ Spf A)
+    (x : X) (a : A) :
+    have := (IsAdicRing.ideal_spec A).2.2
+    X.Γevaluation x
+        (f.c.app (op ⊤) ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a)) = 0 ↔
+      a ∈ (f.base x : carrier A).1.asIdeal := by
+  intro _
+  have hnat := LocallyRingedSpace.Γevaluation_naturality_apply f x
+    ((globalSectionsIso (IsAdicRing.ideal_spec A).2.1).inv a)
+  exact (congrArg (· = 0) hnat.symm).to_iff.trans
+    ((map_eq_zero_iff (LocallyRingedSpace.residueFieldMap f x).hom
+      (RingHom.injective _)).trans
+      (Γevaluation_globalSectionsIso_inv_eq_zero_iff (f.base x) a))
 
 end Spf
 

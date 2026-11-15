@@ -83,6 +83,15 @@ theorem not_isTateRing [Nontrivial A] [IsAdicRing A] : ¬ Huber.IsTateRing A := 
   intro h
   exact ideal_ne_top (Huber.IsTateRing.eq_top_of_isAdic (ideal_spec A).2.1)
 
+/-- An adic ring of finite ideal type transports along a ring equivalence that is a topological
+inducing map. -/
+theorem of_ringEquiv {S : Type*} [CommRing S] [TopologicalSpace S] [IsTopologicalRing S]
+    [IsAdicRing A] (e : S ≃+* A) (he : Topology.IsInducing e) : IsAdicRing S := by
+  refine ⟨(ideal A).map e.symm, (ideal_spec A).1.map e.symm.toRingHom, ?_,
+    (IsAdicComplete.congr_ringEquiv (ideal A) e.symm).mpr (ideal_spec A).2.2⟩
+  rw [Ideal.map_symm]
+  exact (ideal_spec A).2.1.comap e he
+
 end IsAdicRing
 
 namespace IsAdicRing
@@ -102,10 +111,11 @@ namespace IsAdic
 open TauCeti
 open TauCeti.IsAdicRing
 
-variable {A : Type*} [CommRing A] [TopologicalSpace A] [IsTopologicalRing A]
+variable {A : Type*} [CommRing A] [TopologicalSpace A]
 
 /-- Completeness of an adic ring holds for every ideal of definition. -/
-theorem isAdicComplete [IsAdicRing A] {I : Ideal A} (hI : IsAdic I) : IsAdicComplete I A :=
+theorem isAdicComplete [IsTopologicalRing A] [IsAdicRing A] {I : Ideal A} (hI : IsAdic I) :
+    IsAdicComplete I A :=
   ((ideal_spec A).2.1.isAdicComplete_iff_of_isAdic hI).mp (ideal_spec A).2.2
 
 end IsAdic

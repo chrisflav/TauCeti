@@ -54,7 +54,7 @@ series evaluated at arguments of `I ^ n` is confined to `I ^ n`, in
   topology of the extended ideal is an open quotient map.
 * `IsAdic.continuous_of_map_le_radical` : a ring homomorphism from an `I`-adic ring to a `J`-adic
   ring is continuous when it carries the finitely generated ideal `I` into the radical of `J`.
-* `IsAdic.continuous_iff_map_le_radical` and
+* `IsAdic.continuous_iff_map_le_radical`, `IsAdic.continuous_iff_exists_pow_map_le`, and
   `IsAdic.continuous_iff_forall_isTopologicallyNilpotent` : when the source topology has some
   finitely generated ideal of definition, continuity can be tested on any ideals of definition,
   without requiring completeness or finite generation of the tested ideals.
@@ -281,6 +281,23 @@ theorem continuous_iff_map_le_radical {S : Type*} [CommRing S] [TopologicalSpace
     _ = I.radical.map f := congrArg (Ideal.map f) (hK.radical_eq hI)
     _ ≤ (I.map f).radical := Ideal.map_radical_le f
     _ ≤ J.radical := Ideal.radical_le_radical_iff.mpr hf
+
+/-- When some finitely generated ideal defines the source topology, a ring homomorphism between
+adic rings is continuous if and only if it carries some positive power of `I` into `J` (EGA I,
+Ch. 0, 7.1.4). Neither `I` nor `J` needs to be finitely generated, and neither ring needs to be
+complete. -/
+theorem continuous_iff_exists_pow_map_le {S : Type*} [CommRing S] [TopologicalSpace S]
+    {J : Ideal S} {K : Ideal R} (hI : IsAdic I) (hJ : IsAdic J) (hK : IsAdic K)
+    (hKfg : K.FG) {f : R →+* S} :
+    Continuous f ↔ ∃ k > 0, (I ^ k).map f ≤ J := by
+  refine ⟨fun hf ↦ ?_, fun ⟨k, _, hk⟩ ↦ ?_⟩
+  · obtain ⟨n, hn⟩ := hI.exists_pow_succ_le_comap (by simpa using hJ.isOpen_pow 1) hf
+    exact ⟨n + 1, n.succ_pos, Ideal.map_le_iff_le_comap.mpr hn⟩
+  · refine (hI.continuous_iff_map_le_radical hJ hK hKfg).mpr
+      (Ideal.map_le_iff_le_comap.mpr fun x hx ↦ ?_)
+    exact ⟨k, by
+      rw [← map_pow]
+      exact Ideal.map_le_iff_le_comap.mp hk (Ideal.pow_mem_pow hx k)⟩
 
 /-- When the source topology has a finitely generated ideal of definition, a ring homomorphism
 is continuous exactly when it sends every element of any ideal of definition to a

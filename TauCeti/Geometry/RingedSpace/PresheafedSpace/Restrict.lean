@@ -25,6 +25,8 @@ of Mathlib's `AlgebraicGeometry.Scheme.homOfLE`.
   `X|_W ⟶ X` gives the inclusion `X|_V ⟶ X`.
 * `AlgebraicGeometry.PresheafedSpace.restrictHomOfLE_refl`,
   `AlgebraicGeometry.PresheafedSpace.restrictHomOfLE_comp`: the inclusions are functorial.
+* `AlgebraicGeometry.PresheafedSpace.isOpenImmersion_restrictHomOfLE`: the inclusions are open
+  immersions.
 -/
 
 public section
@@ -84,5 +86,19 @@ theorem restrictHomOfLE_comp {U V W : Opens X} (h : U ≤ V) (k : V ≤ W) :
     X.restrictHomOfLE h ≫ X.restrictHomOfLE k = X.restrictHomOfLE (h.trans k) := by
   rw [← cancel_mono (X.ofRestrict W.isOpenEmbedding), Category.assoc, restrictHomOfLE_ofRestrict,
     restrictHomOfLE_ofRestrict, restrictHomOfLE_ofRestrict]
+
+/-- The inclusion `X|_V ⟶ X|_W` is an open immersion of presheafed spaces, since composing it with
+the open immersion `X|_W ⟶ X` gives the open immersion `X|_V ⟶ X`. -/
+instance isOpenImmersion_restrictHomOfLE {V W : Opens X} (h : V ≤ W) :
+    IsOpenImmersion (X.restrictHomOfLE h) := by
+  have hrange : Set.range (X.ofRestrict V.isOpenEmbedding).base ⊆
+      Set.range (X.ofRestrict W.isOpenEmbedding).base := by
+    rintro _ ⟨x, rfl⟩
+    exact ⟨⟨x.1, h x.2⟩, rfl⟩
+  have := IsOpenImmersion.pullback_snd_isIso_of_range_subset
+    (X.ofRestrict W.isOpenEmbedding) (X.ofRestrict V.isOpenEmbedding) hrange
+  rw [IsOpenImmersion.lift_uniq _ _ hrange _ (X.restrictHomOfLE_ofRestrict h)]
+  dsimp only [IsOpenImmersion.lift]
+  infer_instance
 
 end AlgebraicGeometry.PresheafedSpace

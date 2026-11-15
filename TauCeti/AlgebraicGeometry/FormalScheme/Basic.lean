@@ -98,7 +98,7 @@ theorem ofSpf_toLocallyRingedSpace (A : Type u) [CommRing A] [TopologicalSpace A
 
 /-- An open is affine formal if it is the image of an open immersion from a formal spectrum.
 This definition does not choose a presentation or a topology on its ring of sections. -/
-def IsAffineOpen (X : FormalScheme) (U : Opens X) : Prop :=
+@[expose] def IsAffineOpen (X : FormalScheme) (U : Opens X) : Prop :=
   ∃ (A : Type u) (_ : CommRing A) (_ : TopologicalSpace A) (_ : IsTopologicalRing A)
     (_ : IsAdicRing A) (f : Spf A ⟶ X.toLocallyRingedSpace),
     LocallyRingedSpace.IsOpenImmersion f ∧ Set.range f.base = (U : Set X)
