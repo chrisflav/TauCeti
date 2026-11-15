@@ -39,8 +39,9 @@ Adjoint semisimplicity, like adjoint nilpotence, passes from a Lie algebra to it
 
 ## Main statements
 
-* `TauCeti.LieAlgebra.ad_pow_eq_sum` and `TauCeti.LieAlgebra.ad_pow_apply`: the
-  iterated-commutator expansion of `ad R A a ^ n`, at operator level and evaluated.
+* `TauCeti.LieAlgebra.ad_pow_eq_sum`, `TauCeti.LieAlgebra.ad_pow_apply` and
+  `TauCeti.LieAlgebra.ad_pow_apply_of_mul_eq_zero`: the iterated-commutator expansion of
+  `ad R A a ^ n`, at operator level, evaluated, and specialized when `b * a = 0`.
 * `TauCeti.LieAlgebra.ad_eq_zero_iff_mem_center`: `ad R A a` vanishes exactly on the centre.
 * `TauCeti.LieAlgebra.isNilpotent_ad_of_isNilpotent_sub_algebraMap`: a scalar plus a nilpotent
   element has nilpotent adjoint action.
@@ -90,6 +91,16 @@ theorem ad_pow_apply (a b : A) (n : ℕ) :
   refine Finset.sum_congr rfl fun m _ ↦ ?_
   simp only [LinearMap.smul_apply, mul_apply_eq_comp, LinearMap.mulLeft_apply,
     LinearMap.mulRight_apply, mul_assoc]
+
+/-- When `b * a = 0`, all right-multiplication terms vanish and the `n`-fold commutator of `a` with
+`b` reduces to `a ^ n * b`. -/
+theorem ad_pow_apply_of_mul_eq_zero {a b : A} (hba : b * a = 0) (n : ℕ) :
+    (LieAlgebra.ad R A a ^ n) b = a ^ n * b := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    rw [pow_succ', mul_apply_eq_comp, LieAlgebra.ad_apply, ih, Ring.lie_def, pow_succ',
+      mul_assoc, mul_assoc, hba, mul_zero, sub_zero]
 
 /-- The adjoint action of `a` vanishes exactly when `a` is central. -/
 @[simp]

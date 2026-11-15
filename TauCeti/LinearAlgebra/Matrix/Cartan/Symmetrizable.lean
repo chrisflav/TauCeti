@@ -8,18 +8,18 @@ module
 public import Mathlib.Algebra.GCDMonoid.Finset
 public import Mathlib.Algebra.GCDMonoid.Nat
 public import Mathlib.LinearAlgebra.Matrix.Block
-public import Mathlib.LinearAlgebra.Matrix.Cartan.Basic
+public import TauCeti.LinearAlgebra.Matrix.Cartan.Generalized
 
 import Mathlib.Tactic.LinearCombination
 
 /-!
 # Symmetrizable generalized Cartan matrices
 
-A *generalized Cartan matrix* on an index type `I` is an integral matrix `A = (a i j)` with
-`a i i = 2`, `a i j ≤ 0` for `i ≠ j`, and `a i j = 0 ↔ a j i = 0`. We use the row convention
-`a i j = α_j(h_i)`: rows are indexed by simple coroots and columns by simple roots. A
-*symmetrizer* is a family of positive integers `d i` with `d i * a i j = d j * a j i`, so that
-the *symmetrized matrix* `B = (d i * a i j)` is symmetric and `A = D⁻¹ B` for `D = diag(d i)`.
+A *generalized Cartan matrix* on an index type `I` (`Matrix.IsGeneralizedCartan`) is an integral
+matrix `A = (a i j)` with `a i i = 2`, `a i j ≤ 0` for `i ≠ j`, and `a i j = 0 ↔ a j i = 0`. We use
+the row convention `a i j = α_j(h_i)`: rows are indexed by simple coroots and columns by simple
+roots. A *symmetrizer* is a family of positive integers `d i` with `d i * a i j = d j * a j i`, so
+that the *symmetrized matrix* `B = (d i * a i j)` is symmetric and `A = D⁻¹ B` for `D = diag(d i)`.
 A symmetrizable generalized Cartan matrix together with a chosen symmetrizer is the input datum
 of a symmetrizable Kac–Moody algebra and of its Drinfeld–Jimbo quantization, where the
 symmetrizer fixes the parameters `q_i = q ^ d i`.
@@ -42,6 +42,8 @@ obtained by allowing `d i = 0`, which the positivity of the symmetrizer excludes
 
 ## Main results
 
+* `TauCeti.SymmetrizableDatum.isGeneralizedCartan`: the underlying matrix is a generalized Cartan
+  matrix.
 * `TauCeti.SymmetrizableDatum.isSymm_symmetrizedMatrix`: the symmetrized matrix is symmetric.
 * `TauCeti.SymmetrizableDatum.cartan_map_eq_diagonal_inv_mul`: `A = D⁻¹ B` over any division
   ring of characteristic zero.
@@ -102,6 +104,12 @@ variable {I J K I' I'' : Type*} (A : SymmetrizableDatum I)
 @[simp]
 theorem symmetrizer_ne_zero (i : I) : A.symmetrizer i ≠ 0 :=
   (A.symmetrizer_pos i).ne'
+
+/-- The underlying matrix of a symmetrizable datum is a generalized Cartan matrix. -/
+theorem isGeneralizedCartan : A.cartan.IsGeneralizedCartan where
+  diag := A.diag
+  offDiag_nonpos := A.offDiag_nonpos
+  zero_comm := A.zero_comm
 
 /-! ### The symmetrized matrix -/
 

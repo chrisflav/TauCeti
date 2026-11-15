@@ -161,7 +161,8 @@ theorem presentationMk_eq_zero_of_isRelator {x : FreeLieAlgebra K (Generator I H
     (LieSubmodule.Quotient.mk_eq_zero'.mpr (LieSubmodule.subset_lieSpan hx))
 
 /-- The canonical linear map from the realization `H` into the presented algebra, sending `h` to
-the class of its Cartan generator. No injectivity is claimed for it here. -/
+the class of its Cartan generator; see `TauCeti.KacMoody.cartanElement_injective` for its
+injectivity when `A` is a generalized Cartan matrix. -/
 noncomputable def cartanElement : H →ₗ[K] PresentedLieAlgebra R where
   toFun x := presentationMk R (FreeLieAlgebra.of K (Generator.cartan x))
   map_add' x y := by
