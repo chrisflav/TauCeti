@@ -33,12 +33,53 @@ of that action are in `TauCeti.LinearAlgebra.Matrix.SpecialLinearGroup.Basic`.
 * `TauCeti.Matrix.SpecialLinearGroup.vecMul_map_modularGroup_S`,
   `TauCeti.Matrix.SpecialLinearGroup.vecMul_map_modularGroup_T`: `r S = (r₂, -r₁)` and
   `r T = (r₁, r₁ + r₂)`.
+* `Matrix.SpecialLinearGroup.mul_T_zpow_apply_zero`,
+  `Matrix.SpecialLinearGroup.mul_T_zpow_apply_one`,
+  `Matrix.SpecialLinearGroup.mul_S_apply_zero`,
+  `Matrix.SpecialLinearGroup.mul_S_apply_one`,
+  `Matrix.SpecialLinearGroup.mul_S_inv_apply_zero`,
+  `Matrix.SpecialLinearGroup.mul_S_inv_apply_one`: the entries of `g * T ^ n`, `g * S`, and
+  `g * S⁻¹` for `g ∈ SL₂(ℤ)`.
 -/
 
 public section
 
 open Matrix
 open scoped MatrixGroups
+
+namespace Matrix.SpecialLinearGroup
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `T ^ n` preserves its first column. -/
+theorem mul_T_zpow_apply_zero (g : SL(2, ℤ)) (n : ℤ) (i : Fin 2) :
+    (g * ModularGroup.T ^ n) i 0 = g i 0 := by
+  simp [coe_mul, ModularGroup.coe_T_zpow, Matrix.mul_apply, Fin.sum_univ_two]
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `T ^ n` adds `n` times the first column to the second. -/
+theorem mul_T_zpow_apply_one (g : SL(2, ℤ)) (n : ℤ) (i : Fin 2) :
+    (g * ModularGroup.T ^ n) i 1 = g i 0 * n + g i 1 := by
+  simp [coe_mul, ModularGroup.coe_T_zpow, Matrix.mul_apply, Fin.sum_univ_two]
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `S` moves its second column into the first. -/
+theorem mul_S_apply_zero (g : SL(2, ℤ)) (i : Fin 2) :
+    (g * ModularGroup.S) i 0 = g i 1 := by
+  simp [coe_mul, ModularGroup.coe_S, Matrix.mul_apply, Fin.sum_univ_two]
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `S` moves minus its first column into the second. -/
+theorem mul_S_apply_one (g : SL(2, ℤ)) (i : Fin 2) :
+    (g * ModularGroup.S) i 1 = -g i 0 := by
+  simp [coe_mul, ModularGroup.coe_S, Matrix.mul_apply, Fin.sum_univ_two]
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `S⁻¹` moves minus its second column into the first. -/
+theorem mul_S_inv_apply_zero (g : SL(2, ℤ)) (i : Fin 2) :
+    (g * ModularGroup.S⁻¹) i 0 = -g i 1 := by
+  simp [ModularGroup.S_inv, coe_mul, ModularGroup.coe_S, Matrix.mul_apply, Fin.sum_univ_two]
+
+/-- Right-multiplying `g ∈ SL₂(ℤ)` by `S⁻¹` moves its first column into the second. -/
+theorem mul_S_inv_apply_one (g : SL(2, ℤ)) (i : Fin 2) :
+    (g * ModularGroup.S⁻¹) i 1 = g i 0 := by
+  simp [ModularGroup.S_inv, coe_mul, ModularGroup.coe_S, Matrix.mul_apply, Fin.sum_univ_two]
+
+end Matrix.SpecialLinearGroup
 
 namespace TauCeti.Matrix.SpecialLinearGroup
 

@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Analysis.SpecialFunctions.Complex.Log
+public import Mathlib.Data.Int.ModEq
 
 /-!
 # The periods of `exp (π i ·)` and `exp (2 π i ·)`, and branches of the logarithm
@@ -27,6 +28,8 @@ Two logarithms of the same number differ by `2 π i k` for an integer `k`, so di
   even integer.
 * `Complex.exp_two_pi_mul_I_mul_add_intCast`: `exp (2 π i (z + k)) = exp (2 π i z)` for an
   integer `k`.
+* `Complex.exp_two_pi_mul_I_mul_intCast_div_congr`: `exp (2 π i m / N) = exp (2 π i n / N)`
+  whenever `m ≡ n (mod N)`.
 * `Complex.norm_exp_two_pi_mul_I_mul_ofReal`: `‖exp (2 π i x)‖ = 1` for real `x`.
 * `Complex.exists_div_two_pi_I_smul_eq_add_zsmul`: if `exp a = exp b`, then
   `(a / 2πi) • v = (b / 2πi) • v + k • v` for an integer `k`.
@@ -50,6 +53,19 @@ theorem exp_pi_mul_I_mul_eq_of_sub_eq {a b : ℂ} {m : ℤ} (h : a - b = 2 * m) 
 theorem exp_two_pi_mul_I_mul_add_intCast (z : ℂ) (k : ℤ) :
     cexp (2 * π * I * (z + k)) = cexp (2 * π * I * z) := by
   rw [mul_add, exp_add, mul_comm (2 * π * I) (k : ℂ), exp_int_mul_two_pi_mul_I, mul_one]
+
+/-- `exp (2 π i m / N) = exp (2 π i n / N)` whenever `m ≡ n (mod N)`. -/
+theorem exp_two_pi_mul_I_mul_intCast_div_congr {N m n : ℤ} (h : m ≡ n [ZMOD N]) :
+    cexp (2 * π * I * m / N) = cexp (2 * π * I * n / N) := by
+  by_cases hN : N = 0
+  · simp [hN]
+  · obtain ⟨k, hk⟩ := Int.modEq_iff_dvd.mp h.symm
+    have hN' : (N : ℂ) ≠ 0 := Int.cast_ne_zero.mpr hN
+    have hm : (m : ℂ) = N * k + n := by exact_mod_cast eq_add_of_sub_eq hk
+    refine exp_eq_exp_iff_exists_int.mpr ⟨k, ?_⟩
+    rw [hm]
+    field_simp
+    ring
 
 /-- `‖e(x)‖ = 1` for `e(x) = exp (2 π i x)` and real `x`. -/
 @[simp]

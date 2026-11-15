@@ -13,8 +13,9 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 The principal square root has nonnegative real part, and its real part is strictly positive
 exactly on the slit plane. These facts control the branches in algebraic transformations
-involving sums of principal roots. The file also records the values `√i = e^{π i / 4}` and
-`√(-i τ) = (√i)⁻¹ √τ` for `τ` in the open upper half-plane.
+involving sums of principal roots. The file also records `√i = e^{π i / 4}`, the rotation
+`√(-i τ) = (√i)⁻¹ √τ` and negation rule `√(-z) = -i √z` on the open upper half-plane, and
+`√(z⁻¹) = (√z)⁻¹` away from the negative real ray.
 -/
 
 public section
@@ -33,6 +34,20 @@ theorem sq_sqrt (z : ℂ) : sqrt z ^ 2 = z :=
 theorem sqrt_eq_zero_iff {z : ℂ} : sqrt z = 0 ↔ z = 0 := by
   refine ⟨fun h ↦ ?_, fun h ↦ h ▸ sqrt_zero⟩
   rw [← sq_sqrt z, h, zero_pow two_ne_zero]
+
+/-- Away from the closed negative real ray (`arg z ≠ π`, including `z = 0`), the principal square
+root commutes with inversion. At `z = -1` the two sides are `i` and `-i`. -/
+theorem sqrt_inv {z : ℂ} (hz : z.arg ≠ π) : sqrt z⁻¹ = (sqrt z)⁻¹ :=
+  inv_cpow z 2⁻¹ hz
+
+/-- On the open upper half-plane, negating the input multiplies the principal square root by `-i`.
+Sharp in `z.im`: at `z = 1` the factor is `i` instead (`Complex.sqrt_neg_one`). -/
+theorem sqrt_neg_of_im_pos {z : ℂ} (hz : 0 < z.im) : sqrt (-z) = -I * sqrt z := by
+  have hneg : ¬ 0 ≤ (-z).im := by simp [hz]
+  rw [sqrt_eq_real_add_ite, sqrt_eq_real_add_ite, ite_eq_right hneg, ite_eq_left hz.le]
+  simp only [norm_neg, neg_re, sub_neg_eq_add, ← sub_eq_add_neg]
+  ring_nf
+  simp
 
 /-- The principal square root of `i` is `e^{π i / 4}`. -/
 theorem sqrt_I_eq_exp : sqrt I = exp (π * I / 4) := by

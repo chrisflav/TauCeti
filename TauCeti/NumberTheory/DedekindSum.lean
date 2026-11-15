@@ -59,6 +59,8 @@ sum for `(h, c)` to the sums of `⌊c s / h⌋` and `⌊c s / h⌋²`, and the r
 * `TauCeti.dedekindSum_eq_zero_of_dvd`: `s(d, c) = 0` when `c ∣ d`.
 * `TauCeti.dedekindSum_add_dedekindSum`: the reciprocity law of Dedekind sums.
 * `TauCeti.dedekindSum_one_left`: `s(1, c) = (c - 1)(c - 2) / (12 c)` for `c ≥ 0`.
+* `TauCeti.cast_dedekindSum`, `IsCoprime.cast_dedekindSum`: the Dedekind sum cast into any
+  linearly ordered field with a floor ring structure.
 
 ## References
 
@@ -187,6 +189,26 @@ theorem dedekindSum_mul_self (k c : ℤ) : dedekindSum (k * c) c = 0 :=
 theorem dedekindSum_self_mul (c k : ℤ) : dedekindSum (c * k) c = 0 :=
   dedekindSum_eq_zero_of_dvd (dvd_mul_right c k)
 
+/-- The Dedekind sum cast into any linearly ordered field with a floor ring structure. -/
+theorem cast_dedekindSum {α : Type*} [Field α] [LinearOrder α] [IsStrictOrderedRing α]
+    [FloorRing α] (d c : ℤ) :
+    (dedekindSum d c : α) =
+      ∑ r ∈ Ioo 0 c, (r / c : α) * (if Int.fract ((d * r : α) / c) = 0 then 0
+        else Int.fract ((d * r : α) / c) - 1 / 2) := by
+  rw [dedekindSum_def, ← Rat.coe_castHom, map_sum]
+  refine sum_congr rfl fun r _ ↦ ?_
+  simp only [Rat.coe_castHom, Rat.cast_mul, Rat.cast_div, Rat.cast_intCast]
+  congr 1
+  have h : Int.fract (((d * r : ℤ) : ℚ) / c) = 0 ↔ Int.fract ((d * r : α) / c) = 0 := by
+    rw [← Rat.cast_eq_zero (α := α), Rat.cast_fract]
+    push_cast
+    rfl
+  by_cases hf : Int.fract (((d * r : ℤ) : ℚ) / c) = 0
+  · rw [ite_eq_left hf, ite_eq_left (h.mp hf), Rat.cast_zero]
+  · rw [ite_eq_right hf, ite_eq_right (h.not.mp hf)]
+    push_cast
+    rfl
+
 end TauCeti
 
 /-- For coprime arguments, the Dedekind sum uses `Int.fract - 1/2` at every summand. -/
@@ -209,6 +231,18 @@ theorem IsCoprime.dedekindSum_eq {d c : ℤ} (hdc : IsCoprime d c) :
     have hdvd : c ∣ r := hdc.symm.dvd_of_dvd_mul_left ⟨z, hdr⟩
     exact (Int.le_of_dvd hr0 hdvd).not_gt hrc
   rw [ite_eq_right hfract]
+
+/-- For coprime arguments, the Dedekind sum cast into any linearly ordered field with a floor ring
+structure uses `Int.fract - 1/2` at every summand. -/
+theorem IsCoprime.cast_dedekindSum {α : Type*} [Field α] [LinearOrder α] [IsStrictOrderedRing α]
+    [FloorRing α] {d c : ℤ} (hdc : IsCoprime d c) :
+    (TauCeti.dedekindSum d c : α) =
+      ∑ r ∈ Ioo 0 c, (r / c : α) * (Int.fract ((d * r : α) / c) - 1 / 2) := by
+  rw [hdc.dedekindSum_eq, ← Rat.coe_castHom, map_sum]
+  refine sum_congr rfl fun r _ ↦ ?_
+  simp only [Rat.coe_castHom]
+  push_cast
+  rfl
 
 namespace TauCeti
 
@@ -350,4 +384,5 @@ theorem dedekindSum_one_left {c : ℤ} (hc : 0 ≤ c) :
   rw [h]
   field_simp
   ring
+
 end TauCeti

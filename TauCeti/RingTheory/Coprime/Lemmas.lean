@@ -29,6 +29,7 @@ Powers of distinct rational primes are pairwise coprime in any commutative ring,
 * `IsCoprime.mul_mul_add_sq_add_mul_add_sq`: if `a` and `b` are coprime, so are `a b (a + b)` and
   `a² + a b + b²`.
 * `Finset.prod_primes_pow_dvd`: prime powers dividing `z` combine to their product.
+* `IsCoprime.emod_pos_of_one_lt`: for coprime integers `d` and `c > 1`, `0 < d % c`.
 -/
 
 public section
@@ -53,3 +54,12 @@ theorem Finset.prod_primes_pow_dvd {P : Finset ℕ}
     ∏ p ∈ P, (p : R) ^ e p ∣ z :=
   Finset.prod_dvd_of_coprime (fun p hp q hq hpq =>
     (((Nat.coprime_primes (hP p hp) (hP q hq)).2 hpq).cast).pow) h
+
+/-- For coprime integers `d` and `c` with `c > 1`, the Euclidean remainder `d % c` is strictly
+positive: `d % c = 0` would give `c ∣ d` and hence `IsUnit c`. -/
+theorem IsCoprime.emod_pos_of_one_lt {d c : ℤ} (hdc : IsCoprime d c) (hc : 1 < c) :
+    0 < d % c := by
+  refine lt_of_le_of_ne (Int.emod_nonneg d (by omega)) fun h ↦ ?_
+  have hu : IsUnit c := isCoprime_self.mp
+    (hdc.of_isCoprime_of_dvd_left (Int.dvd_of_emod_eq_zero h.symm))
+  rcases Int.isUnit_iff.mp hu with rfl | rfl <;> omega
