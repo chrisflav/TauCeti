@@ -31,6 +31,10 @@ not assert the existence of a Markov trace at every loop parameter.
 * `TauCeti.TemperleyLieb.IsMarkovTrace.map_strandIncl_mul_e_last_mul`: the trace reduction for
   `strandIncl a * e δ (Fin.last n) * strandIncl b`.
 * `TauCeti.TemperleyLieb.IsMarkovTrace.unique`: uniqueness of the Markov trace.
+* `TauCeti.TemperleyLieb.IsMarkovTrace.comp_algEquivOfEq`: transporting a Markov trace along an
+  equality of loop parameters.
+* `TauCeti.TemperleyLieb.IsMarkovTrace.eq_zero_succ`: at loop parameter `0`, every Markov trace
+  vanishes on a positive number of strands.
 
 ## References
 
@@ -97,6 +101,31 @@ theorem unique {tr' : ∀ n : ℕ, TemperleyLieb R δ n →ₗ[R] R} (htr : IsMa
     rintro _ (⟨a, rfl⟩ | ⟨⟨a, b⟩, rfl⟩)
     · rw [htr.map_strandIncl, htr'.map_strandIncl, ih]
     · rw [htr.map_strandIncl_mul_e_last_mul, htr'.map_strandIncl_mul_e_last_mul, ih]
+
+/-- Transporting a Markov trace along an equality of loop parameters produces a Markov trace at
+the equal loop parameter. -/
+theorem comp_algEquivOfEq {δ₁ δ₂ : R} {tr : ∀ n : ℕ, TemperleyLieb R δ₂ n →ₗ[R] R}
+    (htr : IsMarkovTrace R δ₂ tr) (h : δ₁ = δ₂) :
+    IsMarkovTrace R δ₁ (fun n ↦ (tr n).comp (algEquivOfEq h n).toLinearMap) where
+  map_one n := by simp [htr.map_one, h]
+  map_mul_comm n x y := by simp [htr.map_mul_comm]
+  map_strandIncl n x := by simp [htr.map_strandIncl, h]
+  map_strandIncl_mul_e_last n x := by simp [htr.map_strandIncl_mul_e_last]
+
+/-- At loop parameter `0`, every Markov trace vanishes on a positive number of strands: on one
+strand `tr 1 1 = 0`, and higher levels reduce by strand inclusion and capping. -/
+theorem eq_zero_succ {tr : ∀ n : ℕ, TemperleyLieb R 0 n →ₗ[R] R}
+    (htr : IsMarkovTrace R 0 tr) : ∀ n : ℕ, tr (n + 1) = 0
+  | 0 => by
+    ext x
+    rw [← (algEquivOfLeOne (0 : R) le_rfl).symm_apply_apply x, algEquivOfLeOne_symm_apply,
+      Algebra.algebraMap_eq_smul_one, map_smul, htr.map_one, pow_one, smul_zero,
+      LinearMap.zero_apply]
+  | n + 1 => by
+    refine LinearMap.ext_on (span_strandIncl_union_strandIncl_mul_e_last_mul_eq_top n) ?_
+    rintro _ (⟨a, rfl⟩ | ⟨⟨a, b⟩, rfl⟩)
+    · simp [htr.map_strandIncl]
+    · simp [htr.map_strandIncl_mul_e_last_mul, htr.eq_zero_succ n]
 
 end IsMarkovTrace
 

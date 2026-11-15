@@ -61,6 +61,8 @@ two-strand case above is the part of it that the presentation alone can see.
 * `TauCeti.TemperleyLieb.lift`: the universal property.
 * `TauCeti.TemperleyLieb.strandIncl`: the inclusion adding a straight last strand.
 * `TauCeti.TemperleyLieb.aug`: the augmentation killing every generator.
+* `TauCeti.TemperleyLieb.algEquivOfEq`: the generator-preserving algebra equivalence between fibers
+  at equal loop parameters.
 * `TauCeti.TemperleyLieb.algEquivOfLeOne`: the algebra on at most one strand is the
   base ring.
 * `TauCeti.TemperleyLieb.crossing`: the Kauffman-bracket expansion `α • 1 + β • e i`
@@ -283,6 +285,74 @@ instance [Nontrivial R] : Nontrivial (TemperleyLieb R δ n) :=
   algebraMap_injective.nontrivial
 
 end Augmentation
+
+section LoopEq
+
+/-- Equal loop parameters define canonically isomorphic Temperley-Lieb algebras via the
+generator-preserving algebra equivalence. -/
+def algEquivOfEq {δ₁ δ₂ : R} (h : δ₁ = δ₂) (n : ℕ) :
+    TemperleyLieb R δ₁ n ≃ₐ[R] TemperleyLieb R δ₂ n :=
+  AlgEquiv.ofAlgHom
+    (lift (fun i ↦ e δ₂ i) (fun i ↦ by rw [h, e_mul_self])
+      (fun h' ↦ e_mul_e_mul_e h') (fun h' ↦ (commute_e h').eq))
+    (lift (fun i ↦ e δ₁ i) (fun i ↦ by rw [← h, e_mul_self])
+      (fun h' ↦ e_mul_e_mul_e h') (fun h' ↦ (commute_e h').eq))
+    (hom_ext fun i ↦ by simp) (hom_ext fun i ↦ by simp)
+
+/-- The loop-congruence equivalence sends each generator to the generator of the same index. -/
+@[simp]
+theorem algEquivOfEq_e {δ₁ δ₂ : R} (h : δ₁ = δ₂) (i : Fin (n - 1)) :
+    algEquivOfEq h n (e δ₁ i) = e δ₂ i := by
+  simp [algEquivOfEq]
+
+/-- Inverting `algEquivOfEq` reverses the equality of loop parameters. -/
+@[simp]
+theorem algEquivOfEq_symm {δ₁ δ₂ : R} (h : δ₁ = δ₂) (n : ℕ) :
+    (algEquivOfEq h n).symm = algEquivOfEq h.symm n :=
+  AlgEquiv.ext fun x ↦ AlgHom.congr_fun
+    (hom_ext (F := (algEquivOfEq h n).symm.toAlgHom)
+      (G := (algEquivOfEq h.symm n).toAlgHom) fun i ↦ by
+        simp [algEquivOfEq]) x
+
+/-- At a reflexive equality of loop parameters, `algEquivOfEq` is the identity equivalence. -/
+@[simp]
+theorem algEquivOfEq_rfl (δ : R) (n : ℕ) :
+    algEquivOfEq (rfl : δ = δ) n = AlgEquiv.refl :=
+  AlgEquiv.ext fun x ↦ AlgHom.congr_fun
+    (hom_ext (F := (algEquivOfEq (rfl : δ = δ) n).toAlgHom)
+      (G := AlgHom.id R _) fun i ↦ by simp) x
+
+/-- Composing two `algEquivOfEq` equivalences composes the loop-parameter equalities. -/
+@[simp]
+theorem algEquivOfEq_trans {δ₁ δ₂ δ₃ : R} (h₁₂ : δ₁ = δ₂) (h₂₃ : δ₂ = δ₃) (n : ℕ) :
+    (algEquivOfEq h₁₂ n).trans (algEquivOfEq h₂₃ n) = algEquivOfEq (h₁₂.trans h₂₃) n :=
+  AlgEquiv.ext fun x ↦ AlgHom.congr_fun
+    (hom_ext (F := ((algEquivOfEq h₁₂ n).trans (algEquivOfEq h₂₃ n)).toAlgHom)
+      (G := (algEquivOfEq (h₁₂.trans h₂₃) n).toAlgHom) fun i ↦ by simp) x
+
+/-- Applying two `algEquivOfEq` equivalences in succession collapses to a single `algEquivOfEq`. -/
+@[simp]
+theorem algEquivOfEq_apply_algEquivOfEq {δ₁ δ₂ δ₃ : R} (h₁₂ : δ₁ = δ₂) (h₂₃ : δ₂ = δ₃)
+    (x : TemperleyLieb R δ₁ n) :
+    algEquivOfEq h₂₃ n (algEquivOfEq h₁₂ n x) = algEquivOfEq (h₁₂.trans h₂₃) n x := by
+  rw [← AlgEquiv.trans_apply, algEquivOfEq_trans]
+
+/-- `algEquivOfEq` commutes with adding a straight strand. -/
+@[simp]
+theorem algEquivOfEq_strandIncl {δ₁ δ₂ : R} (h : δ₁ = δ₂) (x : TemperleyLieb R δ₁ (n + 1)) :
+    algEquivOfEq h (n + 2) (strandIncl x) = strandIncl (algEquivOfEq h (n + 1) x) :=
+  AlgHom.congr_fun
+    (hom_ext (F := (algEquivOfEq h (n + 2)).toAlgHom.comp strandIncl)
+      (G := strandIncl.comp (algEquivOfEq h (n + 1)).toAlgHom) fun i ↦ by simp) x
+
+/-- `algEquivOfEq` preserves the augmentation. -/
+@[simp]
+theorem aug_algEquivOfEq {δ₁ δ₂ : R} (h : δ₁ = δ₂) (x : TemperleyLieb R δ₁ n) :
+    aug (algEquivOfEq h n x) = aug x :=
+  AlgHom.congr_fun
+    (hom_ext (F := aug.comp (algEquivOfEq h n).toAlgHom) (G := aug) fun i ↦ by simp) x
+
+end LoopEq
 
 section SmallCases
 

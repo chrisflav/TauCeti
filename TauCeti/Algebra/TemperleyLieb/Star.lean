@@ -44,8 +44,9 @@ The hypothesis on `δ` is the instance argument `Fact (IsSelfAdjoint δ)`; for a
 * `TauCeti.TemperleyLieb.star_unique`: the star structure is the unique additive,
   product-reversing, conjugate-linear unital map fixing the generators.
 * `TauCeti.TemperleyLieb.map_star_iff`: the universal property as a star algebra.
-* `TauCeti.TemperleyLieb.strandIncl_star`, `TauCeti.TemperleyLieb.aug_star`: the strand inclusion
-  and the augmentation preserve the star structure.
+* `TauCeti.TemperleyLieb.strandIncl_star`, `TauCeti.TemperleyLieb.aug_star`,
+  `TauCeti.TemperleyLieb.algEquivOfEq_star`: the strand inclusion, the augmentation, and the
+  loop-congruence equivalence preserve the star structure.
 * `TauCeti.TemperleyLieb.isSelfAdjoint_loop_of_reverse`: even without involutivity, a
   conjugate-linear product reversal fixing the two-strand generator forces self-adjoint `δ`.
 * `TauCeti.TemperleyLieb.isSelfAdjoint_of_star_e`: the specialization to a star structure.
@@ -177,6 +178,15 @@ analytic adjoint is the star of `R`. -/
 @[simp]
 theorem aug_star (x : TemperleyLieb R δ n) : aug (star x) = star (aug x) :=
   map_star_iff.mpr (fun i ↦ by simp [IsSelfAdjoint]) x
+
+/-- The generator-preserving algebra equivalence between fibers at equal loop values commutes with
+the analytic adjoint. -/
+@[simp]
+theorem algEquivOfEq_star {δ₁ δ₂ : R} [Fact (IsSelfAdjoint δ₁)] [Fact (IsSelfAdjoint δ₂)]
+    (h : δ₁ = δ₂) (x : TemperleyLieb R δ₁ n) :
+    algEquivOfEq h n (star x) = star (algEquivOfEq h n x) :=
+  (map_star_iff (F := (algEquivOfEq h n).toAlgHom)).mpr
+    (fun i ↦ by simpa using isSelfAdjoint_e (δ := δ₂) (n := n) i) x
 
 end Construction
 
