@@ -54,6 +54,9 @@ determinant of their `q'`-coordinates, up to a constant.
 
 ## Main results
 
+* `ContinuousLinearMap.detLineChartEquiv_congr`,
+  `ContinuousLinearMap.detLineChartEquiv_detLineCongr`: naturality of kernel charts along
+  commuting squares.
 * `ContinuousLinearMap.exists_continuous_detLineChartEquiv_symm_eq_smul_of_comp`: transitions
   between the kernel charts of nested stabilizers are continuous and nowhere zero.
 * `ContinuousLinearMap.exists_continuous_detLineChartEquiv_symm_eq_smul`: the same for any two
@@ -127,6 +130,86 @@ theorem detLineChartEquiv_detLineStabilizationEquiv [FiniteDimensional 𝕜 T.ke
         (detLineStabilizationEquiv T D₂ (surjective_of_isInvertible_prod h) z) =
       LinearEquiv.rTensor _ (kerEquivOfProd _ q h).toLinearEquiv.symm.detLineCongr z := by
   simp [detLineChartEquiv]
+
+section Congr
+
+variable {E' Λ' F' G' : Type*} [AddCommGroup E'] [Module 𝕜 E'] [TopologicalSpace E']
+  [AddCommGroup Λ'] [Module 𝕜 Λ'] [TopologicalSpace Λ'] [AddCommGroup F'] [Module 𝕜 F']
+  [TopologicalSpace F'] [ContinuousAdd F'] [AddCommGroup G'] [Module 𝕜 G'] [TopologicalSpace G']
+  [FiniteDimensional 𝕜 Λ'] [FiniteDimensional 𝕜 G']
+  {T' : E' →L[𝕜] F'} {D₂' : Λ' →L[𝕜] F'} {q' : E' × Λ' →L[𝕜] G'}
+
+/-- **Naturality of kernel charts.** Let `e₁ : E ≃ₗ[𝕜] E'` and `e₂ : F ≃ₗ[𝕜] F'` intertwine `T`
+and `T'`, let `eΛ : Λ ≃ₗ[𝕜] Λ'` intertwine the stabilizers `D₂` and `D₂'`, and let
+`eG : G ≃ₗ[𝕜] G'` intertwine the kernel coordinates `q` and `q'` on `ker (T.coprod D₂)`. Then the
+kernel charts `ContinuousLinearMap.detLineChartEquiv` intertwine `LinearMap.detLineCongr` with the
+induced isomorphism of model lines. -/
+theorem detLineChartEquiv_congr (e₁ : E ≃ₗ[𝕜] E') (eΛ : Λ ≃ₗ[𝕜] Λ') (e₂ : F ≃ₗ[𝕜] F')
+    (eG : G ≃ₗ[𝕜] G')
+    (hT : (T' : E' →ₗ[𝕜] F') ∘ₗ e₁.toLinearMap = e₂.toLinearMap ∘ₗ (T : E →ₗ[𝕜] F))
+    (hD₂ : (D₂' : Λ' →ₗ[𝕜] F') ∘ₗ eΛ.toLinearMap = e₂.toLinearMap ∘ₗ (D₂ : Λ →ₗ[𝕜] F))
+    (h : ((T.coprod D₂).prod q).IsInvertible) (h' : ((T'.coprod D₂').prod q').IsInvertible)
+    (hq : ∀ v : (T.coprod D₂).ker, q' (e₁ (v : E × Λ).1, eΛ (v : E × Λ).2) = eG (q v))
+    (z : (T : E →ₗ[𝕜] F).detLine) :
+    detLineChartEquiv T' D₂' q' h' ((T : E →ₗ[𝕜] F).detLineCongr e₁ e₂ hT z) =
+      TensorProduct.congr eG.detLineCongr eΛ.detLineCongr.symm.dualMap
+        (detLineChartEquiv T D₂ q h z) := by
+  have := finiteDimensional_ker_of_isInvertible_prod_coprod h
+  have := finiteDimensional_ker_of_isInvertible_prod_coprod h'
+  have hs := surjective_of_isInvertible_prod h
+  have hs' := surjective_of_isInvertible_prod h'
+  -- The product isomorphism `e₁ × eΛ` restricts to an isomorphism of stabilized kernels.
+  have hcop : (T'.coprod D₂' : E' × Λ' →ₗ[𝕜] F') ∘ₗ (e₁.prodCongr eΛ).toLinearMap =
+      e₂.toLinearMap ∘ₗ (T.coprod D₂ : E × Λ →ₗ[𝕜] F) := by
+    refine LinearMap.ext fun ⟨x, l⟩ ↦ ?_
+    have hx := LinearMap.congr_fun hT x
+    have hl := LinearMap.congr_fun hD₂ l
+    simp only [LinearMap.comp_apply, LinearEquiv.coe_coe, coe_coe, coprod_apply,
+      LinearEquiv.prodCongr_apply, map_add] at hx hl ⊢
+    rw [hx, hl]
+  let eB : (T.coprod D₂).ker ≃ₗ[𝕜] (T'.coprod D₂').ker :=
+    (e₁.prodCongr eΛ).ofSubmodules _ _
+      ((T.coprod D₂ : E × Λ →ₗ[𝕜] F).map_ker_eq_ker_of_comp_eq
+        (e₁.prodCongr eΛ).surjective e₂.injective hcop)
+  have heB (v : (T.coprod D₂).ker) : (eB v : E' × Λ') = (e₁ (v : E × Λ).1, eΛ (v : E × Λ).2) := by
+    simp [eB]
+  -- On the stabilized kernel, `q' ∘ eB = eG ∘ q`.
+  have heqG : eB.trans (kerEquivOfProd _ q' h').toLinearEquiv.symm =
+      (kerEquivOfProd _ q h).toLinearEquiv.symm.trans eG :=
+    LinearEquiv.ext fun v ↦ by simpa [heB] using hq v
+  obtain ⟨t, rfl⟩ := (detLineStabilizationEquiv T D₂ hs).surjective z
+  rw [← detLineStabilizationEquiv_congr e₁ eΛ e₂ eB hT hD₂ heB hs hs',
+    detLineChartEquiv_detLineStabilizationEquiv, detLineChartEquiv_detLineStabilizationEquiv]
+  have htensor :
+      (TensorProduct.congr eB.detLineCongr eΛ.detLineCongr.symm.dualMap).trans
+        (LinearEquiv.rTensor _ (kerEquivOfProd _ q' h').toLinearEquiv.symm.detLineCongr) =
+      (LinearEquiv.rTensor _ (kerEquivOfProd _ q h).toLinearEquiv.symm.detLineCongr).trans
+        (TensorProduct.congr eG.detLineCongr eΛ.detLineCongr.symm.dualMap) :=
+    LinearEquiv.toLinearMap_injective (TensorProduct.ext' fun x φ ↦ by
+      simp only [LinearEquiv.coe_coe, LinearEquiv.trans_apply, LinearEquiv.rTensor_tmul,
+        TensorProduct.congr_tmul]
+      exact congrArg (· ⊗ₜ _) (by
+        simpa [LinearEquiv.detLineCongr_trans] using
+          LinearEquiv.congr_fun (congrArg LinearEquiv.detLineCongr heqG) x))
+  exact LinearEquiv.congr_fun htensor t
+
+/-- **Naturality of kernel charts with shared model spaces.** When the stabilizers share the
+parameter space `Λ` (`D₂' = e₂ ∘ D₂`) and the kernel coordinates share the model `G`
+(`q' (e₁ x, l) = q (x, l)` on `ker (T.coprod D₂)`), the kernel charts read `LinearMap.detLineCongr`
+as the identity on `det G ⊗ (det Λ)^*`. -/
+theorem detLineChartEquiv_detLineCongr {T' : E' →L[𝕜] F'} {D₂' : Λ →L[𝕜] F'} {q' : E' × Λ →L[𝕜] G}
+    (e₁ : E ≃ₗ[𝕜] E') (e₂ : F ≃ₗ[𝕜] F')
+    (hT : (T' : E' →ₗ[𝕜] F') ∘ₗ e₁.toLinearMap = e₂.toLinearMap ∘ₗ (T : E →ₗ[𝕜] F))
+    (hD₂ : (D₂' : Λ →ₗ[𝕜] F') = e₂.toLinearMap ∘ₗ (D₂ : Λ →ₗ[𝕜] F))
+    (h : ((T.coprod D₂).prod q).IsInvertible) (h' : ((T'.coprod D₂').prod q').IsInvertible)
+    (hq : ∀ v : (T.coprod D₂).ker, q' (e₁ (v : E × Λ).1, (v : E × Λ).2) = q v)
+    (z : (T : E →ₗ[𝕜] F).detLine) :
+    detLineChartEquiv T' D₂' q' h' ((T : E →ₗ[𝕜] F).detLineCongr e₁ e₂ hT z) =
+      detLineChartEquiv T D₂ q h z := by
+  simpa using detLineChartEquiv_congr e₁ (LinearEquiv.refl 𝕜 Λ) e₂ (LinearEquiv.refl 𝕜 G) hT
+    (by simpa using hD₂) h h' (fun v ↦ by simpa using hq v) z
+
+end Congr
 
 section Nested
 

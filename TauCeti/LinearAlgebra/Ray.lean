@@ -23,10 +23,11 @@ formalization, revision `24f32e4d600878bfaac6bc2f2f9324175571c321`, as used in
 `TauCeti/Geometry/Manifold/Riemannian/EDistComparison.lean`.
 
 Negating a ray twice gives it back (`Module.Ray.neg_neg`), in a form that `rw` and `simp` find on
-orientations. Scaling a ray by a unit commutes with negating it (`Module.Ray.units_smul_neg`),
-complementing Mathlib's `Module.Ray.neg_units_smul`, and with transporting it along a linear
-equivalence (`Module.Ray.map_units_smul`). Over a linearly ordered ring, any map of rays
-commuting with negation also commutes with scaling by units (`Module.Ray.units_smul_of_map_neg`).
+orientations. Transporting a ray along linear equivalences is functorial (`Module.Ray.map_trans`),
+and scaling a ray by a unit commutes with negating it (`Module.Ray.units_smul_neg`), complementing
+Mathlib's `Module.Ray.neg_units_smul`, and with transporting it along a linear equivalence
+(`Module.Ray.map_units_smul`). Over a linearly ordered ring, any map of rays commuting with
+negation also commutes with scaling by units (`Module.Ray.units_smul_of_map_neg`).
 
 Two nonzero vectors in the same ray cannot cancel: their sum is again nonzero. This is the
 non-degeneracy needed to merge adjacent segments of a piecewise-linear path that point in the same
@@ -56,6 +57,14 @@ variable {R M : Type*} [CommSemiring R] [PartialOrder R] [IsStrictOrderedRing R]
 theorem SameRay.trans_of_ne_zero (hxy : SameRay R x y) (hyz : SameRay R y z) (hy : y ≠ 0) :
     SameRay R x z :=
   hxy.trans hyz fun h ↦ absurd h hy
+
+/-- Transporting a ray along a composite of linear equivalences is the composite of the ray
+transports. -/
+@[simp]
+theorem Module.Ray.map_trans {N P : Type*} [AddCommMonoid N] [Module R N]
+    [AddCommMonoid P] [Module R P] (e : M ≃ₗ[R] N) (e' : N ≃ₗ[R] P) :
+    Module.Ray.map (e.trans e') = (Module.Ray.map e).trans (Module.Ray.map e') :=
+  Equiv.ext <| Module.Ray.ind R fun _ _ ↦ rfl
 
 /-- Transporting a ray along a linear equivalence commutes with scaling it by a unit. -/
 @[simp]

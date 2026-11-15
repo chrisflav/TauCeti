@@ -61,6 +61,7 @@ the linear algebra itself is standard.
 * `LinearMap.detLineCongrKerCoker`: the isomorphism of determinant lines induced by isomorphisms
   of kernels and of cokernels.
 * `LinearMap.detLineCongr`: transport of determinant lines along a commuting square.
+* `LinearMap.detLineCongrOfEq`: transport of determinant lines along an equality `f = g`.
 * `LinearMap.instNegRayDetLine`, `LinearMap.instInvolutiveNegRayDetLine`: the opposite orientation
   of the determinant line of `f`, as `Module.Ray`'s negation, found by instance search.
 
@@ -78,7 +79,8 @@ the linear algebra itself is standard.
   dimension one (for an infinite-dimensional kernel or cokernel, by the `finrank = 0`
   convention).
 * `LinearMap.detLineCongr_refl`, `LinearMap.detLineCongr_trans` and `LinearMap.detLineCongr_symm`:
-  transport along commuting squares is functorial.
+  transport along commuting squares is functorial (and `LinearMap.detLineCongrOfEq_rfl`,
+  `LinearMap.detLineCongrOfEq_trans` and `LinearMap.detLineCongrOfEq_symm` for equalities).
 * `LinearMap.detLineCongr_apply_eq_det_smul`: automorphisms of source and target act on the
   determinant line by the determinant on the kernel times the inverse determinant on the cokernel.
 * `LinearMap.detLineCongr_apply_of_forall_eq_smul`: multiplication by a unit `c` on source and
@@ -431,6 +433,38 @@ theorem detLineCongr_symm (f : M →ₗ[R] N) {g : M' →ₗ[R] N'} (e₁ : M �
         LinearEquiv.eq_toLinearMap_symm_comp]) := by
   refine LinearEquiv.ext fun z ↦ ?_
   rw [LinearEquiv.symm_apply_eq, ← LinearEquiv.trans_apply, ← detLineCongr_trans]
+  simp
+
+/-- The isomorphism of determinant lines `det f ≃ det g` induced by an equality `f = g` of linear
+maps: it is `LinearMap.detLineCongr` along the identity equivalences of the source and target,
+avoiding `Eq.rec` in terms. -/
+def detLineCongrOfEq {f g : M →ₗ[R] N} (h : f = g) : f.detLine ≃ₗ[R] g.detLine :=
+  f.detLineCongr (LinearEquiv.refl R M) (LinearEquiv.refl R N)
+    (by rw [LinearEquiv.refl_toLinearMap, LinearEquiv.refl_toLinearMap, comp_id, id_comp, h])
+
+/-- `LinearMap.detLineCongrOfEq` is `LinearMap.detLineCongr` along the identity equivalences. -/
+theorem detLineCongrOfEq_def {f g : M →ₗ[R] N} (h : f = g) :
+    detLineCongrOfEq h = f.detLineCongr (LinearEquiv.refl R M) (LinearEquiv.refl R N)
+      (by rw [LinearEquiv.refl_toLinearMap, LinearEquiv.refl_toLinearMap, comp_id, id_comp, h]) :=
+  (rfl)
+
+/-- Transport along the reflexivity equality is the identity. -/
+@[simp]
+theorem detLineCongrOfEq_rfl (f : M →ₗ[R] N) :
+    detLineCongrOfEq (rfl : f = f) = LinearEquiv.refl R f.detLine :=
+  detLineCongr_refl
+
+/-- Transport along a composite equality is the composite of the transports. -/
+theorem detLineCongrOfEq_trans {f g k : M →ₗ[R] N} (h₁ : f = g) (h₂ : g = k) :
+    detLineCongrOfEq (h₁.trans h₂) = (detLineCongrOfEq h₁).trans (detLineCongrOfEq h₂) := by
+  subst h₁ h₂
+  simp
+
+/-- Transport along a symmetric equality is the inverse transport. -/
+@[simp]
+theorem detLineCongrOfEq_symm {f g : M →ₗ[R] N} (h : f = g) :
+    (detLineCongrOfEq h).symm = detLineCongrOfEq h.symm := by
+  subst h
   simp
 
 /-- Transport along a commuting square of automorphisms `e₁` of `M` and `e₂` of `N` multiplies the

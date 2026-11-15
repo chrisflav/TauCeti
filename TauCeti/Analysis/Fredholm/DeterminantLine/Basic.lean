@@ -75,6 +75,9 @@ the other operator's cokernel through its class
   identifications are compatible with every change of stabilizer.
 * `ContinuousLinearMap.detLineCoprodMapEquiv_id`, `ContinuousLinearMap.detLineCoprodMapEquiv_comp`:
   the identity and cocycle laws for changes of stabilizer.
+* `ContinuousLinearMap.detLineCoprodEquiv_congr`,
+  `ContinuousLinearMap.detLineStabilizationEquiv_congr`: naturality of the stabilization
+  isomorphisms along commuting squares.
 * `ContinuousLinearMap.detLineAdjointEquivDual`: the determinant line of the adjoint of a Fredholm
   operator between Hilbert spaces is the dual of its determinant line, with value
   `ContinuousLinearMap.detLineAdjointEquivDual_ιMulti_tmul_ιMulti_tmul`.
@@ -313,6 +316,90 @@ theorem detLineCoprodMapEquiv_comp (hι : ∀ l, D₂' (ι l) = D₂ l) (hκ : �
   simp [detLineCoprodMapEquiv_eq_trans_symm]
 
 end Normalized
+
+section Congr
+
+/-! ### Naturality along commuting squares -/
+
+variable {𝕜 E Λ F E' Λ' F' : Type*} [Field 𝕜]
+  [AddCommGroup E] [Module 𝕜 E] [TopologicalSpace E]
+  [AddCommGroup Λ] [Module 𝕜 Λ] [TopologicalSpace Λ]
+  [AddCommGroup F] [Module 𝕜 F] [TopologicalSpace F] [ContinuousAdd F]
+  [AddCommGroup E'] [Module 𝕜 E'] [TopologicalSpace E']
+  [AddCommGroup Λ'] [Module 𝕜 Λ'] [TopologicalSpace Λ']
+  [AddCommGroup F'] [Module 𝕜 F'] [TopologicalSpace F'] [ContinuousAdd F']
+  {D₁ : E →L[𝕜] F} {D₂ : Λ →L[𝕜] F} {D₁' : E' →L[𝕜] F'} {D₂' : Λ' →L[𝕜] F'}
+  [FiniteDimensional 𝕜 D₁.ker] [FiniteDimensional 𝕜 Λ]
+  [FiniteDimensional 𝕜 D₁'.ker] [FiniteDimensional 𝕜 Λ']
+
+/-- **Naturality of the stabilization isomorphism.** Let `e₁ : E ≃ₗ[𝕜] E'` and `e₂ : F ≃ₗ[𝕜] F'`
+intertwine `D₁` and `D₁'`, let `eΛ : Λ ≃ₗ[𝕜] Λ'` intertwine `D₂` and `D₂'`, and let `eB` be the
+induced isomorphism of stabilized kernels `(x, l) ↦ (e₁ x, eΛ l)`. Then
+`ContinuousLinearMap.detLineCoprodEquiv` intertwines the induced isomorphism of stabilized
+determinant lines with `LinearMap.detLineCongr`. -/
+theorem detLineCoprodEquiv_congr (e₁ : E ≃ₗ[𝕜] E') (eΛ : Λ ≃ₗ[𝕜] Λ') (e₂ : F ≃ₗ[𝕜] F')
+    (eB : (D₁.coprod D₂).ker ≃ₗ[𝕜] (D₁'.coprod D₂').ker)
+    (h₁ : (D₁' : E' →ₗ[𝕜] F') ∘ₗ e₁.toLinearMap = e₂.toLinearMap ∘ₗ (D₁ : E →ₗ[𝕜] F))
+    (h₂ : (D₂' : Λ' →ₗ[𝕜] F') ∘ₗ eΛ.toLinearMap = e₂.toLinearMap ∘ₗ (D₂ : Λ →ₗ[𝕜] F))
+    (heB : ∀ v : (D₁.coprod D₂).ker, (eB v : E' × Λ') = (e₁ (v : E × Λ).1, eΛ (v : E × Λ).2))
+    (hs : Function.Surjective (D₁.coprod D₂)) (hs' : Function.Surjective (D₁'.coprod D₂'))
+    (t : TauCeti.detLine 𝕜 (D₁.coprod D₂).ker ⊗[𝕜] Dual 𝕜 (TauCeti.detLine 𝕜 Λ)) :
+    detLineCoprodEquiv D₁' D₂' hs'
+        (TensorProduct.congr eB.detLineCongr eΛ.detLineCongr.symm.dualMap t) =
+      (D₁ : E →ₗ[𝕜] F).detLineCongr e₁ e₂ h₁ (detLineCoprodEquiv D₁ D₂ hs t) := by
+  have hcongr : (D₁ : E →ₗ[𝕜] F).detLineCongr e₁ e₂ h₁ =
+      TensorProduct.congr
+        (e₁.ofSubmodules _ _
+          ((D₁ : E →ₗ[𝕜] F).map_ker_eq_ker_of_comp_eq e₁.surjective e₂.injective h₁)).detLineCongr
+        (Submodule.Quotient.equiv _ _ e₂ ((D₁ : E →ₗ[𝕜] F).map_range_eq_range_of_comp_eq
+          e₁.surjective h₁)).detLineCongr.symm.dualMap :=
+    LinearEquiv.toLinearMap_injective (TensorProduct.ext' fun x φ ↦ by
+      simp only [LinearEquiv.coe_coe, LinearMap.detLineCongr_tmul, TensorProduct.congr_tmul]
+      exact congrArg _ (LinearMap.ext fun y ↦ by simp))
+  rw [detLineCoprodEquiv_def, detLineCoprodEquiv_def, hcongr]
+  refine TauCeti.detLineFourTermEquiv_congr
+    (kerCoprodHom_injective D₁ D₂) (exact_kerCoprodHom_parameterProj D₁ D₂)
+    (exact_parameterProj_parameterToCoker D₁ D₂)
+    ((parameterToCoker_surjective_iff_coprod_surjective D₁ D₂).2 hs)
+    (kerCoprodHom_injective D₁' D₂') (exact_kerCoprodHom_parameterProj D₁' D₂')
+    (exact_parameterProj_parameterToCoker D₁' D₂')
+    ((parameterToCoker_surjective_iff_coprod_surjective D₁' D₂').2 hs')
+    (e₁.ofSubmodules _ _
+      ((D₁ : E →ₗ[𝕜] F).map_ker_eq_ker_of_comp_eq e₁.surjective e₂.injective h₁))
+    eB eΛ
+    (Submodule.Quotient.equiv _ _ e₂
+      ((D₁ : E →ₗ[𝕜] F).map_range_eq_range_of_comp_eq e₁.surjective h₁))
+    ?_ ?_ ?_ t
+  · exact LinearMap.ext fun x ↦ Subtype.ext (by simp [heB])
+  · exact LinearMap.ext fun v ↦ by simp [heB]
+  · refine LinearMap.ext fun l ↦ ?_
+    have hl : D₂' (eΛ l) = e₂ (D₂ l) := by simpa using LinearMap.congr_fun h₂ l
+    simp [hl]
+
+/-- **Naturality of the normalized stabilization isomorphism.** Under the hypotheses of
+`ContinuousLinearMap.detLineCoprodEquiv_congr`, the sign-normalized stabilization isomorphisms
+`ContinuousLinearMap.detLineStabilizationEquiv` also intertwine the induced isomorphism of
+stabilized determinant lines with `LinearMap.detLineCongr`, since the cokernel and stabilizer
+dimensions are preserved. -/
+theorem detLineStabilizationEquiv_congr (e₁ : E ≃ₗ[𝕜] E') (eΛ : Λ ≃ₗ[𝕜] Λ') (e₂ : F ≃ₗ[𝕜] F')
+    (eB : (D₁.coprod D₂).ker ≃ₗ[𝕜] (D₁'.coprod D₂').ker)
+    (h₁ : (D₁' : E' →ₗ[𝕜] F') ∘ₗ e₁.toLinearMap = e₂.toLinearMap ∘ₗ (D₁ : E →ₗ[𝕜] F))
+    (h₂ : (D₂' : Λ' →ₗ[𝕜] F') ∘ₗ eΛ.toLinearMap = e₂.toLinearMap ∘ₗ (D₂ : Λ →ₗ[𝕜] F))
+    (heB : ∀ v : (D₁.coprod D₂).ker, (eB v : E' × Λ') = (e₁ (v : E × Λ).1, eΛ (v : E × Λ).2))
+    (hs : Function.Surjective (D₁.coprod D₂)) (hs' : Function.Surjective (D₁'.coprod D₂'))
+    (t : TauCeti.detLine 𝕜 (D₁.coprod D₂).ker ⊗[𝕜] Dual 𝕜 (TauCeti.detLine 𝕜 Λ)) :
+    detLineStabilizationEquiv D₁' D₂' hs'
+        (TensorProduct.congr eB.detLineCongr eΛ.detLineCongr.symm.dualMap t) =
+      (D₁ : E →ₗ[𝕜] F).detLineCongr e₁ e₂ h₁ (detLineStabilizationEquiv D₁ D₂ hs t) := by
+  have hsign : (-1 : 𝕜) ^ (finrank 𝕜 (F' ⧸ D₁'.range) * finrank 𝕜 Λ') =
+      (-1 : 𝕜) ^ (finrank 𝕜 (F ⧸ D₁.range) * finrank 𝕜 Λ) := by
+    rw [(Submodule.Quotient.equiv _ _ e₂
+      ((D₁ : E →ₗ[𝕜] F).map_range_eq_range_of_comp_eq e₁.surjective h₁)).finrank_eq.symm,
+      eΛ.finrank_eq.symm]
+  rw [detLineStabilizationEquiv_apply, detLineStabilizationEquiv_apply, map_smul, hsign,
+    detLineCoprodEquiv_congr e₁ eΛ e₂ eB h₁ h₂ heB hs hs']
+
+end Congr
 
 section Adjoint
 
