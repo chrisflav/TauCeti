@@ -69,7 +69,7 @@ expanded through: one multiplies by `q` and divides the expansion of the product
   `TauCeti.UpperHalfPlane.cuspFunction_qParam_pow_mul_eventuallyEq` and
   `TauCeti.UpperHalfPlane.qExpansion_congr`: cusp functions off `q = 0`.
 * `TauCeti.UpperHalfPlane.meromorphicAt_cuspFunction_mul` and its companions: meromorphy at `0`
-  of cusp functions under the field operations.
+  of cusp functions under the field operations and finite sums and products.
 * `TauCeti.UpperHalfPlane.cuspFunction_pow` and `TauCeti.UpperHalfPlane.qExpansion_pow`: powers of
   functions with analytic cusp functions.
 * `TauCeti.UpperHalfPlane.qExpansion_qParam` and `TauCeti.UpperHalfPlane.qExpansion_qParam_pow`:
@@ -309,6 +309,32 @@ theorem UpperHalfPlane.meromorphicAt_cuspFunction_pow (hf : MeromorphicAt (cuspF
 theorem UpperHalfPlane.meromorphicAt_cuspFunction_const (c : ℂ) :
     MeromorphicAt (cuspFunction h fun _ : ℍ ↦ c) 0 :=
   cuspFunction_const h c ▸ analyticAt_const.meromorphicAt
+
+/-- The cusp function of a finite sum is meromorphic at `0` when each summand's cusp function
+is. -/
+theorem UpperHalfPlane.meromorphicAt_cuspFunction_sum {ι : Type*} {s : Finset ι} {f : ι → ℍ → ℂ}
+    (hf : ∀ i ∈ s, MeromorphicAt (cuspFunction h (f i)) 0) :
+    MeromorphicAt (cuspFunction h (∑ i ∈ s, f i)) 0 := by
+  classical
+  induction s using Finset.induction_on with
+  | empty => exact meromorphicAt_cuspFunction_const 0
+  | insert a s ha ih =>
+    rw [Finset.sum_insert ha]
+    exact meromorphicAt_cuspFunction_add (hf a (Finset.mem_insert_self a s))
+      (ih fun i hi ↦ hf i (Finset.mem_insert_of_mem hi))
+
+/-- The cusp function of a finite product is meromorphic at `0` when each factor's cusp function
+is. -/
+theorem UpperHalfPlane.meromorphicAt_cuspFunction_prod {ι : Type*} {s : Finset ι} {f : ι → ℍ → ℂ}
+    (hf : ∀ i ∈ s, MeromorphicAt (cuspFunction h (f i)) 0) :
+    MeromorphicAt (cuspFunction h (∏ i ∈ s, f i)) 0 := by
+  classical
+  induction s using Finset.induction_on with
+  | empty => exact meromorphicAt_cuspFunction_const 1
+  | insert a s ha ih =>
+    rw [Finset.prod_insert ha]
+    exact meromorphicAt_cuspFunction_mul (hf a (Finset.mem_insert_self a s))
+      (ih fun i hi ↦ hf i (Finset.mem_insert_of_mem hi))
 
 /-- The order at `0` of `q ^ k` times the cusp function of `f`. -/
 theorem UpperHalfPlane.meromorphicOrderAt_pow_mul_cuspFunction {k : ℕ}

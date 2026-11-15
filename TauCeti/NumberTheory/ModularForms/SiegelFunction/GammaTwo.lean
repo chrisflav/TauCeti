@@ -5,7 +5,9 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.RingTheory.IntegralClosure.IsIntegral.Defs
 public import TauCeti.NumberTheory.ModularForms.SiegelFunction.JInvariant
+import Mathlib.RingTheory.IntegralClosure.IsIntegral.Basic
 import TauCeti.Analysis.Complex.UpperHalfPlane.CuspCoordinate
 import TauCeti.Analysis.Complex.UpperHalfPlane.MoebiusAction
 import TauCeti.LinearAlgebra.Matrix.SpecialLinearGroup.ModularGroup
@@ -54,6 +56,8 @@ Hence `F³` is a holomorphic `SL₂(ℤ)`-invariant function. With `s = e^{π i 
   `γ₂ ∘ T = e^{-2π i / 3} γ₂`.
 * `TauCeti.ModularForm.tendsto_gammaTwo_mul_qParam_atImInfty`: `γ₂(τ) e^{2π i τ / 3} → 1` at `i∞`,
   so the leading Fourier term of `γ₂` is `q^{-1/3}`.
+* `TauCeti.ModularForm.isIntegral_gammaTwo`, `TauCeti.ModularForm.isIntegral_gammaTwo_apply`: `γ₂`
+  and its values are integral over any ring over which `j` (or `j(τ)`) is integral.
 
 ## References
 
@@ -277,5 +281,20 @@ theorem tendsto_gammaTwo_mul_qParam_atImInfty :
     ring
   rw [gammaTwo_eq_siegelFunction_zero_half, h₁₂, h₄]
   field_simp
+
+/-! ### Integrality over `j` -/
+
+/-- The cube root `γ₂` is integral over any coefficient ring over which `j` is integral, since
+`γ₂³ = j`. -/
+theorem isIntegral_gammaTwo {R : Type*} [CommRing R] [Algebra R (ℍ → ℂ)] (hj : IsIntegral R j) :
+    IsIntegral R gammaTwo := by
+  have hpow : gammaTwo ^ 3 = j := funext gammaTwo_pow_three
+  exact IsIntegral.of_pow (n := 3) (by decide) (hpow.symm ▸ hj)
+
+/-- If `j(τ)` is integral over `R`, so is `γ₂(τ)`. In particular this applies with `R = ℤ` at
+imaginary quadratic points. -/
+theorem isIntegral_gammaTwo_apply {R : Type*} [CommRing R] [Algebra R ℂ] {τ : ℍ}
+    (hj : IsIntegral R (j τ)) : IsIntegral R (gammaTwo τ) :=
+  IsIntegral.of_pow (n := 3) (by decide) (by simpa only [gammaTwo_pow_three] using hj)
 
 end TauCeti.ModularForm

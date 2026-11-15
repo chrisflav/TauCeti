@@ -6,11 +6,14 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.FieldTheory.Separable
+public import Mathlib.RingTheory.IntegralClosure.IsIntegral.Defs
 public import TauCeti.Analysis.Complex.ModularForms.LevelOne.JInputs
 public import TauCeti.NumberTheory.BinaryQuadraticForm.Ideal.ClassNumber
 public import TauCeti.NumberTheory.BinaryQuadraticForm.Root
+import Mathlib.RingTheory.IntegralClosure.Algebra.Basic
 import TauCeti.Analysis.Complex.Fuchsian.LevelOne.Sphere
 import TauCeti.NumberTheory.BinaryQuadraticForm.Ideal.Reflection
+import TauCeti.NumberTheory.ModularForms.LevelOne.ModularPolynomial
 
 /-!
 # Singular moduli and the Hilbert class polynomial
@@ -28,16 +31,19 @@ Since `j` separates the `SL(2, ℤ)`-orbits of the upper half-plane
 (`TauCeti.ModularGroup.j_eq_j_iff`) and a form is determined by its root, distinct classes have
 distinct singular moduli. Since the `q`-expansion of `j` has integer coefficients, complex
 conjugation sends the singular modulus of a class to that of the reflected form
-`a x² - b x y + c y²`, which represents the inverse Picard class.
+`a x² - b x y + c y²`, which represents the inverse Picard class. Because `root f` satisfies an
+integral quadratic equation, `TauCeti.ModularForm.isIntegral_j_of_quadratic` shows that every
+singular modulus is an algebraic integer.
 
 The *Hilbert class polynomial* `hilbertClassPolynomial n` is the monic polynomial whose roots are
 the singular moduli of discriminant `-n`, each with multiplicity one. It is the product of
 `X - j(τ)` over the roots `τ` of the primitive reduced forms of discriminant `-n`, one for each
 proper class. Its degree is the order of the Picard group, which for a fundamental discriminant is
-the class number of the field, and its coefficients are real. The theory of complex
-multiplication shows that its coefficients are in fact integers and that adjoining any singular
-modulus of discriminant `-n` to the quadratic field `K = ℚ(√(-n))` generates the ring class field
-of the order of discriminant `-n` over `K`; neither statement is proved here.
+the class number of the field, and its coefficients are real algebraic integers. The theory of
+complex multiplication shows further that its coefficients lie in `ℤ` (rational integrality) and
+that adjoining any singular modulus of discriminant `-n` to `K = ℚ(√(-n))` generates the ring class
+field of the order of discriminant `-n` over `K`; neither of those Galois-theoretic statements is
+proved here.
 
 ## Main definitions
 
@@ -50,6 +56,8 @@ of the order of discriminant `-n` over `K`; neither statement is proved here.
 
 * `TauCeti.BinaryQuadraticForm.singularModulus_injective`: distinct proper classes have distinct
   singular moduli.
+* `TauCeti.BinaryQuadraticForm.isIntegral_j_root`,
+  `TauCeti.BinaryQuadraticForm.isIntegral_singularModulus`: singular moduli are algebraic integers.
 * `TauCeti.BinaryQuadraticForm.star_singularModulus`: the complex conjugate of the singular
   modulus of a class is the singular modulus of the inverse Picard class, and
   `im_singularModulus_eq_zero_iff`: a singular modulus is real exactly when its Picard class has
@@ -61,14 +69,14 @@ of the order of discriminant `-n` over `K`; neither statement is proved here.
   `natDegree_hilbertClassPolynomial_eq_classNumber`: its degree is the order of the Picard group
   of the order of discriminant `-n`, and the class number of a quadratic field of discriminant
   `-n`.
-* `TauCeti.BinaryQuadraticForm.map_star_hilbertClassPolynomial`: it is invariant under complex
-  conjugation of the coefficients, so its coefficients are real
-  (`im_coeff_hilbertClassPolynomial`).
+* `TauCeti.BinaryQuadraticForm.map_star_hilbertClassPolynomial`,
+  `TauCeti.BinaryQuadraticForm.isIntegral_coeff_hilbertClassPolynomial`: its coefficients are real
+  algebraic integers (`im_coeff_hilbertClassPolynomial`).
 
 ## References
 
-* D. A. Cox, *Primes of the Form x² + ny²*, §11 (the `j`-invariant of a lattice and of an ideal
-  class) and §13 (the class equation and its roots).
+* D. A. Cox, *Primes of the Form x² + ny²*, §11 (the `j`-invariant of a lattice, singular moduli,
+  and their algebraic integrality) and §13 (the class equation and its roots).
 * B. H. Gross and D. B. Zagier, *On singular moduli*, J. Reine Angew. Math. **355** (1985),
   191–220.
 -/
@@ -161,6 +169,19 @@ theorem im_singularModulus_eq_zero_iff (hn : (-n : ℤ) % 4 = 0 ∨ (-n : ℤ) %
   -- `Iff.rfl` closes the cast mismatch `((-n : ℤ) : ℚ) = -(n : ℚ)` between the Picard group in
   -- the type of `posDefProperClassToPic` and the one in `posDefProperClassEquivPic`
   exact inv_eq_iff_mul_eq_one.trans (by rw [sq]; exact Iff.rfl)
+
+variable {n} in
+/-- The value of `j` at the root of any positive definite integral binary quadratic form is an
+algebraic integer. -/
+theorem isIntegral_j_root (f : posDef n) : IsIntegral ℤ (j (root f)) :=
+  isIntegral_j_of_quadratic (mem_posDef.1 f.2).2.ne' ((eq_root_iff f (root f)).1 rfl)
+
+variable {n} in
+/-- **Singular moduli are algebraic integers.** -/
+theorem isIntegral_singularModulus (q : PosDefProperClass n) :
+    IsIntegral ℤ (singularModulus n q) := by
+  induction q using Quotient.inductionOn with | h f
+  exact isIntegral_j_root ⟨f, inf_le_left (b := primitiveForms (-n)) f.2⟩
 
 /-! ### The Hilbert class polynomial -/
 
@@ -266,5 +287,18 @@ theorem map_star_hilbertClassPolynomial :
 @[simp]
 theorem im_coeff_hilbertClassPolynomial (k : ℕ) : ((hilbertClassPolynomial n).coeff k).im = 0 := by
   rw [← Complex.conj_eq_iff_im, ← coeff_map, map_star_hilbertClassPolynomial]
+
+/-- **Every coefficient of the Hilbert class polynomial is an algebraic integer**, since its roots
+are the singular moduli of discriminant `-n`. -/
+theorem isIntegral_coeff_hilbertClassPolynomial (k : ℕ) :
+    IsIntegral ℤ ((hilbertClassPolynomial n).coeff k) := by
+  set O := (integralClosure ℤ ℂ).toSubring
+  let P : O[X] := ∏ f : primitiveReducedForms n,
+    (X - C ⟨singularModulus n (reducedClass n f), isIntegral_singularModulus _⟩)
+  have hP : P.map O.subtype = hilbertClassPolynomial n := by
+    rw [hilbertClassPolynomial, Polynomial.map_prod]
+    simp
+  rw [← hP, Polynomial.coeff_map]
+  exact (P.coeff k).2
 
 end TauCeti.BinaryQuadraticForm
