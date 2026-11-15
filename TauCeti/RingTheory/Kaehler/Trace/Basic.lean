@@ -98,6 +98,14 @@ lemma traceDerivForm_mul_right (X : Matrix m n R) (Y : Matrix n p R) (Z : Matrix
       _ = _ := by simp only [mul_comm (X _ _)]
 
 @[simp]
+lemma traceDerivForm_one_left [DecidableEq m] (Y : Matrix m m R) :
+    traceDerivForm D (1 : Matrix m m R) Y = D Y.trace := by
+  simp only [traceDerivForm, Matrix.one_apply, Matrix.trace, diag, map_sum]
+  refine Finset.sum_congr rfl fun i _ ↦ ?_
+  rw [Finset.sum_eq_single i (fun j _ hj ↦ by rw [ite_eq_right hj.symm, zero_smul])
+    (fun h ↦ (h (Finset.mem_univ _)).elim), ite_eq_left rfl, one_smul]
+
+@[simp]
 lemma traceDerivForm_one_right [DecidableEq m] (X : Matrix m m R) :
     traceDerivForm D X (1 : Matrix m m R) = 0 := by
   simp only [traceDerivForm, Matrix.one_apply]
@@ -215,6 +223,15 @@ lemma traceDeriv_algebraMap (r : R) (c : B) :
   rw [traceDeriv_def, traceDerivOfBasis_def, leftMulMatrix_algebraMap,
     traceDerivForm_scalar_right, trace_eq_matrix_trace (Module.Free.chooseBasis R B)]
 
+/-- Evaluating the trace derivation at `1` differentiates the algebraic trace:
+`δ(a)(1) = D(Tr(a))`. -/
+@[simp]
+lemma traceDeriv_one_right (a : B) :
+    traceDeriv D a 1 = D (trace R B a) := by
+  classical
+  rw [traceDeriv_def, traceDerivOfBasis_def, map_one, traceDerivForm_one_left,
+    trace_eq_matrix_trace (Module.Free.chooseBasis R B)]
+
 end Derivation
 
 namespace Derivation
@@ -297,8 +314,9 @@ lemma traceLin_smul_D (a c : B) :
     traceLin D (c • KaehlerDifferential.D k B a) = traceDeriv D a c := by
   rw [traceLin_smul, Derivation.liftKaehlerDifferential_comp_D, traceDerivation_apply]
 
+/-- The trace of an exact differential `da` is `D(Tr(a))`. -/
 @[simp]
-lemma traceLin_D (a : B) : traceLin D (KaehlerDifferential.D k B a) = traceDeriv D a 1 := by
-  rw [← traceLin_smul_D, one_smul]
+lemma traceLin_D (a : B) : traceLin D (KaehlerDifferential.D k B a) = D (trace R B a) := by
+  rw [← one_smul B (KaehlerDifferential.D k B a), traceLin_smul_D, traceDeriv_one_right]
 
 end Derivation
