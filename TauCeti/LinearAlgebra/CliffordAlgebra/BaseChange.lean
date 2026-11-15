@@ -22,8 +22,10 @@ Lipschitz, Pin, and Spin subgroups along scalar extensions. It also transports i
 the coefficient algebra, such as complex conjugation of `ℂ` over `ℝ`, to the Clifford algebra after
 extension of scalars. Finally, on the tensor carrier `A ⊗[R] Cℓ(M, Q)` of Mathlib's
 `CliffordAlgebra.equivBaseChange`, it records the inverse-map forms of Mathlib's involution and
-reversal laws for `CliffordAlgebra.toBaseChange`, and identifies the `ℤ/2`-grading of
-`Cℓ(A ⊗ M, Q_A)` with the scalar extension of the grading of `Cℓ(M, Q)`.
+reversal laws for `CliffordAlgebra.toBaseChange`, identifies the `ℤ/2`-grading of
+`Cℓ(A ⊗ M, Q_A)` with the scalar extension of the grading of `Cℓ(M, Q)`, and extends `R`-algebra
+homomorphisms out of `Cℓ(M, Q)` into an `A`-algebra `B` to `A`-algebra homomorphisms out of
+`Cℓ(A ⊗ M, Q_A)`.
 
 ## Main results
 
@@ -48,6 +50,9 @@ reversal laws for `CliffordAlgebra.toBaseChange`, and identifies the `ℤ/2`-gra
   `CliffordAlgebra.ofBaseChange_mem_evenOdd_iff`: `CliffordAlgebra.equivBaseChange` and its
   inverse match the parity-`i` part of `Cℓ(A ⊗ M, Q_A)` with the scalar extension of the
   parity-`i` part of `Cℓ(M, Q)`.
+* `AlgHom.cliffordBaseChange` extends `ρ : Cℓ(M, Q) →ₐ[R] B` to `Cℓ(A ⊗ M, Q_A) →ₐ[A] B`, and
+  `CliffordAlgebra.liftBaseChangeEquiv` packages the bijection with restriction along
+  `CliffordAlgebra.ofBaseChangeAux`.
 -/
 
 public section
@@ -430,5 +435,142 @@ theorem ofBaseChange_mem_evenOdd_iff {y : A ⊗[R] CliffordAlgebra Q} {i : ZMod 
   rw [← toBaseChange_mem_baseChange_evenOdd_iff, toBaseChange_ofBaseChange]
 
 end TensorCarrier
+
+end CliffordAlgebra
+
+/-! ### Scalar extension of algebra homomorphisms -/
+
+namespace AlgHom
+
+open CliffordAlgebra
+
+variable {R M B : Type*} [CommRing R] [Invertible (2 : R)] [AddCommGroup M] [Module R M]
+  {Q : QuadraticForm R M} [Semiring B] [Algebra R B]
+
+/-- **Scalar extension of a Clifford algebra homomorphism**: an `R`-algebra map
+`ρ : Cℓ(M, Q) →ₐ[R] B` into an `A`-algebra `B` extends uniquely to an `A`-algebra map
+`Cℓ(A ⊗[R] M, Q_A) →ₐ[A] B`, obtained by composing `AlgHom.liftEquiv` on `A ⊗[R] Cℓ(M, Q)` with
+`CliffordAlgebra.toBaseChange`. When `R = ℝ`, `A = ℂ` and `B = Module.End ℂ S`, this extends a
+real Clifford action on a complex vector space `S` to the complexified Clifford algebra. -/
+def cliffordBaseChange (ρ : CliffordAlgebra Q →ₐ[R] B) (A : Type*) [CommRing A] [Algebra R A]
+    [Algebra A B] [IsScalarTower R A B] :
+    CliffordAlgebra (Q.baseChange A) →ₐ[A] B :=
+  (ρ.liftEquiv R A (CliffordAlgebra Q) B).comp (toBaseChange A Q)
+
+section Properties
+
+variable (ρ : CliffordAlgebra Q →ₐ[R] B) (A : Type*) [CommRing A] [Algebra R A]
+  [Algebra A B] [IsScalarTower R A B]
+
+/-- On the tensor carrier `A ⊗[R] Cℓ(M, Q)`, `AlgHom.cliffordBaseChange` is `AlgHom.liftEquiv`. -/
+@[simp]
+theorem cliffordBaseChange_ofBaseChange (x : A ⊗[R] CliffordAlgebra Q) :
+    ρ.cliffordBaseChange A (ofBaseChange A Q x) = ρ.liftEquiv R A (CliffordAlgebra Q) B x := by
+  simp [cliffordBaseChange]
+
+/-- `AlgHom.cliffordBaseChange` extends `ρ` along `CliffordAlgebra.ofBaseChangeAux`. -/
+@[simp]
+theorem cliffordBaseChange_ofBaseChangeAux (x : CliffordAlgebra Q) :
+    ρ.cliffordBaseChange A (ofBaseChangeAux A Q x) = ρ x := by
+  simp [cliffordBaseChange]
+
+/-- On a pure tensor generator `a ⊗ₜ v`, `AlgHom.cliffordBaseChange` acts by `a • ρ (ι Q v)`. -/
+@[simp]
+theorem cliffordBaseChange_ι_tmul (a : A) (v : M) :
+    ρ.cliffordBaseChange A (ι (Q.baseChange A) (a ⊗ₜ v)) = a • ρ (ι Q v) := by
+  simp [cliffordBaseChange]
+
+/-- On a base-ring vector `1 ⊗ₜ v`, `AlgHom.cliffordBaseChange` agrees with `ρ (ι Q v)`. -/
+theorem cliffordBaseChange_ι_one_tmul (v : M) :
+    ρ.cliffordBaseChange A (ι (Q.baseChange A) (1 ⊗ₜ v)) = ρ (ι Q v) := by
+  rw [ρ.cliffordBaseChange_ι_tmul, one_smul]
+
+/-- Restricting `AlgHom.cliffordBaseChange` back along `CliffordAlgebra.ofBaseChangeAux` recovers
+`ρ`. -/
+@[simp]
+theorem cliffordBaseChange_comp_ofBaseChangeAux :
+    ((ρ.cliffordBaseChange A).restrictScalars R).comp (ofBaseChangeAux A Q) = ρ := by
+  ext m
+  simp
+
+variable {ρ A}
+
+/-- **Uniqueness of `AlgHom.cliffordBaseChange`**: an `A`-algebra map out of `Cℓ(A ⊗[R] M, Q_A)`
+agreeing with `ρ` on the vectors `1 ⊗ₜ v` equals `ρ.cliffordBaseChange A`. -/
+theorem cliffordBaseChange_unique {σ : CliffordAlgebra (Q.baseChange A) →ₐ[A] B}
+    (hσ : ∀ v : M, σ (ι (Q.baseChange A) (1 ⊗ₜ v)) = ρ (ι Q v)) :
+    σ = ρ.cliffordBaseChange A :=
+  AlgHom.toRingHom_injective <| baseChange_ringHom_ext Q
+    (fun a ↦ by simp [AlgHom.commutes])
+    (fun v ↦ by rw [AlgHom.coe_toRingHom, AlgHom.coe_toRingHom, hσ v,
+      ρ.cliffordBaseChange_ι_one_tmul])
+
+/-- `AlgHom.cliffordBaseChange` agrees with `Algebra.TensorProduct.lift` of the scalar map
+`A →ₐ[A] B` and `ρ`, composed with `CliffordAlgebra.equivBaseChange`. -/
+theorem cliffordBaseChange_eq_lift_comp_equivBaseChange (ρ : CliffordAlgebra Q →ₐ[R] B)
+    (A : Type*) [CommRing A] [Algebra R A] [Algebra A B] [IsScalarTower R A B] :
+    ρ.cliffordBaseChange A =
+      (Algebra.TensorProduct.lift (Algebra.ofId A B) ρ
+        fun a x ↦ by rw [Algebra.ofId_apply]; exact Algebra.commutes a (ρ x)).comp
+        (equivBaseChange A Q).toAlgHom :=
+  (cliffordBaseChange_unique fun v ↦ by simp).symm
+
+/-- Extending the restriction of an `A`-algebra map `σ` along `CliffordAlgebra.ofBaseChangeAux`
+recovers `σ`. -/
+@[simp]
+theorem cliffordBaseChange_restrictScalars_comp_ofBaseChangeAux
+    (σ : CliffordAlgebra (Q.baseChange A) →ₐ[A] B) :
+    ((σ.restrictScalars R).comp (ofBaseChangeAux A Q)).cliffordBaseChange A = σ :=
+  (cliffordBaseChange_unique fun v ↦ by simp).symm
+
+/-- `AlgHom.cliffordBaseChange` commutes with precomposition by the Clifford map of a quadratic
+isometry. -/
+theorem cliffordBaseChange_comp_map {N : Type*} [AddCommGroup N] [Module R N]
+    {Q' : QuadraticForm R N} (ρ : CliffordAlgebra Q →ₐ[R] B) (A : Type*) [CommRing A]
+    [Algebra R A] [Algebra A B] [IsScalarTower R A B] (f : Q' →qᵢ Q) :
+    (ρ.comp (CliffordAlgebra.map f)).cliffordBaseChange A =
+      (ρ.cliffordBaseChange A).comp (CliffordAlgebra.map (f.baseChange A)) :=
+  (cliffordBaseChange_unique fun v ↦ by simp).symm
+
+/-- `AlgHom.cliffordBaseChange` commutes with postcomposition by an `A`-algebra homomorphism. -/
+theorem comp_cliffordBaseChange {C : Type*} [Semiring C] [Algebra R C]
+    (ρ : CliffordAlgebra Q →ₐ[R] B) (A : Type*) [CommRing A] [Algebra R A]
+    [Algebra A B] [IsScalarTower R A B] [Algebra A C] [IsScalarTower R A C] (g : B →ₐ[A] C) :
+    ((g.restrictScalars R).comp ρ).cliffordBaseChange A = g.comp (ρ.cliffordBaseChange A) :=
+  (cliffordBaseChange_unique fun v ↦ by simp).symm
+
+end Properties
+
+end AlgHom
+
+namespace CliffordAlgebra
+
+variable {R : Type*} [CommRing R] [Invertible (2 : R)] {M : Type*} [AddCommGroup M] [Module R M]
+
+/-- **Universal property of Clifford scalar extension**: `R`-algebra maps `Cℓ(M, Q) →ₐ[R] B` into
+an `A`-algebra `B` correspond bijectively to `A`-algebra maps `Cℓ(A ⊗[R] M, Q_A) →ₐ[A] B`. -/
+def liftBaseChangeEquiv (A : Type*) (Q : QuadraticForm R M) (B : Type*) [CommRing A] [Algebra R A]
+    [Semiring B] [Algebra R B] [Algebra A B] [IsScalarTower R A B] :
+    (CliffordAlgebra Q →ₐ[R] B) ≃ (CliffordAlgebra (Q.baseChange A) →ₐ[A] B) where
+  toFun ρ := ρ.cliffordBaseChange A
+  invFun σ := (σ.restrictScalars R).comp (ofBaseChangeAux A Q)
+  left_inv ρ := ρ.cliffordBaseChange_comp_ofBaseChangeAux A
+  right_inv σ := AlgHom.cliffordBaseChange_restrictScalars_comp_ofBaseChangeAux σ
+
+/-- Forward evaluation of `CliffordAlgebra.liftBaseChangeEquiv`. -/
+@[simp]
+theorem liftBaseChangeEquiv_apply (A : Type*) (Q : QuadraticForm R M) (B : Type*) [CommRing A]
+    [Algebra R A] [Semiring B] [Algebra R B] [Algebra A B] [IsScalarTower R A B]
+    (ρ : CliffordAlgebra Q →ₐ[R] B) :
+    liftBaseChangeEquiv A Q B ρ = ρ.cliffordBaseChange A :=
+  (rfl)
+
+/-- Pointwise evaluation of `(CliffordAlgebra.liftBaseChangeEquiv A Q B).symm`. -/
+@[simp]
+theorem liftBaseChangeEquiv_symm_apply (A : Type*) (Q : QuadraticForm R M) (B : Type*)
+    [CommRing A] [Algebra R A] [Semiring B] [Algebra R B] [Algebra A B] [IsScalarTower R A B]
+    (σ : CliffordAlgebra (Q.baseChange A) →ₐ[A] B) (x : CliffordAlgebra Q) :
+    (liftBaseChangeEquiv A Q B).symm σ x = σ (ofBaseChangeAux A Q x) :=
+  (rfl)
 
 end CliffordAlgebra
