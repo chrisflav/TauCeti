@@ -8,6 +8,7 @@ module
 public import Mathlib.Topology.Algebra.Module.Spaces.WeakDual
 public import Mathlib.Topology.Algebra.SeparationQuotient.Basic
 public import Mathlib.Topology.Defs.Sequences
+import Mathlib.Topology.Compactness.CountablyCompact
 
 /-!
 # Convergence and quotient induction in the weak topology
@@ -21,7 +22,9 @@ sequences in `E` (`TauCeti.isSeqClosed_toWeakSpace_iff`).
 
 When the scalar ring `𝕜` is `T₀`, every continuous linear functional on `E` factors through
 `SeparationQuotient E`, so `WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)` induces the weak topology
-from that of the separated quotient (`WeakSpace.isInducing_map_mkCLM`).
+from that of the separated quotient (`WeakSpace.isInducing_map_mkCLM`) and transfers weak
+convergence, weak compactness, weak sequential compactness, and weak closures between `E` and
+`SeparationQuotient E`.
 
 When the weak topology is Hausdorff, weak convergence implies convergence in the original topology
 for families that eventually stay in a compact set
@@ -55,9 +58,9 @@ theorem isSeqClosed_toWeakSpace_iff {S : Set E} :
   · obtain ⟨v', hv', heq⟩ :=
       h (fun n ↦ mem_image_of_mem (toWeakSpace 𝕜 E) (hu n)) hlim
     exact (toWeakSpace 𝕜 E).injective heq ▸ hv'
-  · choose x hx hux using hu
-    refine mem_image_of_mem (toWeakSpace 𝕜 E) (h hx (u := x) (v := (toWeakSpace 𝕜 E).symm w) ?_)
-    simpa only [hux, LinearEquiv.apply_symm_apply] using hlim
+  · obtain ⟨v, rfl⟩ := (toWeakSpace 𝕜 E).surjective w
+    choose x hx hux using hu
+    exact mem_image_of_mem (toWeakSpace 𝕜 E) (h hx (by simpa only [hux] using hlim))
 
 /-- If the weak topology is Hausdorff, a family that eventually stays in a compact set and
 converges weakly to `a` converges to `a` in the original topology. -/
@@ -86,11 +89,16 @@ theorem map_toWeakSpace [AddCommMonoid F] [Module 𝕜 F] [TopologicalSpace F]
     WeakSpace.map f (toWeakSpace 𝕜 E x) = toWeakSpace 𝕜 F (f x) :=
   (rfl)
 
-/-- `WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)` is surjective. -/
-theorem map_mkCLM_surjective [ContinuousAdd E] [ContinuousConstSMul 𝕜 E] :
-    Function.Surjective (WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)) := fun y ↦ by
-  obtain ⟨x, hx⟩ := SeparationQuotient.surjective_mk ((toWeakSpace 𝕜 (SeparationQuotient E)).symm y)
-  exact ⟨toWeakSpace 𝕜 E x, by simp [hx]⟩
+/-- `WeakSpace.map f` is surjective if and only if `f` is surjective. -/
+theorem map_surjective_iff [AddCommMonoid F] [Module 𝕜 F] [TopologicalSpace F]
+    {f : E →L[𝕜] F} :
+    Function.Surjective (WeakSpace.map f) ↔ Function.Surjective f := by
+  refine ⟨fun hf y ↦ ?_, fun hf y ↦ ?_⟩
+  · obtain ⟨w, hw⟩ := hf (toWeakSpace 𝕜 F y)
+    obtain ⟨x, rfl⟩ := (toWeakSpace 𝕜 E).surjective w
+    exact ⟨x, (toWeakSpace 𝕜 F).injective (by simpa only [map_toWeakSpace] using hw)⟩
+  · obtain ⟨x, hx⟩ := hf ((toWeakSpace 𝕜 F).symm y)
+    exact ⟨toWeakSpace 𝕜 E x, by simp [hx]⟩
 
 /-- Pushing `toWeakSpace 𝕜 E '' s` along `WeakSpace.map f` gives the weak image of `f '' s`. -/
 theorem image_map_toWeakSpace [AddCommMonoid F] [Module 𝕜 F] [TopologicalSpace F]
@@ -98,10 +106,14 @@ theorem image_map_toWeakSpace [AddCommMonoid F] [Module 𝕜 F] [TopologicalSpac
     WeakSpace.map f '' (toWeakSpace 𝕜 E '' s) = toWeakSpace 𝕜 F '' (f '' s) := by
   simp_rw [← image_comp, Function.comp_def, map_toWeakSpace]
 
+section SeparationQuotient
+
+variable [T0Space 𝕜] [ContinuousAdd E] [ContinuousConstSMul 𝕜 E]
+
 /-- When `𝕜` is `T₀`, pushing forward to `SeparationQuotient E` induces the weak topology on
 `WeakSpace 𝕜 E`, because every continuous `𝕜`-linear functional factors through the separation
 quotient. -/
-theorem isInducing_map_mkCLM [T0Space 𝕜] [ContinuousAdd E] [ContinuousConstSMul 𝕜 E] :
+theorem isInducing_map_mkCLM :
     IsInducing (WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)) := by
   let q := WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)
   rw [isInducing_iff_nhds]
@@ -132,13 +144,57 @@ theorem isInducing_map_mkCLM [T0Space 𝕜] [ContinuousAdd E] [ContinuousConstSM
       SeparationQuotient.liftCLM_mk]
   simpa only [hfun, SeparationQuotient.mkCLM_apply, SeparationQuotient.liftCLM_mk] using hf
 
+/-- When `𝕜` is `T₀`, a family converges weakly in `E` if and only if its image under
+`SeparationQuotient.mkCLM 𝕜 E` converges weakly in `SeparationQuotient E`. -/
+theorem tendsto_toWeakSpace_mkCLM_iff {α : Type*} {l : Filter α} {u : α → E} {x : E} :
+    Tendsto (fun n ↦ toWeakSpace 𝕜 (SeparationQuotient E) (SeparationQuotient.mkCLM 𝕜 E (u n)))
+      l (𝓝 (toWeakSpace 𝕜 (SeparationQuotient E) (SeparationQuotient.mkCLM 𝕜 E x))) ↔
+      Tendsto (fun n ↦ toWeakSpace 𝕜 E (u n)) l (𝓝 (toWeakSpace 𝕜 E x)) := by
+  simpa only [Function.comp_def, map_toWeakSpace] using
+    ((isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).tendsto_nhds_iff
+      (f := fun n ↦ toWeakSpace 𝕜 E (u n)) (y := toWeakSpace 𝕜 E x)).symm
+
 /-- When `𝕜` is `T₀`, `WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)` commutes with topological
 closure. -/
-theorem image_map_mkCLM_closure [T0Space 𝕜] [ContinuousAdd E] [ContinuousConstSMul 𝕜 E]
-    (s : Set (WeakSpace 𝕜 E)) :
+theorem image_map_mkCLM_closure (s : Set (WeakSpace 𝕜 E)) :
     WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E) '' closure s =
       closure (WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E) '' s) := by
   rw [(isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).closure_eq_preimage_closure_image,
-    map_mkCLM_surjective.image_preimage]
+    (map_surjective_iff.2 SeparationQuotient.surjective_mk).image_preimage]
+
+/-- When `𝕜` is `T₀`, a set in `E` is weakly compact if and only if its image in
+`SeparationQuotient E` is weakly compact. -/
+theorem isCompact_toWeakSpace_mkCLM_iff {s : Set E} :
+    IsCompact (toWeakSpace 𝕜 (SeparationQuotient E) '' (SeparationQuotient.mkCLM 𝕜 E '' s)) ↔
+      IsCompact (toWeakSpace 𝕜 E '' s) := by
+  rw [← image_map_toWeakSpace, ← (isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).isCompact_iff]
+
+/-- When `𝕜` is `T₀`, a set in `E` is weakly sequentially compact if and only if its image in
+`SeparationQuotient E` is weakly sequentially compact. -/
+theorem isSeqCompact_toWeakSpace_mkCLM_iff {s : Set E} :
+    IsSeqCompact (toWeakSpace 𝕜 (SeparationQuotient E) '' (SeparationQuotient.mkCLM 𝕜 E '' s)) ↔
+      IsSeqCompact (toWeakSpace 𝕜 E '' s) := by
+  rw [← image_map_toWeakSpace, ← (isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).isSeqCompact_iff]
+
+/-- When `𝕜` is `T₀`, a set in `E` has weakly compact closure if and only if its image in
+`SeparationQuotient E` has weakly compact closure. -/
+theorem isCompact_closure_toWeakSpace_mkCLM_iff {s : Set E} :
+    IsCompact (closure (toWeakSpace 𝕜 (SeparationQuotient E) ''
+      (SeparationQuotient.mkCLM 𝕜 E '' s))) ↔
+      IsCompact (closure (toWeakSpace 𝕜 E '' s)) := by
+  rw [← image_map_toWeakSpace, ← image_map_mkCLM_closure,
+    ← (isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).isCompact_iff]
+
+/-- When `𝕜` is `T₀`, a vector lies in the weak closure of `s` if and only if its image in
+`SeparationQuotient E` lies in the weak closure of `SeparationQuotient.mkCLM 𝕜 E '' s`. -/
+theorem mem_closure_toWeakSpace_mkCLM_iff {s : Set E} {x : E} :
+    toWeakSpace 𝕜 (SeparationQuotient E) (SeparationQuotient.mkCLM 𝕜 E x) ∈
+      closure (toWeakSpace 𝕜 (SeparationQuotient E) ''
+        (SeparationQuotient.mkCLM 𝕜 E '' s)) ↔
+      toWeakSpace 𝕜 E x ∈ closure (toWeakSpace 𝕜 E '' s) := by
+  rw [(isInducing_map_mkCLM (𝕜 := 𝕜) (E := E)).closure_eq_preimage_closure_image,
+    mem_preimage, image_map_toWeakSpace, map_toWeakSpace]
+
+end SeparationQuotient
 
 end WeakSpace

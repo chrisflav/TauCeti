@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Analysis.Normed.Group.Bounded
 public import Mathlib.Algebra.Order.Group.Pointwise.Bounds
+import TauCeti.Order.Filter.Extr
 
 /-!
 # Bounded sublevels of an energy
@@ -14,8 +15,10 @@ public import Mathlib.Algebra.Order.Group.Pointwise.Bounds
 `HasBoundedSublevelsOn E S` is the boundedness condition used to obtain compactness in the
 direct method: every sublevel of the ordered-valued energy `E`, relative to the admissible set `S`,
 is bounded. It is stable under restriction, increasing the energy, positive scaling, and
-addition of an energy bounded below. In a pseudometric space it is equivalent to boundedness
-of every admissible sequence whose energies are bounded above.
+addition of an energy bounded below, and transfers compactness of images of bounded sublevels to
+bounded minimizer sets (`TauCeti.isCompact_image_minimizers_of_isBounded`,
+`TauCeti.HasBoundedSublevelsOn.isCompact_image_minimizers`). In a pseudometric space it is
+equivalent to boundedness of every admissible sequence whose energies are bounded above.
 -/
 
 public section
@@ -141,6 +144,28 @@ theorem isBounded_minimizers [Preorder β] (h : HasBoundedSublevelsOn E S) :
   · simp [Set.not_nonempty_iff_eq_empty.1 hne]
 
 end HasBoundedSublevelsOn
+
+/-- If the image under `f` of every bounded relative sublevel `{x ∈ S | E x ≤ b}` is compact, then
+any bounded minimizer set `{x ∈ S | IsMinOn E S x}` has compact image under `f`. -/
+theorem isCompact_image_minimizers_of_isBounded
+    {X Y β : Type*} [Bornology X] [TopologicalSpace Y] [Preorder β]
+    {f : X → Y} {E : X → β} {S : Set X}
+    (hsub : ∀ b, IsBounded {x ∈ S | E x ≤ b} → IsCompact (f '' {x ∈ S | E x ≤ b}))
+    (hb : IsBounded {x ∈ S | IsMinOn E S x}) :
+    IsCompact (f '' {x ∈ S | IsMinOn E S x}) := by
+  obtain hempty | ⟨u, hu, hmin⟩ := {x ∈ S | IsMinOn E S x}.eq_empty_or_nonempty
+  · simp [hempty]
+  · rw [hmin.minimizers_eq_sublevel hu] at hb ⊢
+    exact hsub (E u) hb
+
+/-- Under `HasBoundedSublevelsOn E S`, if the image under `f` of every bounded relative sublevel is
+compact, then the image of the minimizer set `{x ∈ S | IsMinOn E S x}` is compact. -/
+theorem HasBoundedSublevelsOn.isCompact_image_minimizers
+    {X Y β : Type*} [Bornology X] [TopologicalSpace Y] [Preorder β]
+    {f : X → Y} {E : X → β} {S : Set X} (h : HasBoundedSublevelsOn E S)
+    (hsub : ∀ b, IsBounded {x ∈ S | E x ≤ b} → IsCompact (f '' {x ∈ S | E x ≤ b})) :
+    IsCompact (f '' {x ∈ S | IsMinOn E S x}) :=
+  isCompact_image_minimizers_of_isBounded hsub h.isBounded_minimizers
 
 section NormalForms
 

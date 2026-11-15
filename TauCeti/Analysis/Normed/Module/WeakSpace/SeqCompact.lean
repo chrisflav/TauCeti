@@ -147,12 +147,9 @@ variable {𝕜 E : Type*} [RCLike 𝕜] [SeminormedAddCommGroup E] [NormedSpace 
 sequentially compact. Neither completeness, separability, nor separation of points by the seminorm
 is assumed. -/
 theorem isSeqCompact_toWeakSpace_of_isCompact {K : Set E}
-    (hK : IsCompact (toWeakSpace 𝕜 E '' K)) : IsSeqCompact (toWeakSpace 𝕜 E '' K) := by
-  let q := WeakSpace.map (SeparationQuotient.mkCLM 𝕜 E)
-  have hq : IsInducing q := WeakSpace.isInducing_map_mkCLM
-  rw [hq.isSeqCompact_iff, WeakSpace.image_map_toWeakSpace]
-  exact isSeqCompact_toWeakSpace_of_isCompact_normed
-    (WeakSpace.image_map_toWeakSpace (SeparationQuotient.mkCLM 𝕜 E) K ▸ hK.image q.continuous)
+    (hK : IsCompact (toWeakSpace 𝕜 E '' K)) : IsSeqCompact (toWeakSpace 𝕜 E '' K) :=
+  WeakSpace.isSeqCompact_toWeakSpace_mkCLM_iff.1
+    (isSeqCompact_toWeakSpace_of_isCompact_normed (WeakSpace.isCompact_toWeakSpace_mkCLM_iff.2 hK))
 
 /-- **Šmulian's theorem**, relative form: every sequence in a relatively weakly compact subset of
 a real or complex seminormed space has a subsequence converging weakly to some point of the
