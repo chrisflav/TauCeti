@@ -56,19 +56,17 @@ variable (F : C ⥤ D) [F.Additive] [F.Linear ℂ] [F.PreservesDagger]
 
 /-! ### Automatic contractivity and continuity -/
 
+omit instC in
+private theorem norm_map_sq {X Y : C} (f : X ⟶ Y) :
+    ‖F.map f‖ ^ 2 = ‖F.mapEndStarAlgHom ℂ X (End.of (f ≫ dagger f))‖ := by
+  simp
+
 /-- Every additive `ℂ`-linear dagger-preserving functor between C\*-categories is norm-contractive
 on all Hom spaces. -/
 theorem norm_map_le {X Y : C} (f : X ⟶ Y) : ‖F.map f‖ ≤ ‖f‖ := by
-  have hsq : ‖F.map f‖ ^ 2 ≤ ‖f‖ ^ 2 := by
-    calc
-      ‖F.map f‖ ^ 2 = ‖F.map f ≫ dagger (F.map f)‖ := (norm_comp_dagger_self (F.map f)).symm
-      _ = ‖F.map (f ≫ dagger f)‖ := by rw [← F.map_dagger, ← F.map_comp]
-      _ = ‖End.of (F.map (f ≫ dagger f))‖ := (End.norm_of _).symm
-      _ = ‖F.mapEndStarAlgHom ℂ X (End.of (f ≫ dagger f))‖ := by rw [F.mapEndStarAlgHom_of ℂ]
-      _ ≤ ‖End.of (f ≫ dagger f)‖ :=
-        NonUnitalStarAlgHom.norm_apply_le (F.mapEndStarAlgHom ℂ X) (End.of (f ≫ dagger f))
-      _ = ‖f‖ ^ 2 := by rw [End.norm_of, norm_comp_dagger_self]
-  exact nonneg_le_nonneg_of_sq_le_sq (norm_nonneg f) (by simpa only [sq] using hsq)
+  refine nonneg_le_nonneg_of_sq_le_sq (norm_nonneg f) ?_
+  simpa only [← sq, F.norm_map_sq, End.norm_of, norm_comp_dagger_self] using
+    NonUnitalStarAlgHom.norm_apply_le (F.mapEndStarAlgHom ℂ X) (End.of (f ≫ dagger f))
 
 /-- `ℝ≥0`-norm contractivity of an additive `ℂ`-linear dagger-preserving functor. -/
 theorem nnNorm_map_le {X Y : C} (f : X ⟶ Y) : ‖F.map f‖₊ ≤ ‖f‖₊ :=
@@ -112,7 +110,7 @@ theorem isClosed_kerIdeal_hom (X Y : C) :
   exact (F.mapCLM X Y).isClosed_ker
 
 /-- An additive `ℂ`-linear dagger-preserving functor is monotone on endomorphism C\*-algebras. -/
-theorem mapEnd_mono (X : C) : Monotone (F.mapEndStarAlgHom ℂ X) :=
+theorem mapEndStarAlgHom_monotone (X : C) : Monotone (F.mapEndStarAlgHom ℂ X) :=
   OrderHomClass.mono (F.mapEndStarAlgHom ℂ X)
 
 /-! ### Automatic isometry of faithful linear dagger functors -/
@@ -124,11 +122,9 @@ variable [F.Faithful]
 /-- Every faithful additive `ℂ`-linear dagger-preserving functor between C\*-categories is
 isometric on all Hom spaces. -/
 @[simp] theorem norm_map {X Y : C} (f : X ⟶ Y) : ‖F.map f‖ = ‖f‖ := by
-  rw [← sq_eq_sq₀ (norm_nonneg _) (norm_nonneg _), ← norm_comp_dagger_self,
-    ← norm_comp_dagger_self f, ← F.map_dagger, ← F.map_comp,
-    ← End.norm_of (F.map (f ≫ dagger f)), ← F.mapEndStarAlgHom_of ℂ,
-    NonUnitalStarAlgHom.norm_map (F.mapEndStarAlgHom ℂ X) (F.mapEndStarAlgHom_injective ℂ X),
-    End.norm_of]
+  rw [← sq_eq_sq₀ (norm_nonneg _) (norm_nonneg _), F.norm_map_sq]
+  simpa using NonUnitalStarAlgHom.norm_map (F.mapEndStarAlgHom ℂ X)
+    (F.mapEndStarAlgHom_injective ℂ X) (End.of (f ≫ dagger f))
 
 /-- `ℝ≥0`-norm preservation for a faithful additive `ℂ`-linear dagger-preserving functor. -/
 @[simp] theorem nnNorm_map {X Y : C} (f : X ⟶ Y) : ‖F.map f‖₊ = ‖f‖₊ :=
@@ -181,21 +177,11 @@ end Faithful
 
 end CategoryTheory.Functor
 
-namespace CategoryTheory.NatTrans
-
-variable {C : Type u₁} [Category.{v₁} C] [DaggerCategory C]
-variable {D : Type u₂} [Category.{v₂} D] [DaggerCategory D] [Preadditive D] [Linear ℂ D]
-variable [CStarCategory D]
-variable {F G : C ⥤ D} [F.PreservesDagger] [G.PreservesDagger]
-
-/-- Componentwise norm equality for the pointwise dagger of a natural transformation. -/
-theorem norm_dagger_app (α : F ⟶ G) (X : C) :
-    ‖α.dagger.app X‖ = ‖α.app X‖ := by
-  simp
-
-end CategoryTheory.NatTrans
-
 namespace TauCeti.CStarCategory
+
+private theorem norm_ext {α : Type*} {a b : Norm α}
+    (h : ∀ x : α, @Norm.norm _ a x = @Norm.norm _ b x) : a = b := by
+  cases a; cases b; congr; funext x; exact h x
 
 variable {C : Type u₁} [Category.{v₁} C] [DaggerCategory C] [Preadditive C] [Linear ℂ C]
 
@@ -209,28 +195,24 @@ theorem norm_eq (inst₁ inst₂ : CStarCategory C) {X Y : C} (f : X ⟶ Y) :
 theorem homNorm_eq (inst₁ inst₂ : CStarCategory C) :
     inst₁.homNorm = inst₂.homNorm := by
   funext X Y
-  have hnorm_ext : ∀ (a b : Norm (X ⟶ Y)), a.norm = b.norm → a = b := by
-    rintro ⟨_⟩ ⟨_⟩ rfl; rfl
-  exact hnorm_ext _ _ (funext fun f => norm_eq inst₁ inst₂ f)
+  exact norm_ext fun f => norm_eq inst₁ inst₂ f
+
+/-- Any two `CStarCategory` structures on `(C, †)` induce identical `homMetricSpace` fields. -/
+theorem homMetricSpace_eq (inst₁ inst₂ : CStarCategory C) :
+    inst₁.homMetricSpace = inst₂.homMetricSpace := by
+  funext X Y
+  refine MetricSpace.ext (Dist.ext (funext fun f => funext fun g => ?_))
+  rw [inst₁.dist_eq, inst₂.dist_eq, homNorm_eq inst₁ inst₂]
 
 /-- **Extensionality of `CStarCategory`:** a `ℂ`-linear dagger category admits at most one
 `CStarCategory` structure, since the norm determines the metric and all remaining fields are
 propositions. -/
 @[ext] theorem ext (inst₁ inst₂ : CStarCategory C) : inst₁ = inst₂ := by
-  cases inst₁ with
-  | mk n₁ m₁ d₁ _ _ _ _ _ =>
-  cases inst₂ with
-  | mk n₂ m₂ d₂ _ _ _ _ _ =>
-  have hn : n₁ = n₂ := homNorm_eq ⟨n₁, m₁, d₁, ‹_›, ‹_›, ‹_›, ‹_›, ‹_›⟩
-    ⟨n₂, m₂, d₂, ‹_›, ‹_›, ‹_›, ‹_›, ‹_›⟩
-  subst hn
-  have hm : m₁ = m₂ := by
-    funext X Y
-    apply MetricSpace.ext
-    have hdist_ext : ∀ (a b : Dist (X ⟶ Y)), a.dist = b.dist → a = b := by
-      rintro ⟨_⟩ ⟨_⟩ rfl; rfl
-    exact hdist_ext _ _ (funext fun f => funext fun g => (d₁ f g).trans (d₂ f g).symm)
-  subst hm
+  have hn := homNorm_eq inst₁ inst₂
+  have hm := homMetricSpace_eq inst₁ inst₂
+  cases inst₁; cases inst₂
+  dsimp only at hn hm
+  subst hn; subst hm
   rfl
 
 instance instSubsingleton : Subsingleton (CStarCategory C) :=

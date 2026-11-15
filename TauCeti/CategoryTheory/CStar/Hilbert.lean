@@ -8,7 +8,6 @@ module
 public import Mathlib.Analysis.CStarAlgebra.ContinuousLinearMap
 public import Mathlib.Analysis.CStarAlgebra.Hom
 public import Mathlib.Analysis.InnerProductSpace.StarOrder
-public import Mathlib.LinearAlgebra.FiniteDimensional.Defs
 public import TauCeti.Analysis.InnerProductSpace.Category
 public import TauCeti.CategoryTheory.CStar.Basic
 
@@ -21,13 +20,12 @@ arbitrary `RCLike` field `𝕜` without C\*-algebra imports. Specializing to `�
 spaces `X →L[ℂ] Y` with the operator norm, composition is contractive, the Hilbert-space adjoint
 satisfies `‖f ≫ dagger f‖ = ‖f‖ ^ 2`, and the positive operator
 `(ContinuousLinearMap.adjoint f).comp f` admits a self-adjoint continuous-functional-calculus
-square root.
+square root. Consequently, `TauCeti.HilbertCat.FinHilbertCat ℂ` inherits `CStarCategory`
+automatically via `TauCeti.fullSubcategoryCStar`.
 
 The abstract endomorphism C\*-algebra `End X` of `X : HilbertCat ℂ` is canonically star-algebra
 equivalent (`TauCeti.HilbertCat.endStarAlgEquiv`) — hence isometric and order-isomorphic — to
-Mathlib's operator C\*-algebra `X →L[ℂ] X`. Restricting to finite-dimensional complex Hilbert
-spaces via `TauCeti.HilbertCat.isFiniteDimensional` yields the full C\*-subcategory of
-finite-dimensional Hilbert spaces (`TauCeti.HilbertCat.FinHilbertCat`).
+Mathlib's operator C\*-algebra `X →L[ℂ] X`.
 -/
 
 public section
@@ -36,7 +34,7 @@ noncomputable section
 
 open CategoryTheory
 
-universe u v
+universe v
 
 namespace TauCeti.HilbertCat
 
@@ -88,36 +86,5 @@ def endStarAlgEquiv (X : HilbertCat.{0, v} ℂ) : End X ≃⋆ₐ[ℂ] (X →L[�
 theorem end_of_nonneg_iff {X : HilbertCat.{0, v} ℂ} (f : X →L[ℂ] X) :
     0 ≤ End.of (X := X) f ↔ 0 ≤ f :=
   end_le_iff 0 (End.of f)
-
-/-- The isomorphism-invariant object property selecting finite-dimensional Hilbert spaces. -/
-def isFiniteDimensional (𝕜 : Type u) [RCLike 𝕜] : ObjectProperty (HilbertCat.{u, v} 𝕜) :=
-  fun X => FiniteDimensional 𝕜 X
-
-/-- A Hilbert space satisfies `isFiniteDimensional` precisely when its carrier is
-finite-dimensional. -/
-@[simp] theorem prop_isFiniteDimensional_iff {𝕜 : Type u} [RCLike 𝕜]
-    (X : HilbertCat.{u, v} 𝕜) :
-    isFiniteDimensional 𝕜 X ↔ FiniteDimensional 𝕜 X := Iff.rfl
-
-instance {𝕜 : Type u} [RCLike 𝕜] :
-    (isFiniteDimensional.{u, v} 𝕜).IsClosedUnderIsomorphisms where
-  of_iso {X Y} e hX := by
-    have : FiniteDimensional 𝕜 X := hX
-    let f : X →L[𝕜] Y := e.hom
-    let g : Y →L[𝕜] X := e.inv
-    have hgf : g.toLinearMap.comp f.toLinearMap = LinearMap.id := by
-      simpa only [comp_eq_comp, id_eq_id, ContinuousLinearMap.toLinearMap_comp,
-        ContinuousLinearMap.coe_id] using congrArg ContinuousLinearMap.toLinearMap e.hom_inv_id
-    have hfg : f.toLinearMap.comp g.toLinearMap = LinearMap.id := by
-      simpa only [comp_eq_comp, id_eq_id, ContinuousLinearMap.toLinearMap_comp,
-        ContinuousLinearMap.coe_id] using congrArg ContinuousLinearMap.toLinearMap e.inv_hom_id
-    exact (LinearEquiv.ofLinearMap f.toLinearMap g.toLinearMap hfg hgf).finiteDimensional
-
-/-- The full subcategory of finite-dimensional Hilbert spaces over `𝕜`; for `𝕜 = ℂ`, it inherits
-`CStarCategory` automatically from `fullSubcategoryCStar`. -/
-abbrev FinHilbertCat (𝕜 : Type u) [RCLike 𝕜] : Type (max u (v + 1)) :=
-  (isFiniteDimensional.{u, v} 𝕜).FullSubcategory
-
-instance (X : FinHilbertCat.{0, v} ℂ) : FiniteDimensional ℂ X.obj := X.property
 
 end TauCeti.HilbertCat

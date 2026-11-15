@@ -320,17 +320,55 @@ end HomBanachSpace
 
 end TauCeti
 
+private theorem completeSpace_induced {α β : Type*} [m : MetricSpace β] [CompleteSpace β]
+    (f : α → β) (hf : Function.Injective f) (hsurj : Function.Surjective f) :
+    @CompleteSpace α (MetricSpace.induced f hf m).toUniformSpace := by
+  let _ : MetricSpace α := MetricSpace.induced f hf m
+  exact (IsUniformInducing.completeSpace_congr (f := f) ⟨rfl⟩ hsurj).2 ‹_›
+
 /-! ### The C\*-algebra structure and spectral order on `CategoryTheory.End X` -/
 
 namespace CategoryTheory.End
 
 open TauCeti
 
+/-- Construct a `CStarAlgebra` structure on `End X` from Banach-space data, contractive
+composition, and the C\*-inequality on `X ⟶ X`. -/
+@[expose, instance_reducible]
+def cstarAlgebraOfHom {C : Type u} [Category.{v} C] [DaggerCategory C]
+    [Preadditive C] [Linear ℂ C] [DaggerPreadditive C] [DaggerLinear ℂ C] {X : C}
+    [Norm (X ⟶ X)] [MetricSpace (X ⟶ X)] [CompleteSpace (X ⟶ X)]
+    (hdist : ∀ f g : X ⟶ X, dist f g = ‖-f + g‖)
+    (hsmul : ∀ (c : ℂ) (f : X ⟶ X), ‖c • f‖ ≤ ‖c‖ * ‖f‖)
+    (hcomp : ∀ f g : X ⟶ X, ‖f ≫ g‖ ≤ ‖g‖ * ‖f‖)
+    (hsq : ∀ f : X ⟶ X, ‖f‖ ^ 2 ≤ ‖f ≫ dagger f‖) : CStarAlgebra (End X) :=
+  letI : Norm (End X) := ⟨fun f => ‖f.asHom‖⟩
+  have hnorm : ∀ f : End X, ‖f‖ = ‖f.asHom‖ := fun _ => rfl
+  letI : MetricSpace (End X) :=
+    MetricSpace.induced End.asHom (fun _ _ => End.ext) inferInstance
+  letI : NormedRing (End X) :=
+    { toNorm := inferInstance
+      toRing := inferInstance
+      toMetricSpace := inferInstance
+      dist_eq := fun f g => hdist f.asHom g.asHom
+      norm_mul_le := fun f g => hcomp g.asHom f.asHom }
+  letI : NormedAlgebra ℂ (End X) :=
+    { toAlgebra := inferInstance
+      norm_smul_le := fun c f => hsmul c f.asHom }
+  haveI : CompleteSpace (End X) := by
+    exact completeSpace_induced End.asHom (fun _ _ => End.ext) (fun f => ⟨End.of f, rfl⟩)
+  haveI : CStarRing (End X) :=
+    { norm_mul_self_le := fun f => by
+        rw [hnorm, hnorm, mul_asHom, star_asHom, ← sq]
+        exact hsq f.asHom }
+  {}
+
 variable {C : Type u} [Category.{v} C] [DaggerCategory C] [Preadditive C] [Linear ℂ C]
 variable [CStarCategory C] {X Y : C}
 
-instance instNorm : Norm (End X) where
-  norm f := ‖f.asHom‖
+instance instCStarAlgebra : CStarAlgebra (End X) :=
+  cstarAlgebraOfHom dist_eq_norm_neg_add CStarCategory.norm_smul_le norm_comp_le
+    norm_sq_le_comp_dagger
 
 /-- The norm of an endomorphism is the norm of its underlying arrow. -/
 @[simp] theorem norm_asHom (f : End X) : ‖f.asHom‖ = ‖f‖ := (rfl)
@@ -338,31 +376,17 @@ instance instNorm : Norm (End X) where
 /-- Wrapping an arrow as an endomorphism preserves its norm. -/
 @[simp] theorem norm_of (f : X ⟶ X) : ‖End.of f‖ = ‖f‖ := (rfl)
 
-instance instMetricSpace : MetricSpace (End X) :=
-  MetricSpace.induced End.asHom (fun _ _ => End.ext) inferInstance
-
 /-- Distance in `End X` agrees with distance of underlying arrows. -/
 @[simp] theorem dist_asHom (f g : End X) : dist f.asHom g.asHom = dist f g := (rfl)
 
 /-- Wrapping arrows in `End X` preserves distance. -/
 @[simp] theorem dist_of (f g : X ⟶ X) : dist (End.of f) (End.of g) = dist f g := (rfl)
 
-instance instNormedRing : NormedRing (End X) where
-  toNorm := inferInstance
-  toRing := inferInstance
-  toMetricSpace := inferInstance
-  dist_eq f g := dist_eq_norm_neg_add f.asHom g.asHom
-  norm_mul_le f g := norm_comp_le g.asHom f.asHom
-
 /-- The `ℝ≥0`-norm of an endomorphism agrees with that of its underlying arrow. -/
 @[simp] theorem nnNorm_asHom (f : End X) : ‖f.asHom‖₊ = ‖f‖₊ := (rfl)
 
 /-- Wrapping an arrow as an endomorphism preserves its `ℝ≥0`-norm. -/
 @[simp] theorem nnNorm_of (f : X ⟶ X) : ‖End.of f‖₊ = ‖f‖₊ := (rfl)
-
-instance instNormedAlgebra : NormedAlgebra ℂ (End X) where
-  toAlgebra := inferInstance
-  norm_smul_le c f := CStarCategory.norm_smul_le c f.asHom
 
 /-- `End.asHom` bundled as a `ℂ`-linear isometric equivalence `End X ≃ₗᵢ[ℂ] (X ⟶ X)`. -/
 def homLinearIsometryEquiv (X : C) : End X ≃ₗᵢ[ℂ] (X ⟶ X) where
@@ -381,17 +405,6 @@ def homLinearIsometryEquiv (X : C) : End X ≃ₗᵢ[ℂ] (X ⟶ X) where
 /-- Applying `(homLinearIsometryEquiv X).symm` wraps an arrow via `End.of`. -/
 @[simp] theorem homLinearIsometryEquiv_symm_apply (f : X ⟶ X) :
     (homLinearIsometryEquiv X).symm f = End.of f := (rfl)
-
-instance instCompleteSpace : CompleteSpace (End X) :=
-  (IsUniformInducing.completeSpace_congr (f := (End.asHom : End X → (X ⟶ X))) ⟨rfl⟩
-    (fun f => ⟨End.of f, rfl⟩)).2 inferInstance
-
-instance instCStarRing : CStarRing (End X) where
-  norm_mul_self_le f := by
-    rw [← norm_asHom, ← norm_asHom, mul_asHom, star_asHom, ← sq]
-    exact norm_sq_le_comp_dagger f.asHom
-
-instance instCStarAlgebra : CStarAlgebra (End X) where
 
 /-- Endomorphisms of an object in a C\*-category carry the spectral partial order. -/
 instance instPartialOrder : PartialOrder (End X) :=
@@ -452,27 +465,36 @@ def conjPositiveLinearMap (f : X ⟶ Y) : End Y →ₚ[ℂ] End X where
     conjPositiveLinearMap f a = End.of (f ≫ a.asHom ≫ dagger f) := (rfl)
 
 /-- Sandwiching by `f : X ⟶ Y` is monotone from `End Y` to `End X`. -/
-theorem conj_mono (f : X ⟶ Y) : Monotone (fun a : End Y => End.of (f ≫ a.asHom ≫ dagger f)) :=
+theorem conj_monotone (f : X ⟶ Y) : Monotone (fun a : End Y => End.of (f ≫ a.asHom ≫ dagger f)) :=
   (conjPositiveLinearMap f).monotone
 
 end CategoryTheory.End
 
-namespace TauCeti
-
 /-! ### Zero-object and identity-norm formulas -/
 
-section ZeroObject
+namespace CategoryTheory.Limits.IsZero
+
+open TauCeti
 
 variable {C : Type u} [Category.{v} C] [DaggerCategory C] [Preadditive C] [Linear ℂ C]
 variable [CStarCategory C] {X Y : C}
 
 /-- Every arrow out of a zero object has norm `0`. -/
-theorem isZero_norm_to (hX : Limits.IsZero X) (f : X ⟶ Y) : ‖f‖ = 0 := by
+theorem norm_eq_zero_of_src (hX : IsZero X) (f : X ⟶ Y) : ‖f‖ = 0 := by
   rw [hX.eq_of_src f 0, norm_zero]
 
 /-- Every arrow into a zero object has norm `0`. -/
-theorem isZero_norm_from (hY : Limits.IsZero Y) (f : X ⟶ Y) : ‖f‖ = 0 := by
+theorem norm_eq_zero_of_tgt (hY : IsZero Y) (f : X ⟶ Y) : ‖f‖ = 0 := by
   rw [hY.eq_of_tgt f 0, norm_zero]
+
+end CategoryTheory.Limits.IsZero
+
+namespace TauCeti
+
+section ZeroObject
+
+variable {C : Type u} [Category.{v} C] [DaggerCategory C] [Preadditive C] [Linear ℂ C]
+variable [CStarCategory C] {X Y : C}
 
 /-- The identity arrow of `X` has norm `0` precisely when `X` is a zero object. -/
 theorem norm_id_eq_zero_iff_isZero (X : C) :
@@ -480,7 +502,7 @@ theorem norm_id_eq_zero_iff_isZero (X : C) :
   rw [norm_eq_zero, Limits.IsZero.iff_id_eq_zero]
 
 /-- On a nonzero object `X`, the identity arrow has norm `1`. -/
-theorem norm_id_of_not_isZero {X : C} (hX : ¬ Limits.IsZero X) : ‖𝟙 X‖ = 1 := by
+theorem norm_id_eq_one_of_not_isZero {X : C} (hX : ¬ Limits.IsZero X) : ‖𝟙 X‖ = 1 := by
   have hnt : Nontrivial (End X) :=
     ⟨⟨1, 0, fun h10 => hX ((Limits.IsZero.iff_id_eq_zero X).mpr (congrArg End.asHom h10))⟩⟩
   exact CStarRing.norm_one (E := End X)
@@ -489,7 +511,7 @@ theorem norm_id_of_not_isZero {X : C} (hX : ¬ Limits.IsZero X) : ‖𝟙 X‖ =
 theorem norm_id_eq_zero_or_one (X : C) : ‖𝟙 X‖ = 0 ∨ ‖𝟙 X‖ = 1 := by
   by_cases hX : Limits.IsZero X
   · exact Or.inl ((norm_id_eq_zero_iff_isZero X).mpr hX)
-  · exact Or.inr (norm_id_of_not_isZero hX)
+  · exact Or.inr (norm_id_eq_one_of_not_isZero hX)
 
 /-- Every identity arrow in a C\*-category has norm at most `1`. -/
 theorem norm_id_le_one (X : C) : ‖𝟙 X‖ ≤ 1 := by
@@ -501,7 +523,7 @@ theorem IsUnitary.norm_eq_one {u : X ⟶ Y} (hu : IsUnitary u) (hX : ¬ Limits.I
   calc
     ‖u‖ = ‖𝟙 X ≫ u‖ := by rw [Category.id_comp]
     _ = ‖𝟙 X‖ := hu.norm_comp_right (𝟙 X)
-    _ = 1 := norm_id_of_not_isZero hX
+    _ = 1 := norm_id_eq_one_of_not_isZero hX
 
 end ZeroObject
 
@@ -511,12 +533,7 @@ namespace CStarCategory
 
 /-- Construct a `CStarCategory` from Banach Hom spaces, contractive composition,
 `‖f‖ ^ 2 ≤ ‖f ≫ dagger f‖`, and nonnegativity of the real parts of the complex spectrum of
-`End.of (f ≫ dagger f)`.
-
-Because `End.of (f ≫ dagger f)` is self-adjoint in the Banach \*-algebra `End X`, its complex
-spectrum automatically lies in `ℝ`; nonnegativity of the real parts therefore gives positivity in
-the spectral order and supplies a self-adjoint square root `g` with
-`f ≫ dagger f = g ≫ dagger g`. -/
+`End.of (f ≫ dagger f)`. -/
 @[instance_reducible]
 def ofSpectrumNonneg {C : Type u} [Category.{v} C] [DaggerCategory C]
     [Preadditive C] [Linear ℂ C] [DaggerPreadditive C] [DaggerLinear ℂ C]
@@ -538,26 +555,10 @@ def ofSpectrumNonneg {C : Type u} [Category.{v} C] [DaggerCategory C]
   norm_comp_le := hcomp
   norm_sq_le_comp_dagger := hsq
   exists_comp_dagger_eq {X Y} f := by
-    let instNormEnd : Norm (End X) := ⟨fun a => ‖a.asHom‖⟩
-    let instMetricEnd : MetricSpace (End X) :=
-      MetricSpace.induced End.asHom (fun _ _ => End.ext) inferInstance
-    let instNormedRingEnd : NormedRing (End X) :=
-      { toNorm := instNormEnd
-        toRing := inferInstance
-        toMetricSpace := instMetricEnd
-        dist_eq := fun a b => hdist a.asHom b.asHom
-        norm_mul_le := fun a b => hcomp b.asHom a.asHom }
-    let instNormedAlgEnd : NormedAlgebra ℂ (End X) :=
-      { toAlgebra := inferInstance
-        norm_smul_le := fun c a => hsmul c a.asHom }
-    have instCompleteEnd : CompleteSpace (End X) :=
-      (IsUniformInducing.completeSpace_congr (f := (End.asHom : End X → (X ⟶ X))) ⟨rfl⟩
-        (fun g => ⟨End.of g, rfl⟩)).2 inferInstance
-    have instCStarRingEnd : CStarRing (End X) :=
-      { norm_mul_self_le := fun a => by
-          change ‖a.asHom‖ * ‖a.asHom‖ ≤ ‖a.asHom ≫ dagger a.asHom‖
-          simpa only [sq] using hsq a.asHom }
-    let instCStarAlgEnd : CStarAlgebra (End X) := {}
+    -- Equip `End X` with its C*-algebra structure from the Hom-space hypotheses;
+    -- `End.of (f ≫ dagger f)` is self-adjoint, so its spectrum lies in `ℝ` and `hspec` restricts
+    -- its quasispectrum to `ℝ≥0`, yielding a self-adjoint CFC square root.
+    let _ : CStarAlgebra (End X) := End.cstarAlgebraOfHom hdist hsmul hcomp hsq
     have hsa : IsSelfAdjoint (End.of (f ≫ dagger f)) := by
       rw [IsSelfAdjoint, ← End.of_dagger, dagger_comp, dagger_dagger]
     have hqr : QuasispectrumRestricts (End.of (f ≫ dagger f)) ContinuousMap.realToNNReal := by
@@ -597,9 +598,8 @@ instance inducedCategoryCStar {D : Type w} (F : D → C) :
   dist_eq f g := dist_eq_norm_neg_add f.hom g.hom
   norm_smul_le c f := norm_smul_le c f.hom
   completeSpace X Y := by
-    let _ : UniformSpace (X ⟶ Y) := UniformSpace.comap (fun f : X ⟶ Y => f.hom) inferInstance
-    exact (IsUniformInducing.completeSpace_congr (f := fun f : X ⟶ Y => f.hom) ⟨rfl⟩
-      (fun f => ⟨InducedCategory.homMk f, rfl⟩)).2 inferInstance
+    exact completeSpace_induced (fun f : X ⟶ Y => f.hom) (fun _ _ h => InducedCategory.hom_ext h)
+      (fun f => ⟨InducedCategory.homMk f, rfl⟩)
   norm_comp_le f g := norm_comp_le f.hom g.hom
   norm_sq_le_comp_dagger f := norm_sq_le_comp_dagger f.hom
   exists_comp_dagger_eq f := by
@@ -616,22 +616,8 @@ instance inducedCategoryCStar {D : Type w} (F : D → C) :
     ‖InducedCategory.homMk (F := F) (X := X) (Y := Y) f‖ = ‖f‖ := (rfl)
 
 /-- Every full subcategory of a C\*-category inherits a C\*-category structure. -/
-instance fullSubcategoryCStar (Z : ObjectProperty C) : CStarCategory Z.FullSubcategory where
-  homNorm X Y := ⟨fun f => ‖f.hom‖⟩
-  homMetricSpace X Y :=
-    MetricSpace.induced (fun f : X ⟶ Y => f.hom) (fun _ _ h => ObjectProperty.hom_ext Z h)
-      inferInstance
-  dist_eq f g := dist_eq_norm_neg_add f.hom g.hom
-  norm_smul_le c f := norm_smul_le c f.hom
-  completeSpace X Y := by
-    let _ : UniformSpace (X ⟶ Y) := UniformSpace.comap (fun f : X ⟶ Y => f.hom) inferInstance
-    exact (IsUniformInducing.completeSpace_congr (f := fun f : X ⟶ Y => f.hom) ⟨rfl⟩
-      (fun f => ⟨Z.homMk f, rfl⟩)).2 inferInstance
-  norm_comp_le f g := norm_comp_le f.hom g.hom
-  norm_sq_le_comp_dagger f := norm_sq_le_comp_dagger f.hom
-  exists_comp_dagger_eq f := by
-    obtain ⟨g, hg⟩ := exists_comp_dagger_eq f.hom
-    exact ⟨Z.homMk g, ObjectProperty.hom_ext Z hg⟩
+instance fullSubcategoryCStar (Z : ObjectProperty C) : CStarCategory Z.FullSubcategory :=
+  inferInstanceAs (CStarCategory (InducedCategory C ObjectProperty.FullSubcategory.obj))
 
 /-- The norm of an arrow in a full subcategory equals the norm of its underlying arrow. -/
 theorem fullSubcategory_norm_hom {Z : ObjectProperty C}

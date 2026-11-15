@@ -297,8 +297,8 @@ arrow. -/
     dagger (Z.homMk f) = Z.homMk (dagger f) := (rfl)
 
 instance [Preadditive C] [DaggerPreadditive C] (Z : ObjectProperty C) :
-    DaggerPreadditive Z.FullSubcategory where
-  dagger_add _ _ := by ext; exact dagger_add _ _
+    DaggerPreadditive Z.FullSubcategory :=
+  inferInstanceAs (DaggerPreadditive (InducedCategory C ObjectProperty.FullSubcategory.obj))
 
 instance {R : Type*} [Semiring R] [Star R] [Preadditive C] [Linear R C]
     [DaggerLinear R C] (Z : ObjectProperty C) :

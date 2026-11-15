@@ -18,8 +18,9 @@ structures. Composition and addition give the native linear category structure, 
 Mathlib's `ContinuousLinearMap.adjoint` supplies the conjugate-linear dagger.
 
 Unitary arrows are precisely the maps underlying linear isometric equivalences.
-The operator norm satisfies the C*-identity in categorical composition order; these
-facts provide the Hilbert-space example for analytic categories.
+The operator norm satisfies the C*-identity in categorical composition order; restricting to
+`TauCeti.HilbertCat.isFiniteDimensional` gives the full subcategory
+`TauCeti.HilbertCat.FinHilbertCat 𝕜` of finite-dimensional Hilbert spaces.
 -/
 
 public section
@@ -315,6 +316,34 @@ theorem unitaryEquivLinearIsometryEquiv_apply_apply
 theorem unitaryEquivLinearIsometryEquiv_symm_val_apply
     (e : X ≃ₗᵢ[𝕜] Y) (x : X) :
     (unitaryEquivLinearIsometryEquiv.symm e).1 x = e x := (rfl)
+
+/-- The isomorphism-invariant object property selecting finite-dimensional Hilbert spaces. -/
+def isFiniteDimensional (𝕜 : Type u) [RCLike 𝕜] : ObjectProperty (HilbertCat.{u, v} 𝕜) :=
+  fun X => FiniteDimensional 𝕜 X
+
+/-- A Hilbert space satisfies `isFiniteDimensional` precisely when its carrier is
+finite-dimensional. -/
+@[simp] theorem prop_isFiniteDimensional_iff (X : HilbertCat.{u, v} 𝕜) :
+    isFiniteDimensional 𝕜 X ↔ FiniteDimensional 𝕜 X := Iff.rfl
+
+instance : (isFiniteDimensional.{u, v} 𝕜).IsClosedUnderIsomorphisms where
+  of_iso {X Y} e hX := by
+    have : FiniteDimensional 𝕜 X := hX
+    let f : X →L[𝕜] Y := e.hom
+    let g : Y →L[𝕜] X := e.inv
+    have hgf : g.toLinearMap.comp f.toLinearMap = LinearMap.id := by
+      simpa only [comp_eq_comp, id_eq_id, ContinuousLinearMap.toLinearMap_comp,
+        ContinuousLinearMap.coe_id] using congrArg ContinuousLinearMap.toLinearMap e.hom_inv_id
+    have hfg : f.toLinearMap.comp g.toLinearMap = LinearMap.id := by
+      simpa only [comp_eq_comp, id_eq_id, ContinuousLinearMap.toLinearMap_comp,
+        ContinuousLinearMap.coe_id] using congrArg ContinuousLinearMap.toLinearMap e.inv_hom_id
+    exact (LinearEquiv.ofLinearMap f.toLinearMap g.toLinearMap hfg hgf).finiteDimensional
+
+/-- The full subcategory of finite-dimensional Hilbert spaces over `𝕜`. -/
+abbrev FinHilbertCat (𝕜 : Type u) [RCLike 𝕜] : Type (max u (v + 1)) :=
+  (isFiniteDimensional.{u, v} 𝕜).FullSubcategory
+
+instance (X : FinHilbertCat.{u, v} 𝕜) : FiniteDimensional 𝕜 X.obj := X.property
 
 end HilbertCat
 
