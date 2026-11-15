@@ -7,6 +7,7 @@ module
 
 public import TauCeti.NumberTheory.NumberField.Cyclotomic.Four.Basic
 public import TauCeti.NumberTheory.NumberField.Cyclotomic.Quadratic
+import Mathlib.Data.Nat.Factorization.Basic
 
 /-!
 # Primary Gaussian integers
@@ -47,6 +48,14 @@ without a nonunit hypothesis.
   `(N(a + b i) - 1) / 4 ≡ (a - 1) / 2 (mod 2)`;
   `TauCeti.IsPrimaryGaussian.norm_sub_one_div_four_modEq_four` refines this to
   `(N(a + b i) - 1) / 4 ≡ -((a - 1) / 2) (mod 4)`.
+* `TauCeti.IsPrimaryGaussian.isCoprime_one_add_toInteger`,
+  `TauCeti.IsPrimaryGaussian.sub_modEq_one`,
+  `TauCeti.IsPrimaryGaussian.exists_eq_two_pow_mul_odd`,
+  `TauCeti.IsPrimaryGaussian.four_dvd_sub_sub_sq_sub_one`,
+  `TauCeti.IsPrimaryGaussian.sub_sub_sq_sub_one_div_four_mul_modEq`: a primary element is coprime
+  to `1 + i`, and for primary `a + b i` we have `a - b ≡ 1 (mod 4)`, `b = 2 ^ k * b'` (`k ≥ 1`,
+  `b'` odd) when `b ≠ 0`, and `4 ∣ a - b - b² - 1`, with `(a - b - b² - 1) / 4` additive modulo
+  `4` on products of primary elements.
 * `TauCeti.IsPrimaryGaussian.absNorm_span_singleton_coprime_four`: a primary element generates
   an ideal of norm prime to `4`, and `TauCeti.IsPrimaryGaussian.natCast_absNorm_sub_one_div_four`
   identifies `(N(λ 𝓞 K) - 1) / 4` with the integer `(N(λ) - 1) / 4`.
@@ -56,6 +65,7 @@ without a nonunit hypothesis.
 
 ## References
 
+* C. F. Gauss, *Theoria residuorum biquadraticorum, Commentatio secunda*, §§68–76.
 * K. Ireland and M. Rosen, *A Classical Introduction to Modern Number Theory*, Chapter 9, §7.
 * N. Xu, *Reciprocity Laws*, §5, Proposition 5.1, Definitions 5.3–5.4 and Propositions 5.5–5.6.
 -/
@@ -202,6 +212,84 @@ theorem IsPrimaryGaussian.norm_sub_one_div_four_modEq_four {ζ : K} {hζ : IsPri
     obtain ⟨l, rfl⟩ : ∃ l, b = 4 * l + 2 := ⟨b / 4, by omega⟩
     ring_nf
     omega
+
+/-- Every primary element of `𝓞 K = ℤ[i]` is coprime to `1 + i`. -/
+theorem IsPrimaryGaussian.isCoprime_one_add_toInteger (hx : IsPrimaryGaussian x) {ζ : K}
+    (hζ : IsPrimitiveRoot ζ 4) : IsCoprime (1 + hζ.toInteger) x := by
+  obtain ⟨c, hc⟩ := (hζ.isPrimaryGaussian_iff (x := x)).mp hx
+  exact ⟨-(1 + hζ.toInteger) ^ 2 * c, 1, by linear_combination hc⟩
+
+/-- For primary `a + b i`, the coordinate difference `a - b` is congruent to `1` modulo `4`. -/
+theorem IsPrimaryGaussian.sub_modEq_one {ζ : K} {hζ : IsPrimitiveRoot ζ 4} {a b : ℤ}
+    (hx : IsPrimaryGaussian ((a : 𝓞 K) + (b : 𝓞 K) * hζ.toInteger)) :
+    a - b ≡ 1 [ZMOD 4] := by
+  rw [hζ.isPrimaryGaussian_add_mul_iff] at hx
+  simp only [Int.ModEq] at hx ⊢
+  omega
+
+/-- For primary `a + b i` with `b ≠ 0`, the imaginary coordinate `b` factors as `2 ^ k * b'` with
+`1 ≤ k` and `b'` odd. -/
+theorem IsPrimaryGaussian.exists_eq_two_pow_mul_odd {ζ : K} {hζ : IsPrimitiveRoot ζ 4} {a b : ℤ}
+    (hx : IsPrimaryGaussian ((a : 𝓞 K) + (b : 𝓞 K) * hζ.toInteger)) (hb : b ≠ 0) :
+    ∃ k : ℕ, ∃ b' : ℤ, 1 ≤ k ∧ Odd b' ∧ b = 2 ^ k * b' := by
+  obtain ⟨k, m, ⟨t, rfl⟩, hm_eq⟩ := Nat.exists_eq_two_pow_mul_odd (Int.natAbs_ne_zero.mpr hb)
+  have hm_odd : Odd (2 * (t : ℤ) + 1) := ⟨t, rfl⟩
+  obtain ⟨b', hb', hb_eq⟩ : ∃ b' : ℤ, Odd b' ∧ b = 2 ^ k * b' := by
+    rcases Int.natAbs_eq b with h | h
+    · exact ⟨2 * (t : ℤ) + 1, hm_odd, by rw [h, hm_eq]; push_cast; rfl⟩
+    · exact ⟨-(2 * (t : ℤ) + 1), hm_odd.neg, by rw [h, hm_eq]; push_cast; ring⟩
+  refine ⟨k, b', ?_, hb', hb_eq⟩
+  by_contra hk0
+  obtain rfl : k = 0 := by omega
+  have hcoord := (hζ.isPrimaryGaussian_add_mul_iff (a := a) (b := b)).mp hx
+  obtain ⟨u, hu⟩ := hb'
+  simp only [pow_zero, one_mul, hu, Int.ModEq] at hb_eq hcoord
+  omega
+
+/-- **Integrality of the `1 + i` supplementary-law exponent.** For primary `a + b i`, the integer
+`a - b - b² - 1` is divisible by `4`. -/
+theorem IsPrimaryGaussian.four_dvd_sub_sub_sq_sub_one {ζ : K} {hζ : IsPrimitiveRoot ζ 4}
+    {a b : ℤ} (hx : IsPrimaryGaussian ((a : 𝓞 K) + (b : 𝓞 K) * hζ.toInteger)) :
+    4 ∣ a - b - b ^ 2 - 1 := by
+  rw [hζ.isPrimaryGaussian_add_mul_iff] at hx
+  simp only [Int.ModEq] at hx
+  obtain ⟨u, rfl⟩ : ∃ u, b = 2 * u := ⟨b / 2, by omega⟩
+  obtain ⟨r, rfl⟩ : ∃ r, a = 1 + 2 * u + 4 * r := ⟨(a - 2 * u - 1) / 4, by omega⟩
+  exact ⟨r - u ^ 2, by ring⟩
+
+/-- **Additivity modulo `4` of the `1 + i` supplementary-law exponent.** For primary elements
+`a + b i` and `c + d i` with product `(a c - b d) + (a d + b c) i`, the exponent
+`(x - y - y² - 1) / 4` of the product is congruent modulo `4` to the sum of the exponents of the
+factors. -/
+theorem IsPrimaryGaussian.sub_sub_sq_sub_one_div_four_mul_modEq {ζ : K}
+    {hζ : IsPrimitiveRoot ζ 4} {a b c d : ℤ}
+    (hx : IsPrimaryGaussian ((a : 𝓞 K) + (b : 𝓞 K) * hζ.toInteger))
+    (hy : IsPrimaryGaussian ((c : 𝓞 K) + (d : 𝓞 K) * hζ.toInteger)) :
+    ((a * c - b * d) - (a * d + b * c) - (a * d + b * c) ^ 2 - 1) / 4 ≡
+      (a - b - b ^ 2 - 1) / 4 + (c - d - d ^ 2 - 1) / 4 [ZMOD 4] := by
+  rw [hζ.isPrimaryGaussian_add_mul_iff] at hx hy
+  simp only [Int.ModEq] at hx hy
+  obtain ⟨u, rfl⟩ : ∃ u, b = 2 * u := ⟨b / 2, by omega⟩
+  obtain ⟨r, rfl⟩ : ∃ r, a = 1 + 2 * u + 4 * r := ⟨(a - 2 * u - 1) / 4, by omega⟩
+  obtain ⟨v, rfl⟩ : ∃ v, d = 2 * v := ⟨d / 2, by omega⟩
+  obtain ⟨s, rfl⟩ : ∃ s, c = 1 + 2 * v + 4 * s := ⟨(c - 2 * v - 1) / 4, by omega⟩
+  set t : ℤ := u * v + r * v + u * s
+  have hprod :
+      ((1 + 2 * u + 4 * r) * (1 + 2 * v + 4 * s) - 2 * u * (2 * v)) -
+        ((1 + 2 * u + 4 * r) * (2 * v) + 2 * u * (1 + 2 * v + 4 * s)) -
+        ((1 + 2 * u + 4 * r) * (2 * v) + 2 * u * (1 + 2 * v + 4 * s)) ^ 2 - 1 =
+      4 * ((r - u ^ 2) + (s - v ^ 2) +
+        4 * (-u * v + r * s - 2 * (u + v) * t - 4 * t ^ 2)) := by
+    simp only [t]
+    ring
+  have hx_div : ((1 + 2 * u + 4 * r) - 2 * u - (2 * u) ^ 2 - 1) / 4 = r - u ^ 2 := by
+    have h : (1 + 2 * u + 4 * r) - 2 * u - (2 * u) ^ 2 - 1 = 4 * (r - u ^ 2) := by ring
+    rw [h, Int.mul_ediv_cancel_left _ (by decide)]
+  have hy_div : ((1 + 2 * v + 4 * s) - 2 * v - (2 * v) ^ 2 - 1) / 4 = s - v ^ 2 := by
+    have h : (1 + 2 * v + 4 * s) - 2 * v - (2 * v) ^ 2 - 1 = 4 * (s - v ^ 2) := by ring
+    rw [h, Int.mul_ediv_cancel_left _ (by decide)]
+  rw [hprod, Int.mul_ediv_cancel_left _ (by decide), hx_div, hy_div]
+  exact Int.modEq_iff_dvd.mpr ⟨u * v - r * s + 2 * (u + v) * t + 4 * t ^ 2, by ring⟩
 
 /-- A primary element of `𝓞 K = ℤ[i]` generates an ideal whose norm is odd, hence prime to `4`. -/
 theorem IsPrimaryGaussian.absNorm_span_singleton_coprime_four (hx : IsPrimaryGaussian x) :
