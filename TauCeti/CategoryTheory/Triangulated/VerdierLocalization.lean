@@ -57,6 +57,8 @@ consequences for Verdier quotients:
 * `CategoryTheory.ObjectProperty.TrWLocalization.exists_map_comp_eq_map` and
   `CategoryTheory.ObjectProperty.TrWLocalization.exists_comp_eq_zero_of_map_eq_zero`: morphisms
   out of an object approximated by morphisms `δᵢ` as above, and their kernel.
+* `CategoryTheory.ObjectProperty.isLocalizedEquivalence_trWLocalizerMorphismOfLE`: when `P ≤ Q` and
+  `Q ≤ P`, `trWLocalizerMorphismOfLE` induces an equivalence of Verdier localizations.
 
 ## References
 
@@ -191,6 +193,16 @@ instance (h : P ≤ Q) : (trWLocalizerMorphismOfLE h).functor.CommShift ℤ :=
 /-- The identity functor underlying `trWLocalizerMorphismOfLE h` is a triangle functor. -/
 instance (h : P ≤ Q) : (trWLocalizerMorphismOfLE h).functor.IsTriangulated :=
   inferInstanceAs (𝟭 C).IsTriangulated
+
+/-- When `Q ≤ P` holds alongside `h : P ≤ Q`, so that `P = Q`, the localizer morphism
+`trWLocalizerMorphismOfLE h` induces an equivalence between any localizations at `P.trW` and
+`Q.trW`. -/
+theorem isLocalizedEquivalence_trWLocalizerMorphismOfLE (h : P ≤ Q) (hQP : Q ≤ P) :
+    (trWLocalizerMorphismOfLE h).IsLocalizedEquivalence := by
+  obtain rfl : P = Q := le_antisymm h hQP
+  have : ((trWLocalizerMorphismOfLE h).functor ⋙ P.trW.Q).IsLocalization P.trW :=
+    Functor.IsLocalization.of_iso P.trW (Functor.leftUnitor P.trW.Q).symm
+  exact LocalizerMorphism.IsLocalizedEquivalence.of_isLocalization_of_isLocalization _ P.trW.Q
 
 end ObjectProperty
 
