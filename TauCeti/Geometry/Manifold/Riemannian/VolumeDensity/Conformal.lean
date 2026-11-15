@@ -38,6 +38,8 @@ orientation.
 * `TauCeti.WithMetric.lintegral_riemannianVolume_rescale`,
   `TauCeti.WithMetric.integral_riemannianVolume_rescale`: integration against the volume of `f g`.
 * `TauCeti.WithMetric.riemannianTotalVolume_rescale`: `Vol(f g) = ∫ f ^ (N / 2) dV_g`.
+* `TauCeti.WithMetric.riemannianTotalVolume_rescale_const`: `Vol(c g) = c ^ (N / 2) * Vol(g)` for a
+  positive constant `c`.
 * `TauCeti.WithMetric.integral_abs_rpow_rescale_rpow`: for `ĝ = u ^ (4 / (N - 2)) g`,
   `∫ |v| ^ (2 N / (N - 2)) dV_ĝ = ∫ |u v| ^ (2 N / (N - 2)) dV_g`.
 * `TauCeti.WithMetric.riemannianTotalVolume_rescale_rpow`: `Vol(u ^ (4 / (N - 2)) g) =
@@ -183,6 +185,14 @@ theorem riemannianTotalVolume_rescale [CompactSpace M] :
         ∂riemannianVolume I (WithMetric g) := by
   simpa only [integral_const, smul_eq_mul, mul_one, ← riemannianTotalVolume_def] using
     integral_riemannianVolume_rescale (hf := hf) (hf_pos := hf_pos) fun _ ↦ (1 : ℝ)
+
+/-- **Total volume under constant rescaling.** On a compact manifold of real dimension `N`,
+rescaling a metric `g` by a positive constant `c` multiplies its total volume by `c ^ (N / 2)`. -/
+theorem riemannianTotalVolume_rescale_const [CompactSpace M] {c : ℝ} (hc : 0 < c) :
+    riemannianTotalVolume I (WithMetric (g.rescale (fun _ ↦ c) contMDiff_const (fun _ ↦ hc))) =
+      c ^ ((Module.finrank ℝ E : ℝ) / 2) * riemannianTotalVolume I (WithMetric g) := by
+  rw [riemannianTotalVolume_rescale, integral_const, smul_eq_mul, mul_comm,
+    ← riemannianTotalVolume_def]
 
 /-- **Total volume of a Yamabe conformal metric.** On a compact manifold of real dimension `N`,
 let `u` be nonnegative and suppose that `u ^ (4 / (N - 2))` is `ContMDiff` of order `n` and

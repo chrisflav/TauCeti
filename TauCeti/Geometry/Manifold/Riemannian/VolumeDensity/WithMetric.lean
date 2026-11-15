@@ -5,7 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.Geometry.Manifold.Riemannian.VolumeDensity.Isometry
+public import TauCeti.Geometry.Manifold.Riemannian.VolumeDensity.Total
 public import TauCeti.Geometry.Manifold.Riemannian.WithMetric.Basic
 
 /-!
@@ -15,7 +15,8 @@ The copy `TauCeti.WithMetric g` of a manifold `M` carries the metric `g` as its
 `RiemannianBundle` instance, and the tautological map `ofWithMetric : WithMetric g → M` is an
 isometry onto `M` with `g` installed as its fibre metric. By the isometry invariance of the
 Riemannian volume, this map carries the volume of the copy to the volume of `(M, g)`, so integrals
-against the volume of `WithMetric g` are integrals against the volume of `g` on `M` itself.
+against the volume of `WithMetric g` are integrals against the volume of `g` on `M` itself, and on
+a compact manifold the total volumes coincide.
 
 This lets results proved for the installed metric of a manifold, such as the divergence theorem
 and Green's identities, be applied to the volumes of the copies, which are used to compare two
@@ -27,6 +28,8 @@ metrics on `M` without installing both on the same carrier.
   `WithMetric g` to the volume of `M` with `g` installed.
 * `TauCeti.WithMetric.integral_comp_ofWithMetric`: `∫ φ ∘ ofWithMetric` against the volume of
   `WithMetric g` is `∫ φ` against the volume of `g` on `M`.
+* `TauCeti.WithMetric.riemannianTotalVolume_eq`: on a compact manifold, `Vol(WithMetric g)` is
+  `Vol(M)` with `g` installed.
 -/
 
 public section
@@ -77,5 +80,21 @@ theorem integral_comp_ofWithMetric {F : Type*} [NormedAddCommGroup F] [NormedSpa
   have hemb : MeasurableEmbedding (ofWithMetric : WithMetric g → M) := by
     simpa only [coe_homeomorph] using (homeomorph g).measurableEmbedding
   exact (measurePreserving_ofWithMetric g).integral_comp hemb φ
+
+omit [LindelofSpace M] in
+/-- On a compact manifold, the total volume of the metric-indexed copy `WithMetric g` equals the
+total volume of `M` with `g` installed as its fibre metric. -/
+theorem riemannianTotalVolume_eq [CompactSpace M] :
+    riemannianTotalVolume I (WithMetric g) =
+      (letI : RiemannianBundle (fun x : M ↦ TangentSpace I x) := ⟨g.toRiemannianMetric⟩
+      letI : IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x) :=
+        instIsContinuousRiemannianBundle g.toContinuousRiemannianMetric
+      riemannianTotalVolume I M) := by
+  let _ : RiemannianBundle (fun x : M ↦ TangentSpace I x) := ⟨g.toRiemannianMetric⟩
+  let _ : IsContinuousRiemannianBundle E (fun x : M ↦ TangentSpace I x) :=
+    instIsContinuousRiemannianBundle g.toContinuousRiemannianMetric
+  refine (homeomorph g).riemannianTotalVolume_eq fun x v w ↦ ?_
+  rw [coe_homeomorph]
+  exact (inner_def x v w).symm
 
 end TauCeti.WithMetric
