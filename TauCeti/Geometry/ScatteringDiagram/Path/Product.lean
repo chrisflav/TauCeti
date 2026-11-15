@@ -5,7 +5,8 @@ Authors: Codex
 -/
 module
 
-public import TauCeti.Geometry.ScatteringDiagram.Path.CrossingEvents
+public import TauCeti.Geometry.ScatteringDiagram.Path.Affine
+public import TauCeti.Geometry.ScatteringDiagram.Path.Subdivision
 public import TauCeti.Data.Finset.NoncommProd
 public import Mathlib.Combinatorics.Quiver.Path.Weight
 import TauCeti.Data.Finset.Sort
@@ -18,8 +19,9 @@ crossing time the signed labels therefore have an unordered product, including
 all coincident indexed walls. Multiplying these event products in reverse time
 order gives the segment transport; concatenating segments gives polygonal
 transport. The first crossing is rightmost and a positive normal velocity gives
-the inverse label. Reversal inverts transport, group homomorphisms preserve it, and it lies
-in every subgroup containing the labels.
+the inverse label. Reversal inverts transport, group homomorphisms preserve it,
+path subdivision and continuous affine transport preserve it, and it lies in every
+subgroup containing the labels.
 
 This evaluates `WallComplement.signedCrossingEvent` using Mathlib's
 `Finset.noncommProd`, rather than choosing an enumeration of simultaneous walls.
@@ -30,9 +32,10 @@ opposite group to reverse multiplication order.
 
 ## Attribution
 
-Adapted in full from `Mei/Geometry/Convex/Polyhedron/Path/Product.lean` in
+Adapted from `Mei/Geometry/Convex/Polyhedron/Path/Product.lean` in
 [yuma-mizuno-lean/Mei](https://github.com/yuma-mizuno-lean/Mei), at
-`9cf969cdee9748087aae45dbf4888a130890655c` (Apache 2.0).
+`9cf969cdee9748087aae45dbf4888a130890655c` (Apache 2.0), with path-subdivision
+and affine-transport invariance added in Tau Ceti.
 Original author credit is retained.
 -/
 
@@ -447,5 +450,52 @@ theorem wallPathProduct_mem {S : Subgroup G} (hS : ∀ i, label i ∈ S) (p : Ad
   refine S.list_prod_mem fun g hg => ?_
   obtain ⟨a, -, rfl⟩ := List.mem_map.mp hg
   exact zpow_mem (hS a.1) _
+
+end Quiver.Path
+
+namespace TauCeti.WallComplement
+
+/-- Affine equivalences transport coplanarity commutation of wall labels to the image wall
+family. -/
+theorem commute_of_affineSpan_image_eq {V U ι G : Type*}
+    [AddCommGroup V] [Module ℝ V] [AddCommGroup U] [Module ℝ U] [Mul G]
+    {W : ι → Set V} {label : ι → G} (e : V ≃ᵃ[ℝ] U)
+    (hcomm : ∀ i j, affineSpan ℝ (W i) = affineSpan ℝ (W j) → Commute (label i) (label j)) :
+    ∀ i j, affineSpan ℝ (e '' W i) = affineSpan ℝ (e '' W j) → Commute (label i) (label j) := by
+  intro i j hij
+  refine hcomm i j ?_
+  have hsymm := congrArg (AffineSubspace.map e.symm.toAffineMap) hij
+  simpa only [AffineSubspace.map_span, AffineEquiv.coe_toAffineMap, Set.image_image,
+    e.symm_apply_apply, Set.image_id'] using hsymm
+
+end TauCeti.WallComplement
+
+namespace Quiver.Path
+
+open TauCeti WallComplement
+
+variable {V ι G : Type*} [NormedAddCommGroup V] [NormedSpace ℝ V] [Finite ι] [Group G]
+  {W : ι → Set V} {x y : WallComplement W}
+
+/-- Subdividing an admissible polygonal path preserves its wall path product. -/
+theorem IsSubdivision.wallPathProduct_eq (ν : ι → V →ₗ[ℝ] ℝ) (label : ι → G)
+    (hcomm : ∀ i j, affineSpan ℝ (W i) = affineSpan ℝ (W j) → Commute (label i) (label j))
+    {p q : AdmissiblePLPath x y} (h : IsSubdivision p q) :
+    p.wallPathProduct ν label hcomm = q.wallPathProduct ν label hcomm :=
+  wallPathProduct_eq_of_signedCrossingEvents_eq ν label hcomm p q (h.signedCrossingEvents_eq ν)
+
+variable {U : Type*} [NormedAddCommGroup U] [NormedSpace ℝ U] in
+/-- Transporting an admissible polygonal path by a continuous affine equivalence preserves its wall
+path product when coorientations are pulled back by the inverse linear equivalence. -/
+theorem wallPathProduct_affineMap (ν : ι → V →ₗ[ℝ] ℝ) (label : ι → G) (e : V ≃ᴬ[ℝ] U)
+    (hcomm : ∀ i j, affineSpan ℝ (W i) = affineSpan ℝ (W j) → Commute (label i) (label j))
+    {hcomm' : ∀ i j, affineSpan ℝ (e '' W i) = affineSpan ℝ (e '' W j) →
+      Commute (label i) (label j)}
+    (p : AdmissiblePLPath x y) :
+    (p.affineMap e).wallPathProduct
+      (fun i => (ν i).comp e.toAffineEquiv.linear.symm.toLinearMap) label hcomm' =
+      p.wallPathProduct ν label hcomm := by
+  rw [wallPathProduct_eq_prod_signedCrossingEvents,
+    wallPathProduct_eq_prod_signedCrossingEvents, signedCrossingEvents_affineMap]
 
 end Quiver.Path

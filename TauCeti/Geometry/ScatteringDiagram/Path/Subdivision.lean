@@ -5,7 +5,7 @@ Authors: Codex
 -/
 module
 
-public import TauCeti.Geometry.ScatteringDiagram.Path.Basic
+public import TauCeti.Geometry.ScatteringDiagram.Path.CrossingEvents
 
 /-!
 # Subdividing admissible segments
@@ -17,7 +17,8 @@ vertex inside an admissible segment gives two admissible segments.
 `Quiver.Path.IsSubdivision` records finite repetitions and concatenations
 of these insertions. Their crossing parameters rescale to the original parameter interval.
 These formulas retain the wall indices, including simultaneous crossings in an
-arbitrary wall family, and allow ordered crossing lists to be compared after subdivision.
+arbitrary wall family, and show that ordered crossing times concatenate under splitting a segment
+and that `Quiver.Path.signedCrossingEvents` is invariant under `Quiver.Path.IsSubdivision`.
 
 A function that is locally constant off the walls takes the value at the start of a segment
 at every point before the first crossing, and the value at the end at every point after the
@@ -27,7 +28,9 @@ walls through the point at time `t`.
 The affine parameter calculations use Mathlib's `AffineMap.lineMap_lineMap_right`
 and `AffineMap.lineMap_lineMap_left`.
 
-Adapted from `Mei/Geometry/Convex/Polyhedron/SegmentSubdivision.lean` in
+The subsegment admissibility, parameter-rescaling, locally-constant, and unordered
+`IsSubdivision.image_crossingEvents` results are adapted from
+`Mei/Geometry/Convex/Polyhedron/SegmentSubdivision.lean` in
 [yuma-mizuno-lean/Mei](https://github.com/yuma-mizuno-lean/Mei), commit
 `a79c57178cc83666fc244ca6e6eeaa722e9b8bc7` (Apache 2.0).
 Original copyright (c) 2026 Mei contributors; original author: Codex.
@@ -226,6 +229,108 @@ theorem apply_eq_lineMap_of_subsingleton (he : (Prod.snd '' crossings x y).Subsi
 
 end Constant
 
+section Ordered
+
+variable [Finite ι]
+
+/-- Splitting an admissible segment at a parameter in `[0, 1]` splits its ordered crossing times
+into the rescaled crossing times of the two subsegments. -/
+theorem orderedCrossingTimes_subdivide (e : x ⟶ y) (e₁ : x ⟶ z) (e₂ : z ⟶ y)
+    (ht : t ∈ Icc (0 : ℝ) 1) (hz : z.val = AffineMap.lineMap x.val y.val t) :
+    orderedCrossingTimes e =
+      (orderedCrossingTimes e₁).map (· * t) ++
+        (orderedCrossingTimes e₂).map (fun r => 1 - (1 - r) * (1 - t)) := by
+  rcases eq_or_lt_of_le ht.1 with rfl | ht₀
+  · have hzx : z = x := WallComplement.ext (by simpa using hz)
+    subst hzx
+    have hnil : orderedCrossingTimes e₁ = [] := List.eq_nil_iff_forall_not_mem.mpr fun r hr => by
+      obtain ⟨i, hi⟩ := (mem_orderedCrossingTimes e₁ r).mp hr
+      exact z.notMem i (by simpa using ((mem_crossings z z i r).mp hi).2)
+    have he : e₂ = e := PLift.ext (Subsingleton.elim _ _)
+    simp [hnil, he]
+  rcases eq_or_lt_of_le ht.2 with rfl | ht₁
+  · have hzy : z = y := WallComplement.ext (by simpa using hz)
+    subst hzy
+    have hnil : orderedCrossingTimes e₂ = [] := List.eq_nil_iff_forall_not_mem.mpr fun r hr => by
+      obtain ⟨i, hi⟩ := (mem_orderedCrossingTimes e₂ r).mp hr
+      exact z.notMem i (by simpa using ((mem_crossings z z i r).mp hi).2)
+    have he : e₁ = e := PLift.ext (Subsingleton.elim _ _)
+    simp [hnil, he]
+  have hp₁ : ((orderedCrossingTimes e₁).map (· * t)).Pairwise (· < ·) :=
+    List.pairwise_map.mpr
+      ((pairwise_orderedCrossingTimes e₁).imp fun h => mul_lt_mul_of_pos_right h ht₀)
+  have hp₂ : ((orderedCrossingTimes e₂).map (fun r => 1 - (1 - r) * (1 - t))).Pairwise (· < ·) :=
+    List.pairwise_map.mpr ((pairwise_orderedCrossingTimes e₂).imp fun h => by nlinarith [ht₁])
+  have hp : ((orderedCrossingTimes e₁).map (· * t) ++
+      (orderedCrossingTimes e₂).map (fun r => 1 - (1 - r) * (1 - t))).Pairwise (· < ·) := by
+    refine List.pairwise_append.mpr ⟨hp₁, hp₂, fun a ha b hb => ?_⟩
+    obtain ⟨r₁, hr₁, rfl⟩ := List.mem_map.mp ha
+    obtain ⟨r₂, hr₂, rfl⟩ := List.mem_map.mp hb
+    have h₁ := (mem_Ioo_of_mem_orderedCrossingTimes e₁ hr₁).2
+    have h₂ := (mem_Ioo_of_mem_orderedCrossingTimes e₂ hr₂).1
+    nlinarith [ht₀, ht₁]
+  refine (pairwise_orderedCrossingTimes e).eq_of_mem_iff hp fun s => ?_
+  rw [mem_orderedCrossingTimes, crossings_subdivide hz ⟨ht₀, ht₁⟩]
+  simp only [mem_union, mem_image, Prod.exists, Prod.mk.injEq, List.mem_append, List.mem_map,
+    mem_orderedCrossingTimes]
+  constructor
+  · rintro ⟨_, (⟨j, r, hr, ⟨rfl, rfl⟩⟩ | ⟨j, r, hr, ⟨rfl, rfl⟩⟩)⟩
+    · exact Or.inl ⟨r, ⟨j, hr⟩, rfl⟩
+    · exact Or.inr ⟨r, ⟨j, hr⟩, rfl⟩
+  · rintro (⟨r, ⟨j, hr⟩, rfl⟩ | ⟨r, ⟨j, hr⟩, rfl⟩)
+    · exact ⟨j, Or.inl ⟨j, r, hr, rfl, rfl⟩⟩
+    · exact ⟨j, Or.inr ⟨j, r, hr, rfl, rfl⟩⟩
+
+/-- On the first subsegment, the signed crossing event at parameter `r ≤ 1` agrees with the
+original signed event at `r * t`. -/
+theorem signedCrossingEvent_subdivide_left (ν : ι → V →ₗ[ℝ] ℝ) {r : ℝ}
+    (ht : t ∈ Icc (0 : ℝ) 1) (hz : z.val = AffineMap.lineMap x.val y.val t) (hr : r ≤ 1) :
+    signedCrossingEvent ν x z r = signedCrossingEvent ν x y (r * t) := by
+  ext ⟨i, s⟩
+  rcases eq_or_lt_of_le ht.1 with rfl | ht₀
+  · have hzx : z.val = x.val := by simpa using hz
+    simp [hzx, x.notMem i]
+  · have hv : z.val - x.val = t • (y.val - x.val) := by
+      simp only [hz, AffineMap.lineMap_apply_module']
+      module
+    simp only [mem_signedCrossingEvent, mem_crossings_subdivide_left hz ⟨ht₀, ht.2⟩, hv, map_smul,
+      smul_eq_mul, mul_pos_iff_of_pos_left ht₀]
+    exact ⟨fun ⟨⟨h, _⟩, hs⟩ => ⟨h, hs⟩, fun ⟨h, hs⟩ => ⟨⟨h, hr⟩, hs⟩⟩
+
+/-- On the second subsegment, the signed crossing event at parameter `0 ≤ r` agrees with the
+original signed event at `1 - (1 - r) * (1 - t)`. -/
+theorem signedCrossingEvent_subdivide_right (ν : ι → V →ₗ[ℝ] ℝ) {r : ℝ}
+    (ht : t ∈ Icc (0 : ℝ) 1) (hz : z.val = AffineMap.lineMap x.val y.val t) (hr : 0 ≤ r) :
+    signedCrossingEvent ν z y r = signedCrossingEvent ν x y (1 - (1 - r) * (1 - t)) := by
+  ext ⟨i, s⟩
+  rcases eq_or_lt_of_le ht.2 with rfl | ht₁
+  · have hzy : z.val = y.val := by simpa using hz
+    simp [hzy, y.notMem i]
+  · have hv : y.val - z.val = (1 - t) • (y.val - x.val) := by
+      simp only [hz, AffineMap.lineMap_apply_module']
+      module
+    simp only [mem_signedCrossingEvent, mem_crossings_subdivide_right hz ⟨ht.1, ht₁⟩, hv, map_smul,
+      smul_eq_mul, mul_pos_iff_of_pos_left (sub_pos.mpr ht₁)]
+    exact ⟨fun ⟨⟨h, _⟩, hs⟩ => ⟨h, hs⟩, fun ⟨h, hs⟩ => ⟨⟨h, hr⟩, hs⟩⟩
+
+/-- Splitting an admissible segment at a parameter in `[0, 1]` splits its ordered signed crossing
+events into those of the two subsegments. -/
+theorem segmentCrossingEvents_subdivide (ν : ι → V →ₗ[ℝ] ℝ)
+    (e : x ⟶ y) (e₁ : x ⟶ z) (e₂ : z ⟶ y)
+    (ht : t ∈ Icc (0 : ℝ) 1) (hz : z.val = AffineMap.lineMap x.val y.val t) :
+    segmentCrossingEvents ν e = segmentCrossingEvents ν e₁ ++ segmentCrossingEvents ν e₂ := by
+  rw [segmentCrossingEvents_def, orderedCrossingTimes_subdivide e e₁ e₂ ht hz, List.map_append,
+    List.map_map, List.map_map, segmentCrossingEvents_def, segmentCrossingEvents_def]
+  congr 1
+  · refine List.map_congr_left fun r hr => ?_
+    exact (signedCrossingEvent_subdivide_left ν ht hz
+      (mem_Ioo_of_mem_orderedCrossingTimes e₁ hr).2.le).symm
+  · refine List.map_congr_left fun r hr => ?_
+    exact (signedCrossingEvent_subdivide_right ν ht hz
+      (mem_Ioo_of_mem_orderedCrossingTimes e₂ hr).1.le).symm
+
+end Ordered
+
 end TauCeti.WallComplement
 
 namespace Quiver.Path
@@ -271,6 +376,19 @@ theorem IsSubdivision.image_crossingEvents {x y : WallComplement W}
   | comp hp hq ihp ihq =>
     simp only [crossingEvents_comp, Set.image_union, Set.image_image]
     rw [ihp, ihq]
+  | trans _ _ ihpq ihqr => exact ihpq.trans ihqr
+
+/-- Subdividing an admissible polygonal path preserves its ordered signed crossing events. -/
+theorem IsSubdivision.signedCrossingEvents_eq [Finite ι] (ν : ι → V →ₗ[ℝ] ℝ)
+    {x y : WallComplement W} {p q : AdmissiblePLPath x y} (h : IsSubdivision p q) :
+    p.signedCrossingEvents ν = q.signedCrossingEvents ν := by
+  induction h with
+  | refl => rfl
+  | split e e₁ e₂ ht hz =>
+    simpa only [Quiver.Hom.toPath, signedCrossingEvents_comp, signedCrossingEvents_cons,
+      signedCrossingEvents_nil, List.nil_append] using
+      WallComplement.segmentCrossingEvents_subdivide ν e e₁ e₂ ⟨ht.1.le, ht.2.le⟩ hz
+  | comp _ _ ihp ihq => simp [ihp, ihq]
   | trans _ _ ihpq ihqr => exact ihpq.trans ihqr
 
 end Quiver.Path
