@@ -29,6 +29,8 @@ specializes to `n!` at `v = 1`.
 ## Main definitions
 
 * `TauCeti.quantumFactorial q n`: the quantum factorial `[n]_q!` in a field.
+* `TauCeti.quantumDividedPower q x n`: the quantum divided power `x^(n)_q = ([n]_q!)⁻¹ • x^n` in an
+  algebra over a field.
 * `TauCeti.laurentQuantumFactorial n`: the quantum factorial `[n]_v!` in `ℤ[v, v⁻¹]`.
 
 ## Main results
@@ -41,8 +43,10 @@ specializes to `n!` at `v = 1`.
   `ℓ > 0`, then `[n]_q! ≠ 0` iff `n < ℓ`.
 * `TauCeti.quantumBinomial_mul_quantumFactorial_mul_quantumFactorial`: for `k ≤ n`,
   `[n choose k]_q [k]_q! [n - k]_q! = [n]_q!`, with no hypothesis on `q`.
-* `TauCeti.inv_quantumFactorial_smul_add_pow`: the divided-power form of the `q`-binomial
-  theorem, `(x + y)^(n) = ∑_k q^(k(n-k)) x^(k) y^(n-k)` when `y x = q² x y` and `[n]_q! ≠ 0`.
+* `TauCeti.inv_quantumFactorial_smul_add_pow`, `TauCeti.quantumDividedPower_mul_quantumDividedPower`
+  and `TauCeti.quantumDividedPower_add_of_mul_eq_smul_mul`: the product rule
+  `x^(a)_q x^(b)_q = [a + b choose a]_q • x^(a + b)_q` and the divided-power `q`-binomial theorem
+  `(x + y)^(n)_q = ∑_k q^(k(n-k)) x^(k)_q y^(n-k)_q` when `y x = q² x y` and `[n]_q! ≠ 0`.
 * `TauCeti.laurentEval_laurentQuantumFactorial` and
   `TauCeti.laurentEval_one_laurentQuantumFactorial`: `[n]_v!` specializes to `[n]_q!` at `v = q`
   when `q - q⁻¹ ≠ 0`, and to `n!` at `v = 1`; in particular `[n]_v! ≠ 0`
@@ -228,6 +232,95 @@ theorem inv_quantumFactorial_smul_add_pow {A : Type*} [Semiring A] [Algebra K A]
   have := quantumFactorial_ne_zero_of_le hkn hn
   have := quantumFactorial_ne_zero_of_le (Nat.sub_le n k) hn
   field_simp
+
+/-! ### Quantum divided powers -/
+
+section DividedPower
+
+variable {A B : Type*} [Semiring A] [Semiring B] [Algebra K A] [Algebra K B]
+
+/-- The `n`-th **quantum divided power** `x^(n)_q = ([n]_q!)⁻¹ • x^n` of an element of a
+`K`-algebra. -/
+noncomputable def quantumDividedPower (q : K) (x : A) (n : ℕ) : A :=
+  (quantumFactorial q n)⁻¹ • x ^ n
+
+/-- The defining equation of `quantumDividedPower`. -/
+theorem quantumDividedPower_def (q : K) (x : A) (n : ℕ) :
+    quantumDividedPower q x n = (quantumFactorial q n)⁻¹ • x ^ n :=
+  (rfl)
+
+/-- `x^(0)_q = 1`. -/
+@[simp]
+theorem quantumDividedPower_zero (q : K) (x : A) : quantumDividedPower q x 0 = 1 := by
+  simp [quantumDividedPower_def]
+
+/-- `x^(1)_q = x` whenever `q - q⁻¹ ≠ 0`. -/
+theorem quantumDividedPower_one {q : K} (hq : q - q⁻¹ ≠ 0) (x : A) :
+    quantumDividedPower q x 1 = x := by
+  simp [quantumDividedPower_def, quantumInteger_one hq]
+
+/-- `0^(n)_q = 0` for `n ≠ 0`. -/
+@[simp]
+theorem quantumDividedPower_zero_elem (q : K) {n : ℕ} (hn : n ≠ 0) :
+    quantumDividedPower q (0 : A) n = 0 := by
+  simp [quantumDividedPower_def, hn]
+
+/-- Replacing `q` by `q⁻¹` leaves quantum divided powers unchanged. -/
+@[simp]
+theorem quantumDividedPower_inv (q : K) (x : A) (n : ℕ) :
+    quantumDividedPower q⁻¹ x n = quantumDividedPower q x n := by
+  simp [quantumDividedPower_def]
+
+/-- Scaling `x` by `c` scales `x^(n)_q` by `c^n`. -/
+theorem quantumDividedPower_smul (q c : K) (x : A) (n : ℕ) :
+    quantumDividedPower q (c • x) n = c ^ n • quantumDividedPower q x n := by
+  rw [quantumDividedPower_def, quantumDividedPower_def, smul_pow, smul_comm]
+
+/-- Algebra homomorphisms commute with quantum divided powers. -/
+@[simp]
+theorem _root_.AlgHom.map_quantumDividedPower (φ : A →ₐ[K] B) (q : K) (x : A) (n : ℕ) :
+    φ (quantumDividedPower q x n) = quantumDividedPower q (φ x) n := by
+  simp [quantumDividedPower_def]
+
+/-- Unwrapping from the opposite algebra preserves quantum divided powers. -/
+@[simp]
+theorem _root_.MulOpposite.unop_quantumDividedPower (q : K) (x : Aᵐᵒᵖ) (n : ℕ) :
+    MulOpposite.unop (quantumDividedPower q x n) =
+      quantumDividedPower q (MulOpposite.unop x) n := by
+  simp [quantumDividedPower_def]
+
+/-- Wrapping into the opposite algebra preserves quantum divided powers. -/
+@[simp]
+theorem _root_.MulOpposite.op_quantumDividedPower (q : K) (x : A) (n : ℕ) :
+    MulOpposite.op (quantumDividedPower q x n) =
+      quantumDividedPower q (MulOpposite.op x) n := by
+  simp [quantumDividedPower_def]
+
+/-- Product rule for quantum divided powers:
+`x^(a)_q * x^(b)_q = [a + b choose a]_q • x^(a + b)_q` whenever `[a + b]_q! ≠ 0`. -/
+theorem quantumDividedPower_mul_quantumDividedPower {q : K} (x : A) {a b : ℕ}
+    (hab : quantumFactorial q (a + b) ≠ 0) :
+    quantumDividedPower q x a * quantumDividedPower q x b =
+      quantumBinomial q (a + b) a • quantumDividedPower q x (a + b) := by
+  have ha := quantumFactorial_ne_zero_of_le (Nat.le_add_right a b) hab
+  have hb := quantumFactorial_ne_zero_of_le (Nat.le_add_left b a) hab
+  rw [quantumDividedPower_def, quantumDividedPower_def, quantumDividedPower_def,
+    smul_mul_smul_comm, ← pow_add, smul_smul,
+    quantumBinomial_eq_div hab (Nat.le_add_right a b), Nat.add_sub_cancel_left]
+  congr 1
+  field_simp
+
+/-- **The divided-power `q`-binomial theorem**, stated in terms of `quantumDividedPower`:
+if `y x = q² • (x y)` and `[n]_q! ≠ 0`, then
+`(x + y)^(n)_q = ∑_k q^(k(n-k)) • (x^(k)_q * y^(n-k)_q)`. -/
+theorem quantumDividedPower_add_of_mul_eq_smul_mul {q : K} {x y : A}
+    (h : y * x = q ^ 2 • (x * y)) {n : ℕ} (hn : quantumFactorial q n ≠ 0) :
+    quantumDividedPower q (x + y) n =
+      ∑ k ∈ range (n + 1),
+        q ^ (k * (n - k)) • (quantumDividedPower q x k * quantumDividedPower q y (n - k)) :=
+  inv_quantumFactorial_smul_add_pow h hn
+
+end DividedPower
 
 end Field
 

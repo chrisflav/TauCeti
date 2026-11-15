@@ -49,8 +49,13 @@ comparisons of quantum divided-power relations at opposite parameters.
   `[n choose k]_{-q} = (-1)^{k(n-k)} [n choose k]_q`.
 * `TauCeti.quantumBinomial_one_right`: `[n choose 1]_q = [n]_q` when `q - q⁻¹ ≠ 0`.
 * `TauCeti.quantumBinomial_one`: the classical specialization `[n choose k]_1 = n.choose k`.
+* `TauCeti.pow_mul_pow_of_mul_eq_smul_mul` and `TauCeti.mul_pow_of_mul_eq_smul_mul`: power
+  commutation `y^a x^b = r^(ab) x^b y^a` and `(x y)^n = q^(n(n-1)) x^n y^n` for `q`-commuting
+  elements.
 * `TauCeti.add_pow_of_mul_eq_smul_mul`: the `q`-binomial theorem for `y x = q² x y` with
   `q ≠ 0`.
+* `TauCeti.sum_neg_one_pow_mul_zpow_mul_quantumBinomial`: the alternating `q`-binomial identity
+  `∑_k (-1)^k q^(k(1-n)) [n choose k]_q = 0` for `n > 0` and `q ≠ 0`.
 * `TauCeti.coeff_prod_range_one_add_C_mul_X`: Cauchy's binomial theorem in coefficient form, the
   coefficient of `X ^ k` in `∏_{j < n} (1 + q^(2j) X)` is `q^(k(n-1)) [n choose k]_q`.
 
@@ -121,6 +126,47 @@ theorem quantumBinomial_succ_succ (q : K) (n k : ℕ) :
   | succ n ih =>
     rw [quantumBinomial_succ_succ, ih, quantumBinomial_eq_zero_of_lt q (Nat.lt_succ_self n)]
     simp
+
+end
+
+section
+
+variable [CommSemiring K] {A : Type*} [Semiring A] [Algebra K A]
+
+/-- If `y x = r • (x y)` in an algebra, commuting `y^a` past `x^b` produces `r^(a * b)`. -/
+theorem pow_mul_pow_of_mul_eq_smul_mul {r : K} {x y : A} (h : y * x = r • (x * y)) (a b : ℕ) :
+    y ^ a * x ^ b = r ^ (a * b) • (x ^ b * y ^ a) := by
+  have hb : y * x ^ b = r ^ b • (x ^ b * y) := by
+    have hxy : SemiconjBy y x (r • x) := by rw [SemiconjBy, smul_mul_assoc, h]
+    rw [(hxy.pow_right b).eq, smul_pow, smul_mul_assoc]
+  induction a with
+  | zero => simp
+  | succ a ih =>
+    rw [pow_succ, mul_assoc, hb, mul_smul_comm, ← mul_assoc, ih]
+    simp only [smul_mul_assoc, smul_smul, mul_assoc, ← pow_succ, ← pow_add]
+    congr 2
+    ring
+
+/-- If `y x = q² • (x y)` in an algebra, then `(x y)^n = q^(n(n - 1)) • (x^n y^n)`. -/
+theorem mul_pow_of_mul_eq_smul_mul {q : K} {x y : A} (h : y * x = q ^ 2 • (x * y)) (n : ℕ) :
+    (x * y) ^ n = q ^ (n * (n - 1)) • (x ^ n * y ^ n) := by
+  induction n with
+  | zero => simp
+  | succ n ih =>
+    have hexp : n * (n - 1) + 2 * n = (n + 1) * n := by
+      rcases n with _ | n
+      · rfl
+      · simp; ring
+    have hcomm : y ^ n * x = q ^ (2 * n) • (x * y ^ n) := by
+      simpa [← pow_mul, mul_comm 2 n] using pow_mul_pow_of_mul_eq_smul_mul h n 1
+    calc
+      (x * y) ^ (n + 1) = (x * y) ^ n * (x * y) := pow_succ _ n
+      _ = q ^ (n * (n - 1)) • (x ^ n * (y ^ n * x) * y) := by
+        rw [ih, smul_mul_assoc]
+        simp only [mul_assoc]
+      _ = q ^ ((n + 1) * n) • (x ^ (n + 1) * y ^ (n + 1)) := by
+        rw [hcomm, mul_smul_comm, smul_mul_assoc, smul_smul, ← pow_add, hexp]
+        simp only [pow_succ, mul_assoc]
 
 end
 
@@ -367,5 +413,34 @@ theorem add_pow_of_mul_eq_smul_mul {A : Type*} [Semiring A] [Algebra K A] {q : K
       intro k hk
       rw [Nat.add_sub_add_right, ← add_smul,
         ← pow_mul_quantumBinomial_add_pow_mul_quantumBinomial hq (Nat.lt_succ_iff.mp hk), add_comm]
+
+/-- For `n > 0` and `q ≠ 0`, the alternating `q`-binomial sum
+`∑_k (-1)^k q^(k(1 - n)) [n choose k]_q` vanishes, telescoping along the Pascal rule. -/
+theorem sum_neg_one_pow_mul_zpow_mul_quantumBinomial {q : K} (hq : q ≠ 0) {n : ℕ} (hn : 0 < n) :
+    ∑ k ∈ range (n + 1), (-1 : K) ^ k * q ^ ((k : ℤ) * (1 - n)) * quantumBinomial q n k = 0 := by
+  obtain ⟨m, rfl⟩ := Nat.exists_eq_add_one_of_ne_zero hn.ne'
+  let f : ℕ → K := fun j => (-1 : K) ^ j * q ^ (-(((m : ℤ) + 1) * j)) * quantumBinomial q m j
+  have hstep (j : ℕ) :
+      (-1 : K) ^ (j + 1) * q ^ (((j + 1 : ℕ) : ℤ) * (1 - ((m + 1 : ℕ) : ℤ))) *
+          quantumBinomial q (m + 1) (j + 1) =
+        f (j + 1) - f j := by
+    have h₁ : q ^ (((j + 1 : ℕ) : ℤ) * (1 - ((m + 1 : ℕ) : ℤ))) * q ^ ((m : ℤ) - j) =
+        q ^ (-(((m : ℤ) + 1) * j)) := by
+      rw [← zpow_add₀ hq]
+      congr 1
+      push_cast; ring
+    have h₂ : q ^ (((j + 1 : ℕ) : ℤ) * (1 - ((m + 1 : ℕ) : ℤ))) * q ^ (-((j : ℤ) + 1)) =
+        q ^ (-(((m : ℤ) + 1) * ((j + 1 : ℕ) : ℤ))) := by
+      rw [← zpow_add₀ hq]
+      congr 1
+      push_cast; ring
+    rw [quantumBinomial_succ_succ_zpow, pow_succ (-1 : K)]
+    dsimp only [f]
+    linear_combination
+      (-1 : K) ^ j * (-quantumBinomial q m j * h₁ - quantumBinomial q m (j + 1) * h₂)
+  rw [sum_range_succ']
+  simp only [pow_zero, Nat.cast_zero, zero_mul, zpow_zero, mul_one, quantumBinomial_zero_right,
+    hstep, sum_range_sub]
+  simp [f]
 
 end TauCeti

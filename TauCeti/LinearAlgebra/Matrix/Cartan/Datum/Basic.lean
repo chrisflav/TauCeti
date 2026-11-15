@@ -38,6 +38,7 @@ uses it, and the lattices of root data are the case of free `ℤ`-modules of fin
   `TauCeti.CartanDatum.reflection`: the simple reflection `λ ↦ λ − ⟨λ, hᵢ⟩ αᵢ` of `X`, both
   Mathlib's `Module.reflection`.
 * `TauCeti.CartanDatum.simpleTorus`: the toral direction `dᵢ hᵢ ∈ Y`.
+* `TauCeti.CartanDatum.rootLattice`: the root lattice `Q = ⊕ ℤ αᵢ ⊆ X` spanned by the simple roots.
 * `TauCeti.CartanDatum.braidLength`: the length `2, 3, 4, 6` of the braid relation between two
   distinct nodes with Cartan product `aᵢⱼ aⱼᵢ = 0, 1, 2, 3`.
 * `TauCeti.CartanDatum.Hom`: a morphism of Cartan data, a linear map of coweight lattices carrying
@@ -245,6 +246,23 @@ lemma coreflection_simpleTorus (i j : ι) :
 lemma coreflection_simpleTorus_self (i : ι) :
     D.coreflection i (D.simpleTorus i) = -D.simpleTorus i := by
   rw [simpleTorus_def, map_nsmul, coreflection_coroot_self, smul_neg]
+
+/-! ### The root lattice -/
+
+/-- The **root lattice** `Q`: the integral span of the simple roots in the weight lattice `X`. -/
+def rootLattice : Submodule ℤ X :=
+  Submodule.span ℤ (Set.range D.root)
+
+lemma rootLattice_def : D.rootLattice = Submodule.span ℤ (Set.range D.root) := (rfl)
+
+/-- Each simple root belongs to the root lattice. -/
+lemma root_mem_rootLattice (i : ι) : D.root i ∈ D.rootLattice :=
+  Submodule.subset_span (Set.mem_range_self i)
+
+/-- With no simple roots, the root lattice is zero. -/
+@[simp]
+lemma rootLattice_eq_bot [IsEmpty ι] : D.rootLattice = ⊥ := by
+  simp [rootLattice]
 
 /-! ### Braid lengths -/
 
