@@ -289,6 +289,29 @@ theorem reducedTensorWordsHomotopy_ofLetter (G : InternalGrading R M ℤ) (a : M
   rw [ofLetter_eq_of_tprod, ofLetter_eq_of_tprod, c.reducedTensorWordsHomotopy_of_tprod G 1]
   simp
 
+/-- The length-one component of the tensor-trick homotopy is the contraction homotopy on the
+length-one component. -/
+@[simp]
+theorem letter_comp_reducedTensorWordsHomotopy (G : InternalGrading R M ℤ) :
+    letter R M ∘ₗ c.reducedTensorWordsHomotopy G = c.homotopy ∘ₗ letter R M := by
+  refine linearMap_ext R M fun n z ↦ ?_
+  by_cases hn : n = 1
+  · subst hn
+    have hz : of R M 1 (PiTensorProduct.tprod R z) = ofLetter R M (z 0) := by
+      rw [ofLetter_eq_of_tprod]
+      exact congrArg (of R M 1 ∘ PiTensorProduct.tprod R)
+        (funext fun i ↦ congrArg z (Fin.eq_zero i))
+    rw [LinearMap.comp_apply, LinearMap.comp_apply, hz,
+      c.reducedTensorWordsHomotopy_ofLetter G, letter_ofLetter, letter_ofLetter]
+  · rw [LinearMap.comp_apply, LinearMap.comp_apply, c.reducedTensorWordsHomotopy_of,
+      letter_of_of_ne_one R M hn, letter_of_of_ne_one R M hn, map_zero]
+
+@[simp]
+theorem letter_reducedTensorWordsHomotopy (G : InternalGrading R M ℤ)
+    (w : ReducedTensorWords R M) :
+    letter R M (c.reducedTensorWordsHomotopy G w) = c.homotopy (letter R M w) :=
+  LinearMap.congr_fun (c.letter_comp_reducedTensorWordsHomotopy G) w
+
 /-- On a two-letter word the tensor-trick homotopy is `h ⊗ i p + τ ⊗ h`, where `τ` is the Koszul
 twist of parameter one. -/
 theorem reducedTensorWordsHomotopy_of_two (G : InternalGrading R M ℤ) (a b : M) :

@@ -5,10 +5,13 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.Data.Fin.VecNotation
 public import Mathlib.Data.Fintype.BigOperators
 public import Mathlib.Basic.Finite.Sum
 public import Mathlib.Basic.Finite.Sigma
 public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Tactic.FinCases
 
 /-!
 # Reduced planar rooted trees
@@ -22,7 +25,15 @@ belongs to the contraction, not to a vertex of the tree.
 `ReducedPlanarTree.Arity n` is finite. The proof uses the strict decrease in the number of
 leaves when passing to a child, and the bound on the valence of the root. Thus fixed-arity
 sums over these trees need neither a convergence hypothesis nor a bound on vertex valences
-chosen separately. The number of internal vertices is at most the number of leaves minus one.
+chosen separately. The number of internal vertices is at most the number of leaves minus one,
+with equality precisely for the binary trees (`IsBinary`), in which every internal vertex has
+valence two.
+
+Ordered tuples of trees with prescribed total leaf count (`ReducedPlanarTree.Forest`) decompose
+by splitting off their first tree (`forestConsEquiv`), and trees of arity at least two decompose
+into a root valence and a forest of children (`nodeEquiv`). In arity three, `Arity 3` consists
+of the ternary corolla together with the left- and right-associated binary trees
+(`sum_arity_three`).
 
 The tree shapes follow the transfer convention of Loday--Vallette, *Algebraic Operads*,
 Chapter 10, and Merkulov, *Strongly homotopy algebras of a Kähler manifold*.
@@ -40,7 +51,9 @@ inductive ReducedPlanarTree : Type
 
 namespace ReducedPlanarTree
 
-/-- The number of input leaves. The single leaf has arity one. -/
+/-- The number of input leaves. The single leaf has arity one. The body is exposed so that
+dependent arity types `Fin t.numLeaves` reduce definitionally on constructors. -/
+@[expose]
 def numLeaves : ReducedPlanarTree → ℕ
   | leaf => 1
   | node _ children => ∑ i, numLeaves (children i)
@@ -109,6 +122,7 @@ theorem numLeaves_eq_one_iff (t : ReducedPlanarTree) : t.numLeaves = 1 ↔ t = l
     omega
 
 /-- The corolla with `n + 2` inputs, consisting of a single internal vertex. -/
+@[expose]
 def corolla (n : ℕ) : ReducedPlanarTree := node n (fun _ ↦ leaf)
 
 /-- A corolla has a single root whose children are all leaves. -/
@@ -209,6 +223,280 @@ theorem nonempty_arity_iff (n : ℕ) : Nonempty (Arity n) ↔ 0 < n := by
   · omega
   · exact ⟨⟨leaf, numLeaves_leaf⟩⟩
   · exact ⟨⟨corolla n, numLeaves_corolla n⟩⟩
+
+/-! ## Binary trees and arity three -/
+
+/-- A reduced planar tree is **binary** when every internal vertex has valence two (`n = 0`). -/
+def IsBinary : ReducedPlanarTree → Prop
+  | leaf => True
+  | node n children => n = 0 ∧ ∀ i, (children i).IsBinary
+
+@[simp]
+theorem isBinary_leaf : leaf.IsBinary := trivial
+
+@[simp]
+theorem isBinary_node (n : ℕ) (children : Fin (n + 2) → ReducedPlanarTree) :
+    (node n children).IsBinary ↔ n = 0 ∧ ∀ i, (children i).IsBinary :=
+  Iff.rfl
+
+/-- Decidability of `IsBinary`. -/
+instance decidableIsBinary : (t : ReducedPlanarTree) → Decidable t.IsBinary
+  | leaf => isTrue isBinary_leaf
+  | node n children =>
+    letI : ∀ i, Decidable (children i).IsBinary := fun i ↦ decidableIsBinary (children i)
+    decidable_of_iff (n = 0 ∧ ∀ i, (children i).IsBinary) (isBinary_node n children).symm
+
+@[simp]
+theorem isBinary_corolla_iff (n : ℕ) : (corolla n).IsBinary ↔ n = 0 := by
+  simp [corolla_def]
+
+/-- A reduced planar tree achieves the upper bound `numInternal + 1 = numLeaves` if and only if
+every internal vertex is binary. -/
+theorem numInternal_add_one_eq_numLeaves_iff (t : ReducedPlanarTree) :
+    t.numInternal + 1 = t.numLeaves ↔ t.IsBinary := by
+  induction t with
+  | leaf => simp
+  | node n children ih =>
+    have hle : ∀ i ∈ (Finset.univ : Finset (Fin (n + 2))),
+        (children i).numInternal + 1 ≤ (children i).numLeaves :=
+      fun i _ ↦ (children i).numInternal_add_one_le_numLeaves
+    have hsum := Finset.sum_le_sum hle
+    simp only [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+      Nat.nsmul_eq_mul, mul_one] at hsum
+    simp only [numInternal_node, numLeaves_node, isBinary_node]
+    constructor
+    · intro heq
+      have hn : n = 0 := by omega
+      subst hn
+      refine ⟨rfl, fun i ↦ (ih i).mp ?_⟩
+      have hsum_eq : ∑ j, ((children j).numInternal + 1) = ∑ j, (children j).numLeaves := by
+        simp only [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+          Nat.nsmul_eq_mul, mul_one]
+        omega
+      exact (Finset.sum_eq_sum_iff_of_le hle).mp hsum_eq i (Finset.mem_univ i)
+    · rintro ⟨rfl, hbin⟩
+      have hsum_eq : ∑ j, ((children j).numInternal + 1) = ∑ j, (children j).numLeaves :=
+        Finset.sum_congr rfl fun i _ ↦ (ih i).mpr (hbin i)
+      simp only [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+        Nat.nsmul_eq_mul, mul_one] at hsum_eq
+      omega
+
+/-- The left-associated binary tree with three leaves, `((•, •), •)`. -/
+@[expose]
+def leftBinary : ReducedPlanarTree := node 0 ![corolla 0, leaf]
+
+theorem leftBinary_def : leftBinary = node 0 ![corolla 0, leaf] := (rfl)
+
+/-- The right-associated binary tree with three leaves, `(•, (•, •))`. -/
+@[expose]
+def rightBinary : ReducedPlanarTree := node 0 ![leaf, corolla 0]
+
+theorem rightBinary_def : rightBinary = node 0 ![leaf, corolla 0] := (rfl)
+
+@[simp]
+theorem numLeaves_leftBinary : leftBinary.numLeaves = 3 := by
+  simp [leftBinary_def, Fin.sum_univ_two]
+
+@[simp]
+theorem numLeaves_rightBinary : rightBinary.numLeaves = 3 := by
+  simp [rightBinary_def, Fin.sum_univ_two]
+
+@[simp]
+theorem numInternal_leftBinary : leftBinary.numInternal = 2 := by
+  simp [leftBinary_def, Fin.sum_univ_two]
+
+@[simp]
+theorem numInternal_rightBinary : rightBinary.numInternal = 2 := by
+  simp [rightBinary_def, Fin.sum_univ_two]
+
+@[simp]
+theorem isBinary_leftBinary : leftBinary.IsBinary := by
+  simp [leftBinary_def, Fin.forall_fin_two]
+
+@[simp]
+theorem isBinary_rightBinary : rightBinary.IsBinary := by
+  simp [rightBinary_def, Fin.forall_fin_two]
+
+theorem corolla_one_ne_leftBinary : corolla 1 ≠ leftBinary := by
+  intro h
+  have := congrArg numInternal h
+  simp at this
+
+theorem corolla_one_ne_rightBinary : corolla 1 ≠ rightBinary := by
+  intro h
+  have := congrArg numInternal h
+  simp at this
+
+theorem leftBinary_ne_rightBinary : leftBinary ≠ rightBinary := by
+  rw [leftBinary_def, rightBinary_def]
+  intro h
+  injection h with _ hch
+  have h0 := congrFun hch 0
+  have hl := congrArg numLeaves h0
+  simp at hl
+
+/-- A reduced planar tree has three leaves if and only if it is the ternary corolla or one of the
+two binary trees of arity three. -/
+theorem numLeaves_eq_three_iff (t : ReducedPlanarTree) :
+    t.numLeaves = 3 ↔ t = corolla 1 ∨ t = leftBinary ∨ t = rightBinary := by
+  refine ⟨?_, ?_⟩
+  · cases t with
+    | leaf => simp
+    | node n children =>
+      intro ht
+      have hle := arity_le_numLeaves_node n children
+      have hn : n = 0 ∨ n = 1 := by omega
+      rcases hn with rfl | rfl
+      · rw [numLeaves_node, Fin.sum_univ_two] at ht
+        have h0 := (children 0).numLeaves_pos
+        have h1 := (children 1).numLeaves_pos
+        have hcases : (children 0).numLeaves = 2 ∧ (children 1).numLeaves = 1 ∨
+            (children 0).numLeaves = 1 ∧ (children 1).numLeaves = 2 := by omega
+        rcases hcases with ⟨hc0, hc1⟩ | ⟨hc0, hc1⟩
+        · right; left
+          rw [leftBinary_def]
+          congr 1
+          funext i
+          fin_cases i
+          · exact (numLeaves_eq_two_iff _).mp hc0
+          · exact (numLeaves_eq_one_iff _).mp hc1
+        · right; right
+          rw [rightBinary_def]
+          congr 1
+          funext i
+          fin_cases i
+          · exact (numLeaves_eq_one_iff _).mp hc0
+          · exact (numLeaves_eq_two_iff _).mp hc1
+      · left
+        have hpos : ∀ i ∈ (Finset.univ : Finset (Fin 3)), 1 ≤ (children i).numLeaves :=
+          fun i _ ↦ (children i).numLeaves_pos
+        have hsum : ∑ _ : Fin 3, 1 = ∑ i : Fin 3, (children i).numLeaves := by
+          simpa using ht.symm
+        have hall := (Finset.sum_eq_sum_iff_of_le hpos).mp hsum
+        rw [corolla_def]
+        congr 1
+        funext i
+        exact (numLeaves_eq_one_iff _).mp (hall i (Finset.mem_univ i)).symm
+  · rintro (rfl | rfl | rfl) <;> simp
+
+/-- Any sum over the three-leaf reduced planar trees expands into the ternary corolla and the
+left- and right-associated binary trees. -/
+theorem sum_arity_three {M : Type*} [AddCommMonoid M] (φ : Arity 3 → M) :
+    ∑ t : Arity 3, φ t =
+      φ ⟨corolla 1, numLeaves_corolla 1⟩ +
+        φ ⟨leftBinary, numLeaves_leftBinary⟩ +
+        φ ⟨rightBinary, numLeaves_rightBinary⟩ := by
+  classical
+  set c₁ : Arity 3 := ⟨corolla 1, numLeaves_corolla 1⟩
+  set l₂ : Arity 3 := ⟨leftBinary, numLeaves_leftBinary⟩
+  set r₂ : Arity 3 := ⟨rightBinary, numLeaves_rightBinary⟩
+  have huniv : (Finset.univ : Finset (Arity 3)) = {c₁, l₂, r₂} := by
+    ext t
+    simp only [Finset.mem_univ, Finset.mem_insert, Finset.mem_singleton, Subtype.ext_iff,
+      true_iff, c₁, l₂, r₂]
+    exact (numLeaves_eq_three_iff t.val).mp t.property
+  have hcl : c₁ ≠ l₂ := fun h ↦ corolla_one_ne_leftBinary (congrArg Subtype.val h)
+  have hcr : c₁ ≠ r₂ := fun h ↦ corolla_one_ne_rightBinary (congrArg Subtype.val h)
+  have hlr : l₂ ≠ r₂ := fun h ↦ leftBinary_ne_rightBinary (congrArg Subtype.val h)
+  rw [huniv, Finset.sum_insert (by simp [hcl, hcr]), Finset.sum_insert (by simp [hlr]),
+    Finset.sum_singleton, add_assoc]
+
+/-! ## Ordered forests and recursive decomposition -/
+
+/-- An ordered forest of `m` reduced planar trees with `b` input leaves in total. -/
+abbrev Forest (m b : ℕ) := {ts : Fin m → ReducedPlanarTree // ∑ i, (ts i).numLeaves = b}
+
+instance (m b : ℕ) : Finite (Forest m b) :=
+  Finite.of_injective
+    (fun ts : Forest m b ↦ fun i : Fin m ↦
+      (⟨ts.val i, (Finset.single_le_sum (f := fun j ↦ (ts.val j).numLeaves)
+        (fun _ _ ↦ Nat.zero_le _) (Finset.mem_univ i)).trans ts.property.le⟩ :
+        {t : ReducedPlanarTree // t.numLeaves ≤ b}))
+    fun _ _ h ↦ Subtype.ext <| funext fun i ↦ congrArg Subtype.val (congrFun h i)
+
+noncomputable instance (m b : ℕ) : Fintype (Forest m b) := Fintype.ofFinite _
+
+/-- An ordered forest of `m` trees has at least `m` leaves. -/
+theorem le_of_forest {m b : ℕ} (ts : Forest m b) : m ≤ b := by
+  have h := Finset.sum_le_sum (s := (Finset.univ : Finset (Fin m)))
+    fun i _ ↦ Nat.succ_le_iff.mpr (ts.val i).numLeaves_pos
+  simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul, ts.property] at h
+  omega
+
+/-- No forest of `m` trees can have fewer than `m` leaves. -/
+theorem isEmpty_forest_of_lt {m b : ℕ} (h : b < m) : IsEmpty (Forest m b) :=
+  ⟨fun ts ↦ Nat.not_le_of_gt h (le_of_forest ts)⟩
+
+-- The equivalence bodies below are `@[expose]`d so that dependent types indexed by `numLeaves`
+-- reduce definitionally on their values in downstream modules.
+
+/-- A one-tree forest is a single tree of the same arity. -/
+@[expose]
+def forestOneEquiv (b : ℕ) : Forest 1 b ≃ Arity b where
+  toFun ts := ⟨ts.val 0, by simpa using ts.property⟩
+  invFun t := ⟨fun _ ↦ t.val, by simpa using t.property⟩
+  left_inv ts := Subtype.ext <| funext fun i ↦ by rw [Fin.eq_zero i]
+  right_inv _ := rfl
+
+@[simp]
+theorem forestOneEquiv_symm_apply_val (b : ℕ) (t : Arity b) (i : Fin 1) :
+    ((forestOneEquiv b).symm t).val i = t.val :=
+  (rfl)
+
+/-- Splitting off the first tree identifies ordered `(m + 1)`-tree forests (with `0 < m`) of `b`
+leaves with pairs of a first tree of `d < b` leaves and an `m`-tree forest of `b - d` leaves. -/
+@[expose]
+def forestConsEquiv {m : ℕ} (hm : 0 < m) (b : ℕ) :
+    (Σ d : Fin b, Arity d.val × Forest m (b - d.val)) ≃ Forest (m + 1) b where
+  toFun
+    | ⟨d, t₀, rest⟩ =>
+      ⟨Fin.cons t₀.val rest.val, by
+        have := d.isLt
+        rw [Fin.sum_univ_succ, Fin.cons_zero]
+        simp only [Fin.cons_succ, t₀.property, rest.property]
+        omega⟩
+  invFun ts :=
+    have : (ts.val 0).numLeaves + ∑ i : Fin m, (ts.val i.succ).numLeaves = b := by
+      simpa [Fin.sum_univ_succ] using ts.property
+    have : m ≤ ∑ i : Fin m, (ts.val i.succ).numLeaves := by
+      simpa using Finset.sum_le_sum (s := (Finset.univ : Finset (Fin m)))
+        fun i _ ↦ Nat.succ_le_iff.mpr (ts.val i.succ).numLeaves_pos
+    ⟨⟨(ts.val 0).numLeaves, by omega⟩,
+      ⟨ts.val 0, rfl⟩,
+      ⟨Fin.tail ts.val, by dsimp [Fin.tail]; omega⟩⟩
+  left_inv
+    | ⟨⟨_, _⟩, ⟨_, ht₀⟩, ⟨_, _⟩⟩ => by
+      dsimp at ht₀
+      subst ht₀
+      simp
+      rfl
+  right_inv ts := Subtype.ext (Fin.cons_self_tail ts.val)
+
+@[simp]
+theorem forestConsEquiv_apply_val {m : ℕ} (hm : 0 < m) (b : ℕ) (d : Fin b) (t₀ : Arity d.val)
+    (rest : Forest m (b - d.val)) :
+    (forestConsEquiv hm b ⟨d, t₀, rest⟩).val = Fin.cons t₀.val rest.val :=
+  (rfl)
+
+/-- Trees of arity `b ≥ 2` correspond bijectively to pairs of a root valence `k + 2` (with
+`k < b - 1`) and an ordered `(k + 2)`-tree forest of `b` leaves. -/
+@[expose]
+def nodeEquiv {b : ℕ} (hb : 2 ≤ b) :
+    (Σ k : Fin (b - 1), Forest (k.val + 2) b) ≃ Arity b where
+  toFun | ⟨k, ts⟩ => ⟨node k.val ts.val, (numLeaves_node k.val ts.val).trans ts.property⟩
+  invFun
+    | ⟨leaf, ht⟩ => absurd ht (by simp; omega)
+    | ⟨node k children, ht⟩ =>
+      ⟨⟨k, by have := arity_le_numLeaves_node k children; omega⟩, ⟨children, ht⟩⟩
+  left_inv | ⟨k, ts⟩ => rfl
+  right_inv
+    | ⟨leaf, ht⟩ => absurd ht (by simp; omega)
+    | ⟨node _ _, _⟩ => rfl
+
+@[simp]
+theorem nodeEquiv_apply_val {b : ℕ} (hb : 2 ≤ b) (k : Fin (b - 1)) (ts : Forest (k.val + 2) b) :
+    (nodeEquiv hb ⟨k, ts⟩).val = node k.val ts.val :=
+  (rfl)
 
 end ReducedPlanarTree
 
