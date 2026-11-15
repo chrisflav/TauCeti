@@ -6,6 +6,7 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Topology.CWComplex.Classical.Subcomplex
+import Mathlib.Basic.Finite.Sum
 
 /-!
 # A CW complex relative to a subcomplex
@@ -43,6 +44,9 @@ subcomplexes.
   subcomplexes form a distributive lattice, whose meet and join are intersection and union.
 * `Topology.RelCWComplex.Subcomplex.coe_bot`, `Topology.RelCWComplex.Subcomplex.coe_top`: it is
   bounded, by the base and the whole complex.
+* `Topology.RelCWComplex.Subcomplex.finite_bot`, `Topology.RelCWComplex.Subcomplex.finite_sup`,
+  `Topology.RelCWComplex.Subcomplex.finite_finsetSup`: finite suprema of finite subcomplexes are
+  finite.
 * `Topology.RelCWComplex.Subcomplex.le_iff_I_subset`: one subcomplex lies in another exactly when
   its cells do.
 * `Topology.RelCWComplex.Subcomplex.ofLE`: a subcomplex `F ≤ E`, as a subcomplex of `E`.
@@ -310,6 +314,39 @@ instance instOrderTop : OrderTop (Subcomplex C) where
   le_top E := E.subset_complex
 
 instance instBoundedOrder : BoundedOrder (Subcomplex C) where
+
+/-- The smallest subcomplex (the base `D`, with no relative cells) is a finite relative CW
+complex. -/
+instance finite_bot : Finite ((⊥ : Subcomplex C) : Set X) :=
+  have : IsEmpty (Σ n, cell ((⊥ : Subcomplex C) : Set X) n) := ⟨fun ⟨_, i⟩ ↦ i.2⟩
+  finite_of_finite_cells inferInstance
+
+/-- The union of two finite subcomplexes is a finite subcomplex. -/
+instance finite_sup {A B : Subcomplex C} [Finite (A : Set X)] [Finite (B : Set X)] :
+    Finite (((A ⊔ B : Subcomplex C) : Set X)) := by
+  have : _root_.Finite (Σ n, cell (A : Set X) n) := finite_cells_of_finite (C := (A : Set X))
+  have : _root_.Finite (Σ n, cell (B : Set X) n) := finite_cells_of_finite (C := (B : Set X))
+  refine finite_of_finite_cells <| Finite.of_surjective
+    (f := Sum.elim (fun p : Σ n, cell (A : Set X) n ↦ ⟨p.1, p.2.1, .inl p.2.2⟩)
+      (fun p : Σ n, cell (B : Set X) n ↦ ⟨p.1, p.2.1, .inr p.2.2⟩)) ?_
+  rintro ⟨n, j, hj | hj⟩
+  · exact ⟨.inl ⟨n, j, hj⟩, rfl⟩
+  · exact ⟨.inr ⟨n, j, hj⟩, rfl⟩
+
+/-- A finite supremum of finite subcomplexes is a finite subcomplex. -/
+lemma finite_finsetSup {ι : Type*} (s : Finset ι) (E : ι → Subcomplex C)
+    (hE : ∀ i ∈ s, Finite ((E i : Subcomplex C) : Set X)) :
+    Finite (((s.sup E : Subcomplex C) : Set X)) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    rw [Finset.sup_empty]
+    exact finite_bot
+  | insert a s _ ih =>
+    have := hE a (Finset.mem_insert_self a s)
+    have := ih fun i hi ↦ hE i (Finset.mem_insert_of_mem hi)
+    rw [Finset.sup_insert]
+    exact finite_sup
 
 end
 
