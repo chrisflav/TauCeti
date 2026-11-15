@@ -7,6 +7,7 @@ module
 
 public import TauCeti.AlgebraicGeometry.AbelianVariety.Hom.BaseChange
 public import TauCeti.AlgebraicGeometry.AbelianVariety.Hom.Iso
+public import TauCeti.AlgebraicGeometry.AbelianVariety.Multiplication
 public import TauCeti.AlgebraicGeometry.AbelianVariety.Product
 public import TauCeti.AlgebraicGeometry.EllipticCurve.Scheme.GroupLaw
 public import TauCeti.AlgebraicGeometry.EllipticCurve.Scheme.Integral
@@ -42,6 +43,9 @@ with the construction: for a field extension `L / K`, the abelian variety of the
   dimension one.
 * `WeierstrassCurve.dim_prod_toAbelianVariety`: the product of two elliptic curves is an abelian
   variety of dimension two.
+* `WeierstrassCurve.etale_toSchemeHom_mulBy_toAbelianVariety_iff` and
+  `WeierstrassCurve.isIsogeny_mulBy_toAbelianVariety_of_ne_zero`: multiplication by `n : ℤ` on
+  `W.toAbelianVariety` is étale if and only if `(n : K) ≠ 0`, in which case it is an isogeny.
 
 ## References
 
@@ -194,5 +198,30 @@ theorem isoToOver_toAbelianVarietyBaseChangeIso :
   simp [toAbelianVarietyBaseChangeIso, toOverBaseChangeIso]
 
 end BaseChange
+
+section Multiplication
+
+private lemma dim_pos_toAbelianVariety : 0 < W.toAbelianVariety.dim := by
+  rw [W.dim_toAbelianVariety]
+  norm_cast
+
+/-- Multiplication by `n : ℤ` on the abelian variety `W.toAbelianVariety` of an elliptic curve over
+`K` is étale if and only if `(n : K) ≠ 0`. -/
+theorem etale_toSchemeHom_mulBy_toAbelianVariety_iff (n : ℤ) :
+    Etale (AbelianVariety.Hom.toSchemeHom (AbelianVariety.mulBy W.toAbelianVariety n)) ↔
+      (n : K) ≠ 0 :=
+  AbelianVariety.etale_toSchemeHom_mulBy_iff_of_dim_pos W.dim_pos_toAbelianVariety n
+
+/-- In characteristic `p`, multiplication by `p` on `W.toAbelianVariety` is not étale. -/
+theorem not_etale_toSchemeHom_mulBy_toAbelianVariety_charP (p : ℕ) [CharP K p] :
+    ¬ Etale (AbelianVariety.Hom.toSchemeHom (AbelianVariety.mulBy W.toAbelianVariety p)) :=
+  AbelianVariety.not_etale_toSchemeHom_mulBy_charP W.dim_pos_toAbelianVariety p
+
+/-- Whenever `(n : K) ≠ 0`, multiplication by `n` on `W.toAbelianVariety` is an isogeny. -/
+theorem isIsogeny_mulBy_toAbelianVariety_of_ne_zero {n : ℤ} (hn : (n : K) ≠ 0) :
+    AbelianVariety.IsIsogeny (AbelianVariety.mulBy W.toAbelianVariety n) :=
+  AbelianVariety.isIsogeny_mulBy_of_ne_zero W.toAbelianVariety hn
+
+end Multiplication
 
 end WeierstrassCurve

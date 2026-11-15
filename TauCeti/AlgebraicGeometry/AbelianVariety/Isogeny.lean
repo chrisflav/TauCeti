@@ -5,8 +5,12 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.AlgebraicGeometry.Morphisms.Etale
 public import TauCeti.AlgebraicGeometry.AbelianVariety.End.Basic
 public import TauCeti.AlgebraicGeometry.AbelianVariety.Hom.BaseChange
+public import TauCeti.AlgebraicGeometry.Morphisms.LocallyQuasiFinite
+import Mathlib.AlgebraicGeometry.Morphisms.UniversallyOpen
+import Mathlib.AlgebraicGeometry.ZariskisMainTheorem
 import TauCeti.AlgebraicGeometry.Morphisms.Finite.Basic
 
 /-!
@@ -24,15 +28,23 @@ a homomorphism.
 
 ## Main results
 
+* `AbelianVariety.Hom.isProper_toSchemeHom`: every homomorphism of abelian varieties is proper;
+* `AbelianVariety.Hom.surjective_toSchemeHom_of_flat`: every flat homomorphism of abelian varieties
+  is surjective;
+* `AbelianVariety.isIsogeny_of_flat_of_locallyQuasiFinite` and
+  `AbelianVariety.isIsogeny_of_etale`: every flat locally quasi-finite (in particular, every étale)
+  homomorphism of abelian varieties is an isogeny;
 * `AbelianVariety.IsIsogeny.comp` composes isogenies;
 * `AbelianVariety.IsIsogeny.baseChange` shows that an isogeny remains one after extending the
   ground field;
 * `AbelianVariety.isIsogeny_mulBy_neg_one` supplies the multiplication-by-negative-one isogeny.
 
-That multiplication by every nonzero integer `n` is an isogeny requires torsion theory that is
-not formalized here, and is not asserted. No external formalization is vendored. The definition
-and closure proofs reuse Mathlib's `AlgebraicGeometry.IsFinite` and `AlgebraicGeometry.Surjective`
-morphism properties, including their stability under composition, isomorphism, and base change.
+Prime-to-characteristic multiplication isogenies follow from `isIsogeny_of_etale` in
+`TauCeti.AlgebraicGeometry.AbelianVariety.Multiplication`; that multiplication by an arbitrary
+nonzero integer `n` is an isogeny in positive characteristic requires inseparable torsion theory not
+formalized here. No external formalization is vendored. The definition and closure proofs reuse
+Mathlib's `AlgebraicGeometry.IsFinite` and `AlgebraicGeometry.Surjective` morphism properties,
+including their stability under composition, isomorphism, and base change.
 -/
 
 public section
@@ -140,6 +152,41 @@ lemma baseChange (hf : IsIsogeny f) (L : Type u) [Field L] [Algebra K L] :
   exact ⟨baseChange_property @IsFinite hf.1 L, baseChange_property @Surjective hf.2 L⟩
 
 end IsIsogeny
+
+/-! ### Properness, flat surjectivity, and étale isogenies -/
+
+/-- The underlying scheme morphism of an abelian-variety homomorphism is proper. -/
+instance Hom.isProper_toSchemeHom {A B : AbelianVariety K} (f : A ⟶ B) :
+    IsProper (Hom.toSchemeHom f) := by
+  have : IsProper (Hom.toSchemeHom f ≫ B.toOver.hom) := by
+    rw [Hom.toSchemeHom_comp_hom]
+    infer_instance
+  exact IsProper.of_comp (f := Hom.toSchemeHom f) (g := B.toOver.hom)
+
+/-- Every flat homomorphism of abelian varieties is surjective on underlying schemes, because its
+image is nonempty, open, and closed inside the connected target. -/
+theorem Hom.surjective_toSchemeHom_of_flat {A B : AbelianVariety K} (f : A ⟶ B)
+    [Flat (Hom.toSchemeHom f)] :
+    Surjective (Hom.toSchemeHom f) := by
+  have : IsLocallyNoetherian B.toScheme :=
+    LocallyOfFiniteType.isLocallyNoetherian B.toOver.hom
+  rw [surjective_iff, ← Set.range_eq_univ]
+  exact IsClopen.eq_univ
+    ⟨(Hom.toSchemeHom f).isClosedMap.isClosed_range, (Hom.toSchemeHom f).isOpenMap.isOpen_range⟩
+    ⟨Hom.toSchemeHom f A.zeroPoint, A.zeroPoint, rfl⟩
+
+/-- Every flat locally quasi-finite homomorphism of abelian varieties is an isogeny. -/
+theorem isIsogeny_of_flat_of_locallyQuasiFinite {A B : AbelianVariety K} (f : A ⟶ B)
+    [Flat (Hom.toSchemeHom f)] [LocallyQuasiFinite (Hom.toSchemeHom f)] :
+    IsIsogeny f :=
+  (isIsogeny_iff f).mpr
+    ⟨IsFinite.of_isProper_of_locallyQuasiFinite (f := Hom.toSchemeHom f),
+      Hom.surjective_toSchemeHom_of_flat f⟩
+
+/-- Every étale homomorphism of abelian varieties is an isogeny. -/
+theorem isIsogeny_of_etale {A B : AbelianVariety K} (f : A ⟶ B) [Etale (Hom.toSchemeHom f)] :
+    IsIsogeny f :=
+  isIsogeny_of_flat_of_locallyQuasiFinite f
 
 /-! ### A multiplication isogeny -/
 
