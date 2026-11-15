@@ -34,6 +34,11 @@ On Hilbert spaces and `p = 2` the direct sum is moreover compatible with adjoint
 let representations of an algebra on the summands be assembled into one on the direct sum; the
 adjoint law is in `TauCeti.Analysis.InnerProductSpace.HilbertSum`.
 
+When the target summands all equal a single complete normed space `Y` and `p = 1`, composing the
+direct sum with unconditional summation `lp.tsumCLM` assembles a uniformly bounded family
+`f : ∀ i, E i →L[𝕜] Y` into `ContinuousLinearMap.coprodLpOne f C hf : lp E 1 →L[𝕜] Y`, the `ℓ¹`
+counterpart of `ContinuousLinearMap.piLpInfty`, with operator norm `⨆ i, ‖f i‖`.
+
 ## Main results
 
 * `lp.eq_mapCLM_iff`: the coordinatewise characterization of the direct sum.
@@ -42,6 +47,9 @@ adjoint law is in `TauCeti.Analysis.InnerProductSpace.HilbertSum`.
 * `lp.mapCLM_add`, `lp.mapCLM_smul`, `lp.mapCLM_id`, `lp.mapCLM_comp`: the algebraic laws.
 * `lp.norm_mapCLM`: `‖⊕ T i‖ = ⨆ i, ‖T i‖`.
 * `lp.ampliation`, `lp.norm_ampliation`, `lp.ampliation_comp`: the ampliation of one operator.
+* `ContinuousLinearMap.coprodLpOne`, `ContinuousLinearMap.eq_coprodLpOne_iff`,
+  `ContinuousLinearMap.norm_coprodLpOne`: universal map on `lp E 1` from a uniformly bounded
+  operator family into a complete normed space.
 
 ## References
 
@@ -50,7 +58,7 @@ adjoint law is in `TauCeti.Analysis.InnerProductSpace.HilbertSum`.
 
 public section
 
-open scoped ENNReal lp
+open scoped ENNReal NNReal lp
 
 namespace lp
 
@@ -249,3 +257,138 @@ theorem ampliation_mul (T S : X →L[𝕜] X) :
 end Ampliation
 
 end lp
+
+namespace ContinuousLinearMap
+
+variable {ι 𝕜 Y : Type*} {E : ι → Type*} [NontriviallyNormedField 𝕜]
+  [∀ i, NormedAddCommGroup (E i)] [∀ i, NormedSpace 𝕜 (E i)]
+  [NormedAddCommGroup Y] [NormedSpace 𝕜 Y] [CompleteSpace Y]
+
+/-- A uniformly bounded family of operators into a complete normed space, assembled into an
+operator on `ℓ¹` by summing the coordinatewise images. -/
+noncomputable def coprodLpOne (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C) :
+    lp E 1 →L[𝕜] Y :=
+  lp.tsumCLM 𝕜 ι Y ∘L lp.mapCLM 1 f C.2 fun i ↦ by exact_mod_cast hf i
+
+/-- `coprodLpOne` evaluates at `x` to the unconditional sum `∑' i, f i (x i)`. -/
+theorem coprodLpOne_apply (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C)
+    (x : lp E 1) : coprodLpOne f C hf x = ∑' i, f i (x i) := by
+  simp [coprodLpOne]
+
+/-- The coordinatewise images `f i (x i)` sum unconditionally to `coprodLpOne f C hf x`. -/
+theorem hasSum_coprodLpOne (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C)
+    (x : lp E 1) : HasSum (fun i ↦ f i (x i)) (coprodLpOne f C hf x) := by
+  let g : ℓ¹(ι, Y) := lp.mapCLM 1 f C.2 (fun i ↦ by exact_mod_cast hf i) x
+  have hg : Summable fun i ↦ ‖f i (x i)‖ := by simpa [g] using g.2.summable
+  rw [coprodLpOne_apply]
+  exact (Summable.of_norm hg).hasSum
+
+/-- On the `i`-th coordinate vector `single 1 i x`, the assembled operator evaluates to `f i x`. -/
+@[simp]
+theorem coprodLpOne_single [DecidableEq ι] (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (i : ι) (x : E i) :
+    coprodLpOne f C hf (lp.single 1 i x) = f i x := by
+  simp [coprodLpOne]
+
+/-- Precomposing `coprodLpOne f C hf` with the `i`-th coordinate inclusion recovers `f i`. -/
+@[simp]
+theorem coprodLpOne_comp_singleContinuousLinearMap [DecidableEq ι] (f : ∀ i, E i →L[𝕜] Y)
+    (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C) (i : ι) :
+    coprodLpOne f C hf ∘L lp.singleContinuousLinearMap 𝕜 E 1 i = f i := by
+  ext x
+  simp
+
+/-- **Universal property on `ℓ¹`.** An operator on `lp E 1` equals `coprodLpOne f C hf` exactly
+when precomposing it with the `i`-th coordinate inclusion gives `f i` for every `i`. -/
+theorem eq_coprodLpOne_iff [DecidableEq ι] (A : lp E 1 →L[𝕜] Y) (f : ∀ i, E i →L[𝕜] Y)
+    (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C) :
+    A = coprodLpOne f C hf ↔
+      ∀ i, A ∘L lp.singleContinuousLinearMap 𝕜 E 1 i = f i := by
+  refine ⟨fun h i ↦ h ▸ coprodLpOne_comp_singleContinuousLinearMap f C hf i, fun h ↦ ?_⟩
+  exact lp.ext_continuousLinearMap ENNReal.one_ne_top fun i ↦
+    (h i).trans (coprodLpOne_comp_singleContinuousLinearMap f C hf i).symm
+
+/-- The assembled operator depends only on the family, not on the chosen uniform bound. -/
+theorem coprodLpOne_congr {f g : ∀ i, E i →L[𝕜] Y} (h : f = g) (C D : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (hg : ∀ i, ‖g i‖₊ ≤ D) :
+    coprodLpOne f C hf = coprodLpOne g D hg := by
+  classical
+  subst h
+  exact (eq_coprodLpOne_iff _ f D hg).2 fun i ↦
+    coprodLpOne_comp_singleContinuousLinearMap f C hf i
+
+/-- The assembled operator determines the family of summands. -/
+theorem coprodLpOne_inj {f g : ∀ i, E i →L[𝕜] Y} (C D : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (hg : ∀ i, ‖g i‖₊ ≤ D) :
+    coprodLpOne f C hf = coprodLpOne g D hg ↔ f = g := by
+  classical
+  refine ⟨fun h ↦ funext fun i ↦ ?_, fun h ↦ coprodLpOne_congr h C D hf hg⟩
+  exact (coprodLpOne_comp_singleContinuousLinearMap f C hf i).symm.trans
+    ((eq_coprodLpOne_iff _ g D hg).1 h i)
+
+/-- Assembling the zero family gives the zero operator. -/
+@[simp]
+theorem coprodLpOne_zero (C : ℝ≥0) (h0 : ∀ i, ‖(0 : E i →L[𝕜] Y)‖₊ ≤ C) :
+    coprodLpOne (fun i ↦ (0 : E i →L[𝕜] Y)) C h0 = 0 := by
+  classical
+  exact ((eq_coprodLpOne_iff 0 _ C h0).2 fun i ↦ zero_comp _).symm
+
+/-- `coprodLpOne` is additive in the family of summands. -/
+theorem coprodLpOne_add (f g : ∀ i, E i →L[𝕜] Y) (C D M : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (hg : ∀ i, ‖g i‖₊ ≤ D) (hfg : ∀ i, ‖f i + g i‖₊ ≤ M) :
+    coprodLpOne (fun i ↦ f i + g i) M hfg = coprodLpOne f C hf + coprodLpOne g D hg := by
+  classical
+  symm
+  refine (eq_coprodLpOne_iff _ _ M hfg).2 fun i ↦ ?_
+  simp [add_comp]
+
+/-- `coprodLpOne` is homogeneous in the family of summands. -/
+theorem coprodLpOne_smul {𝕜' : Type*} [NormedField 𝕜'] [NormedSpace 𝕜' Y]
+    [SMulCommClass 𝕜 𝕜' Y] (c : 𝕜') (f : ∀ i, E i →L[𝕜] Y) (C D : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (hcf : ∀ i, ‖c • f i‖₊ ≤ D) :
+    coprodLpOne (fun i ↦ c • f i) D hcf = c • coprodLpOne f C hf := by
+  classical
+  symm
+  refine (eq_coprodLpOne_iff _ _ D hcf).2 fun i ↦ ?_
+  simp [smul_comp]
+
+/-- Postcomposing `coprodLpOne` with a bounded linear map into a complete normed space postcomposes
+each summand. -/
+theorem comp_coprodLpOne {Z : Type*} [NormedAddCommGroup Z] [NormedSpace 𝕜 Z] [CompleteSpace Z]
+    (g : Y →L[𝕜] Z) (f : ∀ i, E i →L[𝕜] Y) (C D : ℝ≥0)
+    (hf : ∀ i, ‖f i‖₊ ≤ C) (hgf : ∀ i, ‖g ∘L f i‖₊ ≤ D) :
+    g ∘L coprodLpOne f C hf = coprodLpOne (fun i ↦ g ∘L f i) D hgf := by
+  classical
+  refine (eq_coprodLpOne_iff _ _ D hgf).2 fun i ↦ ?_
+  rw [comp_assoc, coprodLpOne_comp_singleContinuousLinearMap]
+
+/-- The norm of the assembled operator is at most the uniform bound. -/
+theorem nnnorm_coprodLpOne_le (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C) :
+    ‖coprodLpOne f C hf‖₊ ≤ C := by
+  rw [← NNReal.coe_le_coe, coe_nnNorm, coprodLpOne]
+  refine (opNorm_comp_le _ _).trans ?_
+  calc ‖lp.tsumCLM 𝕜 ι Y‖ * ‖lp.mapCLM 1 f C.2 _‖
+      ≤ 1 * C := mul_le_mul lp.norm_tsumCLM_le (lp.norm_mapCLM_le _ _ _ _)
+        (norm_nonneg _) zero_le_one
+    _ = C := one_mul _
+
+/-- Each summand is bounded in norm by `coprodLpOne f C hf`. -/
+theorem norm_le_norm_coprodLpOne (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C)
+    (i : ι) : ‖f i‖ ≤ ‖coprodLpOne f C hf‖ := by
+  classical
+  refine (f i).opNorm_le_bound (norm_nonneg _) fun x ↦ ?_
+  simpa [lp.norm_single zero_lt_one] using (coprodLpOne f C hf).le_opNorm (lp.single 1 i x)
+
+/-- **Norm of `coprodLpOne`.** The operator norm of `coprodLpOne f C hf` is the supremum of the
+operator norms of its summands, `0` for an empty index type. -/
+theorem norm_coprodLpOne (f : ∀ i, E i →L[𝕜] Y) (C : ℝ≥0) (hf : ∀ i, ‖f i‖₊ ≤ C) :
+    ‖coprodLpOne f C hf‖ = ⨆ i, ‖f i‖ := by
+  have hbdd : BddAbove (Set.range fun i ↦ ‖f i‖) :=
+    ⟨C, by rintro _ ⟨i, rfl⟩; exact_mod_cast hf i⟩
+  refine le_antisymm ?_ (Real.iSup_le (norm_le_norm_coprodLpOne f C hf) (norm_nonneg _))
+  let S : ℝ≥0 := ⟨⨆ i, ‖f i‖, Real.iSup_nonneg fun i ↦ norm_nonneg (f i)⟩
+  have hS : ∀ i, ‖f i‖₊ ≤ S := fun i ↦ by exact_mod_cast le_ciSup hbdd i
+  rw [coprodLpOne_congr rfl C S hf hS]
+  exact_mod_cast nnnorm_coprodLpOne_le f S hS
+
+end ContinuousLinearMap

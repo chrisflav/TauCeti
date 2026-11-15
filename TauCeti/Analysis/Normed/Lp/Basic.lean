@@ -42,7 +42,9 @@ dense subsets are dense.
 
 For `p ≠ ∞` the coordinate vectors span a dense subspace, so a uniformly bounded family of
 operators on `lp E p` that converges on every `single i x` converges at every vector
-(`lp.tendsto_apply_of_tendsto_apply_single`).
+(`lp.tendsto_apply_of_tendsto_apply_single`). On `ℓ¹`, any bounded semilinear map out of `lp E 1`
+is bounded in operator norm by its uniform bound on coordinate vectors
+(`ContinuousLinearMap.opNorm_le_of_lp_single`).
 -/
 
 public section
@@ -287,6 +289,31 @@ theorem tendsto_apply_of_tendsto_apply_single [DecidableEq ι] {Z : Type*}
 end Density
 
 end lp
+
+namespace ContinuousLinearMap
+
+variable {ι 𝕜 𝕜₂ Z : Type*} {E : ι → Type*} [NontriviallyNormedField 𝕜]
+  [NontriviallyNormedField 𝕜₂] {σ₁₂ : 𝕜 →+* 𝕜₂}
+  [∀ i, NormedAddCommGroup (E i)] [∀ i, NormedSpace 𝕜 (E i)]
+  [SeminormedAddCommGroup Z] [NormedSpace 𝕜₂ Z]
+
+/-- A bounded semilinear map on `ℓ¹` has operator norm at most `C` as soon as it is bounded by `C`
+on every coordinate vector `single 1 i x`. -/
+theorem opNorm_le_of_lp_single [DecidableEq ι] (f : lp E 1 →SL[σ₁₂] Z) {C : ℝ} (hC : 0 ≤ C)
+    (h : ∀ i (x : E i), ‖f (lp.single 1 i x)‖ ≤ C * ‖x‖) : ‖f‖ ≤ C := by
+  refine f.opNorm_le_bound hC fun y ↦ ?_
+  exact le_of_tendsto_of_tendsto
+    ((lp.hasSum_single ENNReal.one_ne_top y).map f f.continuous).norm
+    ((lp.hasSum_norm_one y).mul_left C) <| Eventually.of_forall fun s ↦
+      (norm_sum_le _ _).trans (Finset.sum_le_sum fun i _ ↦ h i (y i))
+
+/-- Nonnegative operator norm form of `ContinuousLinearMap.opNorm_le_of_lp_single`. -/
+theorem opNNNorm_le_of_lp_single [RingHomIsometric σ₁₂] [DecidableEq ι]
+    (f : lp E 1 →SL[σ₁₂] Z) (C : ℝ≥0)
+    (h : ∀ i (x : E i), ‖f (lp.single 1 i x)‖₊ ≤ C * ‖x‖₊) : ‖f‖₊ ≤ C :=
+  f.opNorm_le_of_lp_single C.2 fun i x ↦ by exact_mod_cast h i x
+
+end ContinuousLinearMap
 
 section Smul
 

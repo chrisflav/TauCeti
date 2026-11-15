@@ -81,7 +81,8 @@ A continuous bilinear map satisfies a Young-type bound
 
 A **metric quotient map**, an operator `q` with `‖q‖ ≤ 1` lifting every vector of norm less than
 `r` to a vector of norm less than `r`, maps each open ball about `0` onto the open ball of the same
-radius (`ContinuousLinearMap.image_ball_eq_ball`).
+radius (`ContinuousLinearMap.image_ball_eq_ball`), and precomposing with `q` preserves operator
+norms (`ContinuousLinearMap.norm_comp_of_ball_subset_image_ball`).
 
 Finite real products also admit coordinate-basis estimates and continuous linear equivalences
 obtained by replacing one coordinate. The coordinate arguments are adapted from
@@ -455,6 +456,35 @@ theorem image_ball_eq_ball {q : E →SL[σ₁₂] F} (h₁ : ‖q‖ ≤ 1)
   refine subset_antisymm ?_ (h r)
   have h' : ‖q‖₊ ≤ 1 := by rwa [← NNReal.coe_le_one, coe_nnNorm]
   simpa using ((q.lipschitzWith.weaken h').mapsTo_ball one_ne_zero 0 r).image_subset
+
+variable {𝕜₃ G : Type*} [NontriviallyNormedField 𝕜₃] [SeminormedAddCommGroup G] [NormedSpace 𝕜₃ G]
+  {σ₂₃ : 𝕜₂ →+* 𝕜₃} {σ₁₃ : 𝕜 →+* 𝕜₃} [RingHomCompTriple σ₁₂ σ₂₃ σ₁₃]
+  [RingHomIsometric σ₂₃] [RingHomIsometric σ₁₃]
+
+/-- Precomposing a bounded semilinear map with a **metric quotient map** preserves its operator
+norm. -/
+theorem norm_comp_of_ball_subset_image_ball (f : F →SL[σ₂₃] G) {q : E →SL[σ₁₂] F} (h₁ : ‖q‖ ≤ 1)
+    (h : ∀ r, Metric.ball (0 : F) r ⊆ q '' Metric.ball 0 r) :
+    ‖f.comp q‖ = ‖f‖ := by
+  refine le_antisymm ((f.opNorm_comp_le q).trans (mul_le_of_le_one_right (norm_nonneg f) h₁)) ?_
+  refine f.opNorm_le_bound (norm_nonneg (f.comp q)) fun y ↦
+    le_of_forall_gt_imp_ge_of_dense fun c hc ↦ ?_
+  set ε := (c - ‖f.comp q‖ * ‖y‖) / (‖f.comp q‖ + 1)
+  have hε : 0 < ε := div_pos (sub_pos.2 hc) (by positivity)
+  obtain ⟨x, hx, hqx⟩ := h (‖y‖ + ε) (mem_ball_zero_iff.2 (lt_add_of_pos_right ‖y‖ hε))
+  have hx' : ‖x‖ ≤ ‖y‖ + ε := (mem_ball_zero_iff.1 hx).le
+  calc ‖f y‖ = ‖f.comp q x‖ := by rw [comp_apply, hqx]
+    _ ≤ ‖f.comp q‖ * ‖x‖ := (f.comp q).le_opNorm x
+    _ ≤ ‖f.comp q‖ * (‖y‖ + ε) := by gcongr
+    _ ≤ ‖f.comp q‖ * ‖y‖ + (‖f.comp q‖ + 1) * ε := by nlinarith [norm_nonneg (f.comp q)]
+    _ = c := by rw [mul_div_cancel₀ _ (by positivity)]; ring
+
+/-- Precomposing a bounded semilinear map with a **metric quotient map** preserves its nonnegative
+operator norm. -/
+theorem nnnorm_comp_of_ball_subset_image_ball (f : F →SL[σ₂₃] G) {q : E →SL[σ₁₂] F} (h₁ : ‖q‖ ≤ 1)
+    (h : ∀ r, Metric.ball (0 : F) r ⊆ q '' Metric.ball 0 r) :
+    ‖f.comp q‖₊ = ‖f‖₊ :=
+  NNReal.eq (f.norm_comp_of_ball_subset_image_ball h₁ h)
 
 end MetricQuotient
 
