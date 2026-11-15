@@ -49,7 +49,8 @@ algebra. When `A` has a proper involution (in particular, when `A` is a C⋆-alg
 * `TwoSidedIdeal.toSubmodule` and `TwoSidedIdeal.toNonUnitalStarSubalgebra`: bundle a closed
   two-sided ideal of a C⋆-algebra as a `Submodule ℂ A` and as a `NonUnitalStarSubalgebra ℂ A`.
 * `TwoSidedIdeal.nonUnitalCStarAlgebra`: a closed two-sided ideal `I : TwoSidedIdeal A` is a
-  `NonUnitalCStarAlgebra` on its subtype carrier, with canonical isometric `⋆`-monomorphism
+  `NonUnitalCStarAlgebra` on its subtype carrier (and inherits `StarOrderedRing` via
+  `TwoSidedIdeal.instStarOrderedRing`), with canonical isometric `⋆`-monomorphism
   `TwoSidedIdeal.starAlgHom : I →⋆ₙₐ[ℂ] A` and `⋆`-isomorphism
   `TwoSidedIdeal.toNonUnitalStarSubalgebraEquiv : I ≃⋆ₐ[ℂ] I.toNonUnitalStarSubalgebra`.
 * `NonUnitalStarSubalgebra.multiplierHom`: the canonical contractive star-algebra homomorphism
@@ -223,6 +224,23 @@ noncomputable instance nonUnitalCommCStarAlgebra {A : Type*}
     [NonUnitalCommCStarAlgebra A] (I : TwoSidedIdeal A) [IsClosed (I : Set A)] :
     NonUnitalCommCStarAlgebra I where
   mul_comm x y := Subtype.ext (mul_comm (x : A) (y : A))
+
+/-- A closed two-sided ideal of a C⋆-algebra inherits the `StarOrderedRing` structure of the
+ambient algebra (cf. `Subtype.starOrderedRing` for closed `⋆`-subalgebras). -/
+instance instStarOrderedRing [PartialOrder A] [StarOrderedRing A] : StarOrderedRing I :=
+  StarOrderedRing.of_nonneg_iff'
+    (fun {_ _} hxy z => add_le_add_right (α := A) hxy (z : A)) fun x => by
+      refine ⟨fun (hx : 0 ≤ (x : A)) => ?_, ?_⟩
+      · have hs_mem : cfcₙ Real.sqrt (x : A) ∈ I.toNonUnitalStarSubalgebra :=
+          cfcₙ_mem Real.sqrt (I.mem_toNonUnitalStarSubalgebra.mpr x.2)
+        refine ⟨⟨cfcₙ Real.sqrt (x : A), hs_mem⟩, Subtype.ext ?_⟩
+        rw [MulMemClass.coe_mul, TwoSidedIdeal.coe_star, IsSelfAdjoint.star_eq (by cfc_tac),
+          ← cfcₙ_mul ..]
+        convert (cfcₙ_id' ℝ (x : A)).symm using 1
+        exact cfcₙ_congr fun r hr =>
+          Real.mul_self_sqrt (quasispectrum_nonneg_of_nonneg (x : A) hx r hr)
+      · rintro ⟨s, rfl⟩
+        exact star_mul_self_nonneg (s : A)
 
 /-- The canonical isometric ⋆-algebra monomorphism from a closed two-sided ideal `I` into `A`. -/
 def starAlgHom : I →⋆ₙₐ[ℂ] A where

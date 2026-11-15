@@ -44,6 +44,9 @@ equivalence of complex vector spaces is real-linear.
   there.
 * `LinearEquiv.restrictScalarsₛₗ`: a star-linear equivalence over `S` is `R`-linear when `R` acts
   on `S` with trivial star.
+* `Submodule.mul_mem_left_comap_starLinearEquiv` and
+  `Submodule.mul_mem_right_comap_starLinearEquiv`: preimages under `starLinearEquiv R` swap
+  one-sided `R`-ideals.
 -/
 
 public section
@@ -138,3 +141,28 @@ theorem restrictScalarsₛₗ_symm (f : V ≃ₗ⋆[S] W) :
   (rfl)
 
 end LinearEquiv
+
+namespace Submodule
+
+variable {R A : Type*} [CommSemiring R] [StarRing R] [NonUnitalSemiring A] [StarRing A]
+  [Module R A] [StarModule R A]
+
+/-- The preimage under `starLinearEquiv R` of an `R`-submodule closed under ambient right
+multiplication is closed under ambient left multiplication. -/
+theorem mul_mem_left_comap_starLinearEquiv (M : Submodule R A)
+    (hM : ∀ a : A, ∀ x ∈ M, x * a ∈ M) (a : A) {x : A}
+    (hx : x ∈ M.comap (starLinearEquiv R : A ≃ₗ⋆[R] A).toLinearMap) :
+    a * x ∈ M.comap (starLinearEquiv R : A ≃ₗ⋆[R] A).toLinearMap := by
+  rw [mem_comap, LinearEquiv.coe_coe, starLinearEquiv_apply, star_mul]
+  exact hM (star a) (star x) hx
+
+/-- The preimage under `starLinearEquiv R` of an `R`-submodule closed under ambient left
+multiplication is closed under ambient right multiplication. -/
+theorem mul_mem_right_comap_starLinearEquiv (L : Submodule R A)
+    (hL : ∀ a : A, ∀ x ∈ L, a * x ∈ L) (a : A) {x : A}
+    (hx : x ∈ L.comap (starLinearEquiv R : A ≃ₗ⋆[R] A).toLinearMap) :
+    x * a ∈ L.comap (starLinearEquiv R : A ≃ₗ⋆[R] A).toLinearMap := by
+  rw [mem_comap, LinearEquiv.coe_coe, starLinearEquiv_apply, star_mul]
+  exact hL (star a) (star x) hx
+
+end Submodule
