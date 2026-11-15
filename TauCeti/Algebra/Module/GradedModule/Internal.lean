@@ -69,8 +69,8 @@ Koszul twist and its tuple operation work over any ring: their integer signs are
 * `TauCeti.LinearMap.IsHomogeneous.map_decompose` and
   `TauCeti.LinearMap.IsHomogeneous.restrict_decompose`: a homogeneous map commutes with homogeneous
   projection, up to the shift of degree.
-* `TauCeti.InternalGrading.mem_piece_of_piece_eq_bot`: when all pieces outside one degree vanish,
-  every element lies in that piece.
+* `TauCeti.InternalGrading.piece_eq_top_of_forall_ne_piece_eq_bot`: when all pieces outside one
+  degree vanish, that piece is the whole module.
 * `TauCeti.LinearMap.IsHomogeneous.isHomogeneous_ker` and
   `TauCeti.LinearMap.IsHomogeneous.isHomogeneous_range`: the kernel and the image of a homogeneous
   map are homogeneous submodules.
@@ -344,13 +344,14 @@ theorem map_eq_map_decompose {N : Type w} [AddCommMonoid N] (G : InternalGrading
   · exact hf j _ (DirectSum.decompose G.piece x j).2 hj
   · rw [DFinsupp.notMem_support_iff.mp hi, Submodule.coe_zero, map_zero]
 
-end InternalGrading
+/-- When all homogeneous pieces outside degree `i` vanish, the degree-`i` piece is the whole
+module. -/
+theorem piece_eq_top_of_forall_ne_piece_eq_bot (G : InternalGrading R M ι) {i : ι}
+    (hG : ∀ j, j ≠ i → G.piece j = ⊥) : G.piece i = ⊤ := by
+  rw [← G.isInternal.submodule_iSup_eq_top, iSup_split_single G.piece i, iSup₂_eq_bot.2 hG,
+    sup_bot_eq]
 
-/-- When all homogeneous pieces outside degree `i` vanish, every element has degree `i`. -/
-theorem InternalGrading.mem_piece_of_piece_eq_bot {R M : Type*} [Semiring R] [AddCommMonoid M]
-    [Module R M] {ι : Type*} [DecidableEq ι] (G : InternalGrading R M ι) {i : ι}
-    (hG : ∀ j, j ≠ i → G.piece j = ⊥) (x : M) : x ∈ G.piece i :=
-  DirectSum.mem_of_forall_ne_eq_bot hG x
+end InternalGrading
 
 namespace LinearMap.IsHomogeneous
 

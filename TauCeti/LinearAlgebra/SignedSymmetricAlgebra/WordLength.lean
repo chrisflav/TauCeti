@@ -20,9 +20,9 @@ The length-zero projection is the canonical augmentation followed by the coeffic
 the length-one projection retains generators. These distinguish constant and linear terms in
 an orbit-algebra differential, which need not preserve word length. When `V` is concentrated in a
 single degree `d`, input degrees outside `{n * d | n : ℕ}` vanish
-(`TauCeti.SignedSym.signedSymPiece_eq_bot_of_piece_eq_bot_of_forall_mul_ne`), and when `d ≠ 0`,
-`signedSymPiece G (n * d)` coincides with `lengthPiece G n`
-(`TauCeti.SignedSym.signedSymPiece_eq_lengthPiece_of_piece_eq_bot`).
+(`TauCeti.SignedSym.signedSymPiece_eq_bot_of_forall_ne_piece_eq_bot_of_forall_mul_ne`), and when
+`d ≠ 0`, `signedSymPiece G (n * d)` coincides with `lengthPiece G n`
+(`TauCeti.SignedSym.signedSymPiece_eq_lengthPiece_of_forall_ne_piece_eq_bot`).
 
 This is the word decomposition of the free supercommutative algebra in J. Pardon,
 *Contact homology and virtual fundamental cycles*, equation (1.1). We use Mathlib's tensor
@@ -215,7 +215,7 @@ end Map
 section SingleDegree
 
 /-- When `V` is concentrated in degree `d`, words of length `n` have input degree `n * d`. -/
-theorem lengthPiece_le_signedSymPiece_of_piece_eq_bot {d : ℤ}
+theorem lengthPiece_le_signedSymPiece_of_forall_ne_piece_eq_bot {d : ℤ}
     (hG : ∀ p, p ≠ d → G.piece p = ⊥) (n : ℕ) :
     lengthPiece G n ≤ signedSymPiece G (n * d) := by
   intro a ha
@@ -226,11 +226,12 @@ theorem lengthPiece_le_signedSymPiece_of_piece_eq_bot {d : ℤ}
   · have hdeg : (m + 1 : ℕ) * d = d + m * d := by push_cast; rw [add_mul, one_mul, add_comm]
     rw [hdeg]
     exact SetLike.mul_mem_graded
-      (generator_mem_signedSymPiece G (G.mem_piece_of_piece_eq_bot hG x)) hb
+      (generator_mem_signedSymPiece G
+        (G.piece_eq_top_of_forall_ne_piece_eq_bot hG ▸ Submodule.mem_top)) hb
 
 /-- When `V` is concentrated in degree `d`, input degrees not of the form `n * d` (`n : ℕ`)
 vanish in `SignedSym G`. -/
-theorem signedSymPiece_eq_bot_of_piece_eq_bot_of_forall_mul_ne {d p : ℤ}
+theorem signedSymPiece_eq_bot_of_forall_ne_piece_eq_bot_of_forall_mul_ne {d p : ℤ}
     (hG : ∀ q, q ≠ d → G.piece q = ⊥) (hp : ∀ n : ℕ, (n : ℤ) * d ≠ p) :
     signedSymPiece G p = ⊥ := by
   rw [eq_bot_iff]
@@ -238,20 +239,21 @@ theorem signedSymPiece_eq_bot_of_piece_eq_bot_of_forall_mul_ne {d p : ℤ}
   rw [Submodule.mem_bot, ← DirectSum.decompose_of_mem_same (signedSymPiece G) ha]
   have hsum := DirectSum.decompose_map_eq_sum (lengthPiece G) (signedSymPiece G)
     (AddMonoidHom.id (SignedSym G)) (fun n : ℕ => (n : ℤ) * d)
-    (fun n _ hx => lengthPiece_le_signedSymPiece_of_piece_eq_bot G hG n hx) a p
+    (fun n _ hx => lengthPiece_le_signedSymPiece_of_forall_ne_piece_eq_bot G hG n hx) a p
   simpa only [AddMonoidHom.id_apply] using hsum.trans
     (Finset.sum_eq_zero fun n hn => (hp n (Finset.mem_filter.mp hn).2).elim)
 
 /-- When `V` is concentrated in a nonzero degree `d`, the input-degree piece `n * d` coincides
 with the word-length piece `lengthPiece G n`. -/
-theorem signedSymPiece_eq_lengthPiece_of_piece_eq_bot {d : ℤ} (hd : d ≠ 0)
+theorem signedSymPiece_eq_lengthPiece_of_forall_ne_piece_eq_bot {d : ℤ} (hd : d ≠ 0)
     (hG : ∀ q, q ≠ d → G.piece q = ⊥) (n : ℕ) :
     signedSymPiece G (n * d) = lengthPiece G n := by
-  refine le_antisymm (fun a ha => ?_) (lengthPiece_le_signedSymPiece_of_piece_eq_bot G hG n)
+  refine le_antisymm (fun a ha => ?_)
+    (lengthPiece_le_signedSymPiece_of_forall_ne_piece_eq_bot G hG n)
   have hshift := DirectSum.map_decompose_shift (lengthPiece G) (signedSymPiece G)
     (AddMonoidHom.id (SignedSym G)) (fun m : ℕ => (m : ℤ) * d)
     (fun m₁ m₂ hm => Int.ofNat.inj (mul_right_cancel₀ hd hm))
-    (fun m _ hx => lengthPiece_le_signedSymPiece_of_piece_eq_bot G hG m hx) n a
+    (fun m _ hx => lengthPiece_le_signedSymPiece_of_forall_ne_piece_eq_bot G hG m hx) n a
   simp only [AddMonoidHom.id_apply, DirectSum.decompose_of_mem_same (signedSymPiece G) ha] at hshift
   rw [← hshift]
   exact (DirectSum.decompose (lengthPiece G) a n).2

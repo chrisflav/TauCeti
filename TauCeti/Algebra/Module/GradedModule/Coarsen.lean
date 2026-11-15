@@ -10,6 +10,7 @@ public import Mathlib.LinearAlgebra.FreeModule.Basic
 public import TauCeti.Algebra.Module.GradedModule.Internal
 import Mathlib.LinearAlgebra.DirectSum.Basis
 import TauCeti.Algebra.DirectSum.Component
+import TauCeti.Algebra.DirectSum.HomogeneousExtend
 import TauCeti.Algebra.DirectSum.Internal
 
 /-!
@@ -45,10 +46,9 @@ super (parity-graded) object, for example when Koszul signs only depend on parit
 * `TauCeti.LinearMap.IsHomogeneous.coarsenGrading` and
   `TauCeti.LinearMap.IsHomogeneous.coarsenGrading_zero`: homogeneity of linear maps under
   coarsened gradings.
-* `TauCeti.parityGrading_zero`, `TauCeti.parityGrading_one`,
-  `TauCeti.mem_parityGrading_zero_of_odd_eq_bot`, `TauCeti.mem_parityGrading_one_of_even_eq_bot`,
-  and `TauCeti.coe_decompose_zero_add_coe_decompose_one`: the even and odd pieces, single-parity
-  concentration, and the two-term decomposition for `ZMod 2`-gradings.
+* `TauCeti.parityGrading_zero`, `TauCeti.parityGrading_one`, and
+  `TauCeti.coe_decompose_zero_add_coe_decompose_one`: the even and odd pieces and the two-term
+  decomposition for `ZMod 2`-gradings.
 -/
 
 public section
@@ -174,9 +174,15 @@ private def coarsenGradingToSubmodule (k : κ) :
 open Classical in
 private noncomputable def coarsenGradingProj (k : κ) :
     M →ₗ[R] ⨁ i : {i : ι // f i = k}, ℳ i.1 :=
-  (toModule R ι (⨁ i : {i : ι // f i = k}, ℳ i.1) fun i ↦
-    if h : f i = k then lof R {j : ι // f j = k} (fun j ↦ ℳ j.1) ⟨i, h⟩ else 0).comp
-    (decomposeLinearEquiv ℳ).toLinearMap
+  DirectSum.homogeneousExtend ℳ fun i ↦
+    if h : f i = k then lof R {j : ι // f j = k} (fun j ↦ ℳ j.1) ⟨i, h⟩ else 0
+
+open Classical in
+private theorem coarsenGradingProj_of_mem (k : κ) {j : ι} {y : M} (hy : y ∈ ℳ j) :
+    coarsenGradingProj ℳ f k y =
+      if h : f j = k then lof R {i : ι // f i = k} (fun i ↦ ℳ i.1) ⟨j, h⟩ ⟨y, hy⟩ else 0 := by
+  simp only [coarsenGradingProj, DirectSum.homogeneousExtend_of_mem ℳ _ hy]
+  split_ifs <;> rfl
 
 private theorem coarsenGradingProj_apply (k : κ) (y : M) (i : {i : ι // f i = k}) :
     (coarsenGradingProj ℳ f k y i : M) = (decompose ℳ y i.1 : M) := by
@@ -184,18 +190,14 @@ private theorem coarsenGradingProj_apply (k : κ) (y : M) (i : {i : ι // f i = 
   induction y using Decomposition.inductionOn ℳ with
   | zero => simp
   | @homogeneous j y =>
-    simp only [coarsenGradingProj, LinearMap.comp_apply, LinearEquiv.coe_coe]
-    rw [decomposeLinearEquiv_apply_coe ℳ j y, toModule_lof]
+    rw [coarsenGradingProj_of_mem ℳ f k y.2]
     by_cases hj : j = i.1
     · subst hj
-      rw [dite_eq_left i.2, decompose_of_mem_same ℳ y.2]
-      simp
+      simp [i.2]
     · by_cases hfk : f j = k
       · have hne : i ≠ ⟨j, hfk⟩ := fun heq ↦ hj (congrArg Subtype.val heq.symm)
-        rw [dite_eq_left hfk, lof_eq_of, of_eq_of_ne _ _ _ hne, Submodule.coe_zero,
-          decompose_of_mem_ne ℳ y.2 hj]
-      · rw [dite_eq_right hfk, LinearMap.zero_apply, DirectSum.zero_apply, Submodule.coe_zero,
-          decompose_of_mem_ne ℳ y.2 hj]
+        simp [hfk, lof_eq_of, of_eq_of_ne _ _ _ hne, of_eq_of_ne _ _ _ (Ne.symm hj)]
+      · simp [hfk, of_eq_of_ne _ _ _ (Ne.symm hj)]
   | add y z hy hz => simp [hy, hz]
 
 /-- Each coarsened piece is the direct sum of the original pieces in its fibre. -/
@@ -210,21 +212,14 @@ noncomputable def coarsenGradingEquiv (k : κ) :
           (coarsenGradingToSubmodule ℳ f k (coarsenGradingProj ℳ f k x) : M) = x := fun x hx ↦
         coarsenGrading_induction hx
           (fun i hi y hy ↦ by
-            simp only [coarsenGradingProj, coarsenGradingToSubmodule, LinearMap.comp_apply,
-              LinearEquiv.coe_coe]
-            rw [decomposeLinearEquiv_apply_coe ℳ i ⟨y, hy⟩, toModule_lof, dite_eq_left hi,
-              toModule_lof]
-            simp)
+            simp [coarsenGradingProj_of_mem ℳ f k hy, hi, coarsenGradingToSubmodule])
           (by simp)
           (fun y z hy hz ↦ by simp [hy, hz])
       exact LinearMap.ext fun ⟨x, hx⟩ ↦ Subtype.ext (hleft x hx))
     (by
       classical
       refine DirectSum.linearMap_ext R fun i ↦ LinearMap.ext fun x ↦ ?_
-      simp only [coarsenGradingProj, coarsenGradingToSubmodule, LinearMap.comp_apply,
-        LinearMap.id_apply, Submodule.coe_subtype, LinearEquiv.coe_coe, toModule_lof,
-        Submodule.coe_inclusion]
-      rw [decomposeLinearEquiv_apply_coe ℳ i.1 x, toModule_lof, dite_eq_left i.2])
+      simp [coarsenGradingToSubmodule, coarsenGradingProj_of_mem ℳ f k x.2, i.2])
 
 /-- On a single fibre summand, `coarsenGradingEquiv` is the submodule inclusion into `M`. -/
 @[simp]
@@ -331,26 +326,6 @@ theorem parityGrading_one (ℳ : ℤ → Submodule R M) :
     rw [eq_add_of_sub_eq hk]
     exact le_iSup (fun k ↦ ℳ (2 * k + 1)) k
   · simpa [CharP.ofNat_eq_zero] using mem_parityGrading_of_mem hx
-
-/-- When all odd-degree pieces vanish, every element has even parity. -/
-theorem mem_parityGrading_zero_of_odd_eq_bot {ℳ : ℤ → Submodule R M} [Decomposition ℳ]
-    (hℳ : ∀ p, Odd p → ℳ p = ⊥) (x : M) : x ∈ parityGrading ℳ 0 :=
-  TauCeti.DirectSum.mem_of_forall_ne_eq_bot (ℳ := parityGrading ℳ)
-    (fun j hj ↦ by
-      have hj1 : j = 1 := by revert j hj; decide
-      rw [hj1, parityGrading_one]
-      exact iSup_eq_bot.2 fun k ↦ hℳ (2 * k + 1) ⟨k, rfl⟩)
-    x
-
-/-- When all even-degree pieces vanish, every element has odd parity. -/
-theorem mem_parityGrading_one_of_even_eq_bot {ℳ : ℤ → Submodule R M} [Decomposition ℳ]
-    (hℳ : ∀ p, Even p → ℳ p = ⊥) (x : M) : x ∈ parityGrading ℳ 1 :=
-  TauCeti.DirectSum.mem_of_forall_ne_eq_bot (ℳ := parityGrading ℳ)
-    (fun j hj ↦ by
-      have hj0 : j = 0 := by revert j hj; decide
-      rw [hj0, parityGrading_zero]
-      exact iSup_eq_bot.2 fun k ↦ hℳ (2 * k) ⟨k, two_mul k⟩)
-    x
 
 omit [Semiring R] [Module R M] in
 /-- Every element of a `ZMod 2`-graded additive monoid is the sum of its degree-`0` and degree-`1`
