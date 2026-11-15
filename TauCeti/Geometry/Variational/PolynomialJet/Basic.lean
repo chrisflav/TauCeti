@@ -7,6 +7,7 @@ module
 
 public import Mathlib.Algebra.MvPolynomial.Derivation
 public import Mathlib.Data.Finsupp.Weight
+public import TauCeti.Algebra.MvPolynomial.Supported
 import Mathlib.Tactic.Ring
 
 /-!
@@ -95,6 +96,11 @@ variable (R ι α)
 Base-coordinate degree is unrestricted. -/
 def stage (r : ℕ) : Subalgebra R (PolynomialJet R ι α) :=
   supported R {v | Sum.elim (fun _ ↦ True) (fun aI ↦ aI.2.degree ≤ r) v}
+
+/-- Explicit `MvPolynomial.supported` presentation of `PolynomialJet.stage`. -/
+theorem stage_eq_supported (r : ℕ) :
+    stage R ι α r = supported R {v | Sum.elim (fun _ ↦ True) (fun aI ↦ aI.2.degree ≤ r) v} :=
+  (rfl)
 
 variable {R ι α}
 
@@ -223,6 +229,80 @@ theorem stageDeriv_comm (i j : ι) (r : ℕ) (p : stage R ι α r) :
       stageDeriv j (r + 1) (stageDeriv i r p) := by
   apply Subtype.ext
   simp [totalDeriv_comm]
+
+section Functoriality
+
+variable {S β : Type*} [CommSemiring S]
+
+/-- Changing scalar coefficients along a ring homomorphism preserves every finite jet stage. -/
+theorem map_mem_stage (f : R →+* S) {r : ℕ} {p : PolynomialJet R ι α}
+    (hp : p ∈ stage R ι α r) : MvPolynomial.map f p ∈ stage S ι α r :=
+  MvPolynomial.map_mem_supported f hp
+
+/-- Along an injective scalar ring homomorphism, `MvPolynomial.map` reflects and preserves stage
+membership. -/
+theorem map_mem_stage_iff {f : R →+* S} (hf : Function.Injective f) {r : ℕ}
+    {p : PolynomialJet R ι α} :
+    MvPolynomial.map f p ∈ stage S ι α r ↔ p ∈ stage R ι α r :=
+  MvPolynomial.map_mem_supported_iff hf
+
+/-- Changing scalar coefficients along a ring homomorphism commutes with total differentiation. -/
+@[simp]
+theorem map_totalDeriv (f : R →+* S) (i : ι) (p : PolynomialJet R ι α) :
+    MvPolynomial.map f (totalDeriv i p) = totalDeriv i (MvPolynomial.map f p) := by
+  classical
+  induction p using MvPolynomial.induction_on with
+  | C c => simp
+  | add p q hp hq => simp [hp, hq]
+  | mul_X p v hp =>
+    have hv : MvPolynomial.map f (totalDeriv (R := R) (α := α) i (X v)) =
+        totalDeriv i (MvPolynomial.map f (X v)) := by
+      rcases v with j | ⟨a, I⟩
+      · simp [apply_ite (MvPolynomial.map f)]
+      · simp
+    simp only [Derivation.leibniz, smul_eq_mul, map_add, map_mul, hp, hv]
+
+/-- Relabeling fields while keeping base coordinates and multi-indices fixed preserves every finite
+jet stage. -/
+theorem rename_field_mem_stage (σ : α → β) {r : ℕ} {p : PolynomialJet R ι α}
+    (hp : p ∈ stage R ι α r) :
+    rename (Sum.map id (Prod.map σ id)) p ∈ stage R ι β r := by
+  refine MvPolynomial.rename_mem_supported ?_ hp
+  rintro (j | ⟨a, I⟩) h
+  · trivial
+  · exact h
+
+/-- Along an injective field-label map, renaming field generators reflects and preserves stage
+membership. -/
+theorem rename_field_mem_stage_iff {σ : α → β} (hσ : Function.Injective σ) {r : ℕ}
+    {p : PolynomialJet R ι α} :
+    rename (Sum.map id (Prod.map σ id)) p ∈ stage R ι β r ↔ p ∈ stage R ι α r := by
+  have hf : Function.Injective (Sum.map (id : ι → ι) (Prod.map σ (id : (ι →₀ ℕ) → ι →₀ ℕ))) :=
+    Function.injective_id.sumMap (hσ.prodMap Function.injective_id)
+  have hpre : Sum.map (id : ι → ι) (Prod.map σ (id : (ι →₀ ℕ) → ι →₀ ℕ)) ⁻¹'
+      {v | Sum.elim (fun _ ↦ True) (fun aI ↦ aI.2.degree ≤ r) v} =
+      {v | Sum.elim (fun _ ↦ True) (fun aI ↦ aI.2.degree ≤ r) v} := by
+    ext (j | ⟨a, I⟩) <;> rfl
+  rw [stage_eq_supported, stage_eq_supported, MvPolynomial.rename_mem_supported_iff hf, hpre]
+
+/-- Relabeling fields commutes with total differentiation in every base direction. -/
+@[simp]
+theorem rename_field_totalDeriv (σ : α → β) (i : ι) (p : PolynomialJet R ι α) :
+    rename (Sum.map id (Prod.map σ id)) (totalDeriv i p) =
+      totalDeriv i (rename (Sum.map id (Prod.map σ id)) p) := by
+  classical
+  induction p using MvPolynomial.induction_on with
+  | C c => simp
+  | add p q hp hq => simp [hp, hq]
+  | mul_X p v hp =>
+    have hv : rename (Sum.map id (Prod.map σ id)) (totalDeriv (R := R) i (X v)) =
+        totalDeriv i (rename (Sum.map id (Prod.map σ id)) (X v)) := by
+      rcases v with j | ⟨a, I⟩
+      · simp [apply_ite (rename (Sum.map id (Prod.map σ id)))]
+      · simp
+    simp only [Derivation.leibniz, smul_eq_mul, map_add, map_mul, hp, hv]
+
+end Functoriality
 
 section Evaluation
 

@@ -5,6 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import TauCeti.Algebra.MvPolynomial.Supported
 public import Mathlib.LinearAlgebra.TensorProduct.Basis
 public import Mathlib.RingTheory.Finiteness.Defs
 public import Mathlib.RingTheory.IntegralClosure.IsIntegral.Defs
@@ -34,6 +35,11 @@ followed by `lTensor S (aeval y)`
 and integrality of `MvPolynomial.aeval y` are preserved under arbitrary base change `S / R`
 (`MvPolynomial.finite_aeval_one_tmul`, `MvPolynomial.isIntegral_aeval_one_tmul`).
 
+Restricting variables to a subset `s : Set σ` commutes with extension of scalars: the base change
+`A ⊗[R] supported R s` is canonically isomorphic as an `A`-algebra to `supported A s`
+(`MvPolynomial.supportedAlgebraTensorAlgEquiv`), compatibly with ambient coercion and monotone
+inclusion of variable sets.
+
 ## Main declarations
 
 * `MvPolynomial.algebraTensorAlgEquiv_sum_tmul_pow_mul_pow`: the binomial expansion of
@@ -45,6 +51,8 @@ and integrality of `MvPolynomial.aeval y` are preserved under arbitrary base cha
   through `MvPolynomial.algebraTensorAlgEquiv` and `Algebra.TensorProduct.lTensor`.
 * `MvPolynomial.finite_aeval_one_tmul`, `MvPolynomial.isIntegral_aeval_one_tmul`: scalar extension
   preserves module-finiteness and integrality of `MvPolynomial.aeval`.
+* `MvPolynomial.supportedAlgebraTensorAlgEquiv`: `A`-algebra equivalence
+  `A ⊗[R] supported R s ≃ₐ[A] supported A s`.
 -/
 
 public section
@@ -152,6 +160,72 @@ theorem isIntegral_aeval_one_tmul (S : Type*) [CommRing S] [Algebra R S] {y : ι
       (RingHom.isIntegral_of_surjective _ Function.surjective_id) hint)
 
 end CommRing
+
+section Supported
+
+variable {σ R A : Type*} [CommSemiring R] [CommSemiring A] [Algebra R A]
+
+variable (R A) in
+/-- Extension of scalars of the polynomial subalgebra `MvPolynomial.supported R s` to an
+`R`-algebra `A` is canonically isomorphic as an `A`-algebra to `MvPolynomial.supported A s`. -/
+noncomputable def supportedAlgebraTensorAlgEquiv (s : Set σ) :
+    A ⊗[R] supported R s ≃ₐ[A] supported A s :=
+  (Algebra.TensorProduct.congr (AlgEquiv.refl : A ≃ₐ[A] A) (supportedEquivMvPolynomial s)).trans
+    ((algebraTensorAlgEquiv R A).trans (supportedEquivMvPolynomial s).symm)
+
+@[simp]
+theorem coe_supportedAlgebraTensorAlgEquiv_tmul (s : Set σ) (a : A) (p : supported R s) :
+    (supportedAlgebraTensorAlgEquiv R A s (a ⊗ₜ[R] p) : MvPolynomial σ A) =
+      a • map (algebraMap R A) (p : MvPolynomial σ R) := by
+  simp only [supportedAlgebraTensorAlgEquiv, AlgEquiv.trans_apply,
+    Algebra.TensorProduct.congr_apply, Algebra.TensorProduct.map_tmul, AlgEquiv.coe_toAlgHom,
+    AlgEquiv.coe_refl, id_eq, algebraTensorAlgEquiv_tmul, map_smul, SetLike.val_smul,
+    coe_supportedEquivMvPolynomial_symm, ← map_rename, rename_coe_supportedEquivMvPolynomial]
+
+/-- Coercing `supportedAlgebraTensorAlgEquiv` to `MvPolynomial σ A` agrees with applying
+`MvPolynomial.algebraTensorAlgEquiv` after `lTensor` of the subalgebra inclusion. -/
+theorem coe_supportedAlgebraTensorAlgEquiv_eq (s : Set σ) (u : A ⊗[R] supported R s) :
+    (supportedAlgebraTensorAlgEquiv R A s u : MvPolynomial σ A) =
+      algebraTensorAlgEquiv R A
+        (Algebra.TensorProduct.lTensor (S := A) A (supported R s).val u) := by
+  induction u using TensorProduct.inductionOn with
+  | tmul a p => simp
+  | add x y hx hy => simp [hx, hy]
+
+@[simp]
+theorem supportedAlgebraTensorAlgEquiv_symm_mk_map (s : Set σ) (p : supported R s)
+    (hp : map (algebraMap R A) (p : MvPolynomial σ R) ∈ supported A s) :
+    (supportedAlgebraTensorAlgEquiv R A s).symm ⟨map (algebraMap R A) p, hp⟩ =
+      1 ⊗ₜ[R] p := by
+  apply (supportedAlgebraTensorAlgEquiv R A s).injective
+  apply Subtype.ext
+  simp
+
+theorem supportedAlgebraTensorAlgEquiv_symm_X (s : Set σ) {i : σ} (hi : i ∈ s)
+    (hx : X i ∈ supported A s := Algebra.subset_adjoin ⟨i, hi, rfl⟩) :
+    (supportedAlgebraTensorAlgEquiv R A s).symm ⟨X i, hx⟩ =
+      1 ⊗ₜ[R] ⟨X i, Algebra.subset_adjoin ⟨i, hi, rfl⟩⟩ := by
+  apply (supportedAlgebraTensorAlgEquiv R A s).injective
+  apply Subtype.ext
+  simp
+
+/-- `MvPolynomial.supportedAlgebraTensorAlgEquiv` commutes with the canonical inclusions induced by
+`s ⊆ t`. -/
+@[simp]
+theorem supportedAlgebraTensorAlgEquiv_lTensor_inclusion {s t : Set σ} (hst : s ⊆ t)
+    (u : A ⊗[R] supported R s) :
+    supportedAlgebraTensorAlgEquiv R A t
+        (Algebra.TensorProduct.lTensor (S := A) A (Subalgebra.inclusion (supported_mono hst)) u) =
+      Subalgebra.inclusion (supported_mono hst) (supportedAlgebraTensorAlgEquiv R A s u) := by
+  apply Subtype.ext
+  rw [coe_supportedAlgebraTensorAlgEquiv_eq, Subalgebra.coe_inclusion,
+    coe_supportedAlgebraTensorAlgEquiv_eq]
+  congr 1
+  induction u using TensorProduct.inductionOn with
+  | tmul a p => simp
+  | add x y hx hy => simp [hx, hy]
+
+end Supported
 
 end BaseChange
 
