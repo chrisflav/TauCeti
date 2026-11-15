@@ -6,11 +6,16 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.MeasureTheory.Group.Circle
+public import Mathlib.MeasureTheory.Group.Measure
 public import Mathlib.MeasureTheory.Integral.CircleAverage
+import Mathlib.Analysis.Fourier.AddCircle
 import Mathlib.Analysis.SpecialFunctions.Complex.Circle
 import Mathlib.MeasureTheory.Function.L1Space.HasFiniteIntegral
+import Mathlib.MeasureTheory.Group.Integral
 import Mathlib.MeasureTheory.Integral.Bochner.ContinuousLinearMap
 import Mathlib.MeasureTheory.Integral.IntervalIntegral.Periodic
+import Mathlib.MeasureTheory.Integral.RieszMarkovKakutani.Real
+import TauCeti.MeasureTheory.Integral.ContinuousMap
 
 /-!
 # Measures on the circle
@@ -18,6 +23,11 @@ import Mathlib.MeasureTheory.Integral.IntervalIntegral.Periodic
 This file defines the measure on `Circle` obtained from a nonnegative density on the unit circle
 with respect to normalized arc length. For a circle-integrable density it is finite, and for a
 measurable nonnegative density its integral is identified with Mathlib's `Real.circleAverage`.
+
+It also records two general Fourier-moment properties of Borel measures on `Circle`: every
+left-invariant measure integrates `(z : ℂ) ^ n` to its total mass at `n = 0` and to `0` at
+`n ≠ 0`, and any finite Borel measure on `Circle` is determined by its integer power moments
+`∫ z : Circle, (z : ℂ) ^ n ∂μ`.
 
 ## Main definitions and results
 
@@ -30,6 +40,10 @@ measurable nonnegative density its integral is identified with Mathlib's `Real.c
   against the weighted measure is a circle average.
 * `TauCeti.circleAverage_sub_zpow`: the circle average of `(z - c) ^ n` is `1` for `n = 0` and
   `0` otherwise, the orthogonality relation of the characters of the circle.
+* `MeasureTheory.integral_zpow_circle_of_isMulLeftInvariant`: against a left-invariant measure on
+  `Circle`, the integral of `(z : ℂ) ^ n` is `(μ.real univ : ℂ)` for `n = 0` and `0` otherwise.
+* `MeasureTheory.Measure.ext_of_forall_integral_zpow_eq`: a finite Borel measure on `Circle` is
+  determined by its integer power moments `∫ z : Circle, (z : ℂ) ^ n ∂μ`.
 -/
 
 public section
@@ -127,3 +141,65 @@ integer power `(z - c) ^ n` over a circle centred at `c` is `1` for `n = 0` and 
   simp [zpow_sub_one₀ hz, mul_comm]
 
 end TauCeti
+
+namespace MeasureTheory
+
+/-- Against any left-invariant Borel measure on `Circle`, the integral of `(z : ℂ) ^ n` is the
+total mass `(μ.real univ : ℂ)` at `n = 0` and vanishes for `n ≠ 0`. -/
+theorem integral_zpow_circle_of_isMulLeftInvariant {μ : Measure Circle} [μ.IsMulLeftInvariant]
+    (n : ℤ) :
+    ∫ z : Circle, (z : ℂ) ^ n ∂μ = if n = 0 then (μ.real univ : ℂ) else 0 := by
+  split_ifs with hn
+  · simp [hn, integral_const, Complex.real_smul]
+  · have hw : ((Circle.exp (π / n) : Circle) : ℂ) ^ n ≠ 1 := by
+      rw [← Circle.coe_zpow, ← Circle.exp_intCast_mul,
+        mul_div_cancel₀ _ (Int.cast_ne_zero.mpr hn), Ne, Circle.coe_eq_one]
+      exact Circle.exp_pi_ne_one
+    have hinv := integral_mul_left_eq_self (μ := μ) (fun z : Circle ↦ (z : ℂ) ^ n)
+      (Circle.exp (π / n))
+    simp only [Circle.coe_mul, mul_zpow, integral_const_mul] at hinv
+    exact (mul_eq_zero.mp (by linear_combination hinv)).resolve_left (sub_ne_zero.mpr hw)
+
+open scoped CompactlySupported ComplexOrder in
+/-- **Fourier moment determinacy on `Circle`.** Two finite Borel measures on `Circle` are equal as
+soon as their integer power moments `∫ z : Circle, (z : ℂ) ^ n ∂μ` agree for every `n : ℤ`. -/
+theorem Measure.ext_of_forall_integral_zpow_eq {μ ν : Measure Circle} [IsFiniteMeasure μ]
+    [IsFiniteMeasure ν] (h : ∀ n : ℤ, ∫ z : Circle, (z : ℂ) ^ n ∂μ = ∫ z : Circle, (z : ℂ) ^ n ∂ν) :
+    μ = ν := by
+  have : Fact ((0 : ℝ) < 1) := ⟨zero_lt_one⟩
+  let e : Circle ≃ₜ AddCircle (1 : ℝ) := (AddCircle.homeomorphCircle (T := 1) one_ne_zero).symm
+  set μ' : Measure (AddCircle (1 : ℝ)) := μ.map e
+  set ν' : Measure (AddCircle (1 : ℝ)) := ν.map e
+  have hfourier (n : ℤ) (z : Circle) : fourier n (e z) = (z : ℂ) ^ n := by
+    rw [fourier_apply, AddCircle.toCircle_zsmul, ← AddCircle.homeomorphCircle_apply one_ne_zero,
+      Circle.coe_zpow]
+    exact congrArg (fun w : Circle ↦ (w : ℂ) ^ n)
+      ((AddCircle.homeomorphCircle one_ne_zero).apply_symm_apply z)
+  have hmom (n : ℤ) : ∫ x, fourier n x ∂μ' = ∫ x, fourier n x ∂ν' := by
+    rw [e.measurableEmbedding.integral_map, e.measurableEmbedding.integral_map]
+    simpa only [hfourier] using h n
+  -- The continuous functions on `AddCircle 1` whose `μ'`- and `ν'`-integrals agree form a closed
+  -- submodule containing the Fourier characters, hence all of `C(AddCircle 1, ℂ)`.
+  let S : Submodule ℂ C(AddCircle (1 : ℝ), ℂ) :=
+    (ContinuousMap.integralPositiveLinearMap (𝕜 := ℂ) μ').toLinearMap.eqLocus
+      (ContinuousMap.integralPositiveLinearMap (𝕜 := ℂ) ν').toLinearMap
+  have hS (f : C(AddCircle (1 : ℝ), ℂ)) : f ∈ S ↔ ∫ x, f x ∂μ' = ∫ x, f x ∂ν' := by simp [S]
+  have hclosed : IsClosed (S : Set C(AddCircle (1 : ℝ), ℂ)) := by
+    convert isClosed_eq (TauCeti.continuous_integral_continuousMap (E := ℂ) (μ := μ'))
+      (TauCeti.continuous_integral_continuousMap (E := ℂ) (μ := ν')) using 1
+    ext f
+    exact hS f
+  have hspan : Submodule.span ℂ (range (fourier (T := (1 : ℝ)))) ≤ S := by
+    refine Submodule.span_le.mpr ?_
+    rintro _ ⟨n, rfl⟩
+    exact (hS _).2 (hmom n)
+  have htop := (Submodule.span ℂ (range (fourier (T := (1 : ℝ))))).topologicalClosure_minimal
+    hspan hclosed
+  rw [span_fourier_closure_eq_top] at htop
+  have hmap : μ' = ν' := by
+    refine Measure.ext_of_integral_eq_on_compactlySupported fun g ↦ Complex.ofReal_injective ?_
+    have hg := (hS _).1 (htop Submodule.mem_top : g.toContinuousMap.realToRCLike ℂ ∈ S)
+    simpa [integral_complex_ofReal] using hg
+  exact e.toMeasurableEquiv.map_measurableEquiv_injective hmap
+
+end MeasureTheory

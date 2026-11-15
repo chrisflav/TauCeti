@@ -156,6 +156,34 @@ theorem smul [StarRing R] [StarModule R A] (h : IsRDiagonal φ a) (z : R) :
       cases w i <;> simp [star_smul]
     rw [he, freeCumulant_smul, h.freeCumulant_eq_zero hn w hw, mul_zero]
 
+/-- Every nonempty free cumulant of a constant word `(a, …, a)` in an R-diagonal element
+vanishes. -/
+theorem freeCumulant_const_eq_zero (h : IsRDiagonal φ a) {α : Type*} [LinearOrder α]
+    {s : Finset α} (hs : s.Nonempty) :
+    freeCumulant φ (fun _ => a) s = 0 := by
+  rw [freeCumulant_eq_freeCumulant_comp_orderEmbOfFin]
+  refine (h.freeCumulant_eq_zero hs.card_ne_zero (fun _ => false) ?_)
+  rintro ⟨k, c, hk, hc⟩
+  have h0 := hc ⟨0, by omega⟩
+  have h1 := hc ⟨1, by omega⟩
+  cases c <;> simp [rDiagonalWord] at h0 h1
+
+/-- Every positive scalar power of an R-diagonal element has expectation zero. -/
+theorem apply_pow_eq_zero (h : IsRDiagonal φ a) {n : ℕ} (hn : n ≠ 0) :
+    φ (a ^ n) = 0 := by
+  have hne : (univ : Finset (Fin n)).Nonempty := ⟨⟨0, Nat.pos_of_ne_zero hn⟩, mem_univ _⟩
+  have hcard := apply_pow_card_eq_sum_prod_freeCumulant φ a hne
+  rw [card_univ, Fintype.card_fin] at hcard
+  rw [hcard]
+  refine sum_eq_zero fun π _ => ?_
+  obtain ⟨B, hB⟩ := π.1.parts_nonempty hne.ne_empty
+  exact prod_eq_zero hB (h.freeCumulant_const_eq_zero (π.1.nonempty_of_mem_parts hB))
+
+/-- Every positive scalar power of the adjoint of an R-diagonal element has expectation zero. -/
+theorem apply_star_pow_eq_zero (h : IsRDiagonal φ a) {n : ℕ} (hn : n ≠ 0) :
+    φ (Star.star a ^ n) = 0 :=
+  h.star.apply_pow_eq_zero hn
+
 /-- The determining sequences give every joint cumulant of an R-diagonal element. In
 particular, matching determining sequences gives matching cumulants in every star word. -/
 theorem freeCumulant_eq (h : IsRDiagonal φ a) (h' : IsRDiagonal ψ b)
