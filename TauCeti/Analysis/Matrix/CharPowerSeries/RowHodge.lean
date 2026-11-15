@@ -56,8 +56,9 @@ the principal-minor series is at least `-logb b C`.
 * `Matrix.rowHodgePolygon_le_addValuation_charCoeff`,
   `Matrix.rowHodgePolygon_le_newtonPolygon_charPowerSeries`: it lies below the coefficient
   heights and the Newton polygon of the principal-minor series.
-* `Matrix.isSupportingLine_newtonPolygon_charPowerSeries`: the slope bound from a uniform bound
-  on the entries.
+* `Matrix.isSupportingLine_newtonPolygon_charPowerSeries`,
+  `Matrix.neg_logb_le_unitSlope_newtonPolygon_charPowerSeries`: the slope bound from a uniform
+  bound on the entries.
 
 ## References
 
@@ -236,5 +237,26 @@ theorem isSupportingLine_newtonPolygon_charPowerSeries (hb : 1 < b)
       fun _ ↦ le_rfl) n).trans
     (rowHodgePolygon_le_newtonPolygon_charPowerSeries hb hv
       ⟨C, by rintro _ ⟨i, rfl⟩; exact le_rfl⟩ hA n)
+
+/-- **Slope lower bound for the principal-minor series.** Let `v` be a real additive valuation
+with `‖x‖ = b ^ (-v x)` for `x ≠ 0`, where `b > 1`. If every entry of `A` has norm at most `C`,
+every finite unit slope of the Newton polygon of `A.charPowerSeries` is at least `-logb b C`. -/
+theorem neg_logb_le_unitSlope_newtonPolygon_charPowerSeries (hb : 1 < b)
+    (hv : ∀ x ≠ 0, ‖x‖ = b ^ (-(v x).untop₀)) {C : ℝ} (hA : ∀ i j, ‖A i j‖ ≤ C) {n : ℕ}
+    (hn : n ∈ finiteEdges (A.charPowerSeries.newtonPolygon v)) :
+    -Real.logb b C ≤ unitSlope (A.charPowerSeries.newtonPolygon v) n := by
+  have hc := isSupportingLine_newtonPolygon_charPowerSeries hb hv hA
+  have hadm : IsAdmissible fun k ↦ v (PowerSeries.coeff k A.charPowerSeries) :=
+    (isSupportingLine_rowHodgePolygon hb (r := fun _ : ι ↦ C) fun _ ↦ le_rfl).isAdmissible.mono
+      fun k ↦ by
+        simpa only [coeff_charPowerSeries] using
+          rowHodgePolygon_le_addValuation_charCoeff hb hv ⟨C, by rintro _ ⟨i, rfl⟩; exact le_rfl⟩
+            hA k
+  have h0 : 0 ∈ supportingFace (A.charPowerSeries.newtonPolygon v) (-Real.logb b C) 0 := by
+    rw [mem_supportingFace]
+    simpa using le_antisymm ((A.charPowerSeries.newtonPolygon_le hadm 0).trans_eq (by simp))
+      (isSupportingLine_iff_forall.mp hc 0)
+  exact (A.charPowerSeries.isConvexSeq_newtonPolygon v).le_unitSlope_of_mem_supportingFace hc h0 hn
+    (Nat.zero_le n)
 
 end Matrix

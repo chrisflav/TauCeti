@@ -198,6 +198,38 @@ theorem IsConvexSeq.ordConnected_supportingFace {h : ℕ → WithTop ℝ}
   rw [← WithTop.coe_untop₀_of_ne_top hj_top, WithTop.coe_eq_coe]
   exact le_antisymm hupper hlower
 
+/-- On a convex height sequence, every finite unit edge at or after a contact index of a
+supporting line of slope `σ` has slope at least `σ`. -/
+theorem IsConvexSeq.le_unitSlope_of_mem_supportingFace {h : ℕ → WithTop ℝ} (hh : IsConvexSeq h)
+    {σ c : ℝ} (hc : IsSupportingLine h σ c) {a n : ℕ} (ha : a ∈ supportingFace h σ c)
+    (hn : n ∈ finiteEdges h) (han : a ≤ n) : σ ≤ unitSlope h n := by
+  rw [mem_supportingFace] at ha
+  have ha_top : h a ≠ ⊤ := ha ▸ WithTop.coe_ne_top
+  have hnf := mem_finiteEdges.mp hn
+  have hlower := hc (n + 1)
+  rw [← WithTop.coe_untop₀_of_ne_top hnf.2, WithTop.coe_le_coe] at hlower
+  push_cast at hlower
+  have hs := hh.sub_le_mul_slope ha_top hnf.2 (han.trans (Nat.le_succ n)) le_rfl
+  rw [ha, WithTop.untop₀_coe, Nat.cast_sub (han.trans (Nat.le_succ n))] at hs
+  push_cast at hs
+  have han_real : (a : ℝ) ≤ n := Nat.cast_le.mpr han
+  nlinarith
+
+/-- On a convex height sequence, every finite unit edge strictly before a contact index of a
+supporting line of slope `σ` has slope at most `σ`. -/
+theorem IsConvexSeq.unitSlope_le_of_mem_supportingFace {h : ℕ → WithTop ℝ} (hh : IsConvexSeq h)
+    {σ c : ℝ} (hc : IsSupportingLine h σ c) {a n : ℕ} (ha : a ∈ supportingFace h σ c)
+    (hn : n ∈ finiteEdges h) (hna : n < a) : unitSlope h n ≤ σ := by
+  rw [mem_supportingFace] at ha
+  have ha_top : h a ≠ ⊤ := ha ▸ WithTop.coe_ne_top
+  have hnf := mem_finiteEdges.mp hn
+  have hlower := hc n
+  rw [← WithTop.coe_untop₀_of_ne_top hnf.1, WithTop.coe_le_coe] at hlower
+  have hs := hh.mul_slope_le_sub ha_top hnf.1 hna.le le_rfl
+  rw [ha, WithTop.untop₀_coe, Nat.cast_sub hna.le] at hs
+  have hna_real : (n : ℝ) < a := Nat.cast_lt.mpr hna
+  nlinarith
+
 /-- A finite face of slope `σ` has absolute endpoints `l ≤ u`, and the contact set of
 its supporting line is exactly the integer interval `[l, u]`. -/
 def IsFiniteFace (h : ℕ → WithTop ℝ) (σ : ℝ) (l u : ℕ) : Prop :=

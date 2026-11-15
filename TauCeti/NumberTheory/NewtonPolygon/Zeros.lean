@@ -5,7 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
-public import TauCeti.NumberTheory.NewtonPolygon.Multiplicity
+public import TauCeti.NumberTheory.NewtonPolygon.Cutoff
 public import TauCeti.NumberTheory.NewtonPolygon.Roots
 public import TauCeti.NumberTheory.NewtonPolygon.Weierstrass
 public import TauCeti.RingTheory.PowerSeries.Entire.GoodZero
@@ -13,7 +13,7 @@ public import Mathlib.FieldTheory.IsAlgClosed.Basic
 import TauCeti.RingTheory.Valuation.NormNormalization
 
 /-!
-# Zeros of entire series on spheres and slope multiplicities
+# Zeros of entire series on spheres and discs from slope multiplicities
 
 Let `K` be a complete ultrametric normed field whose norm comes from a real additive valuation
 `v` with base `b > 1`, so `‖x‖ = b ^ (-v x)` for `x ≠ 0`. The *multiplicity* of a zero `x` of a
@@ -28,6 +28,14 @@ Newton polygon of `f`:
 
 `newtonSlopeMultiplicity f v σ = ∑ᶠ x ∈ sphere 0 (b ^ σ), order (taylor x f)`
 (`PowerSeries.IsEntire.newtonSlopeMultiplicity_eq_finsum_order_taylor`).
+
+Summing over the finitely many slopes up to a real cutoff `c`, the length of the cutoff slope list
+`f.newtonSlopesLe v c` counts the nonzero zeros of `f` of norm at most `b ^ c` with multiplicity
+(`PowerSeries.IsEntire.length_newtonSlopesLe_eq_finsum_order_taylor`), and `f.newtonSlopesLt v c`
+counts those of norm strictly below `b ^ c`
+(`PowerSeries.IsEntire.length_newtonSlopesLt_eq_finsum_order_taylor`); when `constantCoeff f ≠ 0`,
+zero is not a root and these sums range over the closed and open discs `closedBall 0 (b ^ c)` and
+`ball 0 (b ^ c)`.
 
 A slope of positive multiplicity is the negated valuation of an actual zero
 (`PowerSeries.IsEntire.exists_norm_eq_and_evalAt_eq_zero`). This zero is read off a Weierstrass
@@ -48,6 +56,9 @@ inverses of the nonzero eigenvalues.
   from a zero on the corresponding sphere.
 * `PowerSeries.IsEntire.newtonSlopeMultiplicity_eq_finsum_order_taylor`: the multiplicity of a
   slope counts the zeros on the corresponding sphere with multiplicity.
+* `PowerSeries.IsEntire.length_newtonSlopesLe_eq_finsum_order_taylor`,
+  `PowerSeries.IsEntire.length_newtonSlopesLt_eq_finsum_order_taylor`: cutoff slope list lengths
+  count nonzero zeros in punctured closed and open discs with multiplicity.
 
 ## References
 
@@ -68,6 +79,21 @@ variable {K : Type*} [NormedField K] [IsUltrametricDist K] [CompleteSpace K]
   (hv : ∀ x ≠ 0, ‖x‖ = b ^ (-(v x).untop₀)) {f : K⟦X⟧}
 
 include hb hv
+
+omit [IsUltrametricDist K] in
+/-- Every zero of a nonzero entire series on the sphere `‖x‖ = b ^ σ` contributes positively to the
+slope multiplicity at `σ`. Algebraic closedness is not needed. -/
+theorem IsEntire.newtonSlopeMultiplicity_ne_zero_of_evalAt_eq_zero (hf : f.IsEntire) (hf0 : f ≠ 0)
+    {x : K} {σ : ℝ} (hx : ‖x‖ = b ^ σ) (hfx : f.evalAt x = 0) :
+    f.newtonSlopeMultiplicity v σ ≠ 0 := by
+  obtain ⟨h, hh, hfxh⟩ := hf.exists_pos_isGoodZero_of_evalAt_eq_zero hf0 hfx
+  obtain ⟨g, hg, rfl, -⟩ := hf.isGoodZero_iff.mp hfxh
+  have hg0 : g ≠ 0 := right_ne_zero_of_mul hf0
+  rw [((isEntire_X.sub (isEntire_C x)).pow h).newtonSlopeMultiplicity_mul v hb hv hg
+    (left_ne_zero_of_mul hf0) hg0,
+    newtonSlopeMultiplicity_X_sub_C_pow v (fun _ ↦ v.top_iff.mp)
+      ((v.norm_eq_rpow_iff hb hv).mp hx)]
+  omega
 
 /-- **Zeros at every slope.** Over a complete algebraically closed ultrametric field, if the slope
 `σ` has positive multiplicity in the Newton polygon of an entire series `f`, then `f` has a zero
@@ -180,5 +206,105 @@ theorem IsEntire.newtonSlopeMultiplicity_eq_finsum_order_taylor [IsAlgClosed K]
   ext x
   simp only [Set.mem_inter_iff, mem_sphere_iff_norm, sub_zero, Function.mem_support,
     Finset.mem_coe, hs x, order_taylor_ne_zero_iff, and_self_right]
+
+/-- Fiberwise summation of zero multiplicities over spheres inside a punctured disc. -/
+private theorem finsum_punctured_order_taylor_eq [IsAlgClosed K]
+    (hf : f.IsEntire) (hf0 : f ≠ 0) {c : ℝ} {p q : ℝ → Prop}
+    (hp : ∀ σ, p σ → σ ≤ c)
+    (hpq : ∀ x : K, x ≠ 0 → (p (-(v x).untop₀) ↔ q ‖x‖)) :
+    ((∑ᶠ σ ∈ {σ | p σ}, f.newtonSlopeMultiplicity v σ : ℕ) : ℕ∞) =
+      ∑ᶠ x ∈ {x : K | x ≠ 0 ∧ q ‖x‖}, (PowerSeries.taylor x f).order := by
+  classical
+  have hb0 : 0 < b := zero_lt_one.trans hb
+  set t : Finset ℝ := (f.newtonSlopesLe v c).toFinset.filter p
+  have hsph (σ : ℝ) := exists_finset_newtonSlopeMultiplicity_eq_sum v hb hv σ _ f hf hf0 rfl
+  let s : ℝ → Finset K := fun σ ↦ (hsph σ).choose
+  have hs_mem (σ : ℝ) (x : K) : x ∈ s σ ↔ ‖x‖ = b ^ σ ∧ f.evalAt x = 0 := (hsph σ).choose_spec.1 x
+  have hs_sum (σ : ℝ) :
+      (f.newtonSlopeMultiplicity v σ : ℕ∞) = ∑ x ∈ s σ, (PowerSeries.taylor x f).order :=
+    (hsph σ).choose_spec.2
+  have hmult : ∑ᶠ σ ∈ {σ | p σ}, f.newtonSlopeMultiplicity v σ =
+      ∑ σ ∈ t, f.newtonSlopeMultiplicity v σ := by
+    rw [finsum_mem_eq_sum_of_inter_support_eq]
+    ext σ
+    simp only [Set.mem_inter_iff, Set.mem_ofPred_eq, Function.mem_support, ne_eq, Finset.mem_coe,
+      t, Finset.mem_filter, List.mem_toFinset, hf.mem_newtonSlopesLe_iff v hb hv]
+    exact ⟨fun ⟨hpσ, hne⟩ ↦ ⟨⟨⟨hp σ hpσ, hne⟩, hpσ⟩, hne⟩, fun ⟨⟨_, hpσ⟩, hne⟩ ↦ ⟨hpσ, hne⟩⟩
+  have hdisj : (t : Set ℝ).PairwiseDisjoint s := fun σ₁ _ σ₂ _ hne ↦
+    Finset.disjoint_left.mpr fun x hx₁ hx₂ ↦ hne ((Real.rpow_right_inj hb0 hb.ne').mp
+      (((hs_mem σ₁ x).mp hx₁).1.symm.trans ((hs_mem σ₂ x).mp hx₂).1))
+  rw [hmult, Nat.cast_sum, Finset.sum_congr rfl fun σ _ ↦ hs_sum σ, ← Finset.sum_biUnion hdisj,
+    eq_comm, finsum_mem_eq_sum_of_inter_support_eq]
+  ext x
+  simp only [Set.mem_inter_iff, Set.mem_ofPred_eq, Function.mem_support, order_taylor_ne_zero_iff,
+    Finset.mem_coe, Finset.mem_biUnion, t, Finset.mem_filter, List.mem_toFinset,
+    hf.mem_newtonSlopesLe_iff v hb hv]
+  constructor
+  · rintro ⟨⟨hx0, hxq⟩, hfx⟩
+    have hxs : x ∈ s (-(v x).untop₀) := (hs_mem _ x).mpr ⟨hv x hx0, hfx⟩
+    have hord : (PowerSeries.taylor x f).order ≠ 0 := order_taylor_ne_zero_iff.mpr hfx
+    have hne : f.newtonSlopeMultiplicity v (-(v x).untop₀) ≠ 0 := by
+      rw [← Nat.cast_ne_zero (R := ℕ∞), hs_sum]
+      exact fun hsum0 ↦ hord (Finset.sum_eq_zero_iff.mp hsum0 x hxs)
+    have hpσ : p (-(v x).untop₀) := (hpq x hx0).mpr hxq
+    exact ⟨⟨-(v x).untop₀, ⟨⟨hp _ hpσ, hne⟩, hpσ⟩, hxs⟩, hfx⟩
+  · rintro ⟨⟨σ, ⟨_, hpσ⟩, hxs⟩, hfx⟩
+    have hxnorm : ‖x‖ = b ^ σ := ((hs_mem σ x).mp hxs).1
+    have hx0 : x ≠ 0 := norm_pos_iff.mp (hxnorm ▸ Real.rpow_pos_of_pos hb0 σ)
+    have hσeq : -(v x).untop₀ = σ :=
+      (Real.rpow_right_inj hb0 hb.ne').mp ((hv x hx0).symm.trans hxnorm)
+    exact ⟨⟨hx0, (hpq x hx0).mp (hσeq ▸ hpσ)⟩, hfx⟩
+
+/-- **Cutoff slope counts count nonzero zeros in closed discs.** Over a complete algebraically
+closed ultrametric field, the length of `f.newtonSlopesLe v c` for a nonzero entire series `f` is
+the number of nonzero zeros of `f` of norm at most `b ^ c`, counted with multiplicity. -/
+theorem IsEntire.length_newtonSlopesLe_eq_finsum_order_taylor [IsAlgClosed K]
+    (hf : f.IsEntire) (hf0 : f ≠ 0) (c : ℝ) :
+    ((f.newtonSlopesLe v c).length : ℕ∞) =
+      ∑ᶠ x ∈ {x : K | x ≠ 0 ∧ ‖x‖ ≤ b ^ c}, (PowerSeries.taylor x f).order := by
+  rw [hf.length_newtonSlopesLe_eq_finsum_newtonSlopeMultiplicity v hb hv c]
+  exact finsum_punctured_order_taylor_eq (p := (· ≤ c)) (q := (· ≤ b ^ c))
+    v hb hv hf hf0 (fun _ h ↦ h) fun x hx0 ↦ by rw [hv x hx0, Real.rpow_le_rpow_left_iff hb]
+
+/-- **Strict cutoff slope counts count nonzero zeros in open discs.** Over a complete algebraically
+closed ultrametric field, the length of `f.newtonSlopesLt v c` for a nonzero entire series `f` is
+the number of nonzero zeros of `f` of norm strictly below `b ^ c`, counted with multiplicity. -/
+theorem IsEntire.length_newtonSlopesLt_eq_finsum_order_taylor [IsAlgClosed K]
+    (hf : f.IsEntire) (hf0 : f ≠ 0) (c : ℝ) :
+    ((f.newtonSlopesLt v c).length : ℕ∞) =
+      ∑ᶠ x ∈ {x : K | x ≠ 0 ∧ ‖x‖ < b ^ c}, (PowerSeries.taylor x f).order := by
+  rw [hf.length_newtonSlopesLt_eq_finsum_newtonSlopeMultiplicity v hb hv c]
+  exact finsum_punctured_order_taylor_eq (p := (· < c)) (q := (· < b ^ c))
+    v hb hv hf hf0 (fun _ h ↦ h.le) fun x hx0 ↦ by rw [hv x hx0, Real.rpow_lt_rpow_left_iff hb]
+
+/-- When `constantCoeff f ≠ 0`, `0` is not a zero of `f`, so the length of `f.newtonSlopesLe v c`
+counts all zeros of `f` in `Metric.closedBall 0 (b ^ c)` with multiplicity. -/
+theorem IsEntire.length_newtonSlopesLe_eq_finsum_closedBall_order_taylor [IsAlgClosed K]
+    (hf : f.IsEntire) (h0 : constantCoeff f ≠ 0) (c : ℝ) :
+    ((f.newtonSlopesLe v c).length : ℕ∞) =
+      ∑ᶠ x ∈ Metric.closedBall (0 : K) (b ^ c), (PowerSeries.taylor x f).order := by
+  have hf0 : f ≠ 0 := fun h ↦ h0 (by simp [h])
+  have hz0 : f.order = 0 :=
+    by simpa using (PowerSeries.order_eq_nat (n := 0)).mpr ⟨by simpa using h0, by simp⟩
+  rw [hf.length_newtonSlopesLe_eq_finsum_order_taylor v hb hv hf0 c]
+  refine finsum_congr fun x ↦ ?_
+  rcases eq_or_ne x 0 with rfl | hx0
+  · simp [hz0]
+  · simp [hx0]
+
+/-- When `constantCoeff f ≠ 0`, `0` is not a zero of `f`, so the length of `f.newtonSlopesLt v c`
+counts all zeros of `f` in `Metric.ball 0 (b ^ c)` with multiplicity. -/
+theorem IsEntire.length_newtonSlopesLt_eq_finsum_ball_order_taylor [IsAlgClosed K]
+    (hf : f.IsEntire) (h0 : constantCoeff f ≠ 0) (c : ℝ) :
+    ((f.newtonSlopesLt v c).length : ℕ∞) =
+      ∑ᶠ x ∈ Metric.ball (0 : K) (b ^ c), (PowerSeries.taylor x f).order := by
+  have hf0 : f ≠ 0 := fun h ↦ h0 (by simp [h])
+  have hz0 : f.order = 0 :=
+    by simpa using (PowerSeries.order_eq_nat (n := 0)).mpr ⟨by simpa using h0, by simp⟩
+  rw [hf.length_newtonSlopesLt_eq_finsum_order_taylor v hb hv hf0 c]
+  refine finsum_congr fun x ↦ ?_
+  rcases eq_or_ne x 0 with rfl | hx0
+  · simp [hz0]
+  · simp [hx0]
 
 end PowerSeries

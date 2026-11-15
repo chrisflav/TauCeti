@@ -40,11 +40,15 @@ multiplicities are the slope multiplicities of their Newton polygons.
 
 ## Main results
 
+* `PowerSeries.bddBelow_image_unitSlope_newtonPolygon`: the finite unit slopes of any Newton
+  polygon are bounded below.
 * `PowerSeries.newtonSlopeMultiplicity_eq_of_isFiniteFace`: the multiplicity is the width of the
   finite face.
 * `Polynomial.newtonSlopeMultiplicity_coe`: comparison with the finite slope multiset of a
   polynomial.
-* `PowerSeries.newtonSlopeMultiplicity_rescale`: rescaling the variable shifts the slopes.
+* `PowerSeries.newtonSlopeMultiplicity_C_mul`, `PowerSeries.newtonSlopeMultiplicity_smul`,
+  `PowerSeries.newtonSlopeMultiplicity_X_pow_mul`, `PowerSeries.newtonSlopeMultiplicity_map`,
+  `PowerSeries.newtonSlopeMultiplicity_rescale`: elementary operations on slope multiplicities.
 * `PowerSeries.newtonSlopeMultiplicity_X_sub_C_pow`: the power `(X - C x) ^ h` has the slope
   `-v x` with multiplicity `h`.
 * `PowerSeries.IsEntire.newtonSlopeMultiplicity_mul`: multiplicities add under multiplication.
@@ -65,7 +69,20 @@ namespace PowerSeries
 
 section Ring
 
-variable {R : Type*} [Ring R] (f : R⟦X⟧) (v : AddValuation R (WithTop ℝ))
+variable {R S : Type*} [Ring R] [Ring S] (f : R⟦X⟧) (v : AddValuation R (WithTop ℝ))
+
+/-- The slopes of the finite unit edges of the Newton polygon of a power series are bounded
+below. -/
+theorem bddBelow_image_unitSlope_newtonPolygon :
+    BddBelow (unitSlope (f.newtonPolygon v) '' finiteEdges (f.newtonPolygon v)) :=
+  (f.isConvexSeq_newtonPolygon v).bddBelow_image_unitSlope
+
+/-- Every nonempty set of finite unit slopes of the Newton polygon of a power series has a least
+element. -/
+theorem exists_isLeast_image_unitSlope_newtonPolygon
+    (hne : (finiteEdges (f.newtonPolygon v)).Nonempty) :
+    ∃ σ : ℝ, IsLeast (unitSlope (f.newtonPolygon v) '' finiteEdges (f.newtonPolygon v)) σ :=
+  (f.isConvexSeq_newtonPolygon v).exists_isLeast_image_unitSlope hne
 
 /-- The multiplicity of a real slope `σ` in the Newton polygon of `f`: the number of its finite
 unit edges of slope `σ`. It is `0` when `σ` is not a finite slope. If infinitely many unit edges
@@ -93,6 +110,86 @@ theorem newtonSlopeMultiplicity_eq_of_isFiniteFace {σ : ℝ} {l u : ℕ}
     f.newtonSlopeMultiplicity v σ = u - l :=
   hface.ncard_setOf_unitSlope_eq (f.isConvexSeq_newtonPolygon v)
 
+/-- Transport of slope multiplicities along an injective matching of finite unit edges. -/
+theorem newtonSlopeMultiplicity_eq_of_injOn {g : S⟦X⟧} {w : AddValuation S (WithTop ℝ)}
+    {φ : ℕ → ℕ} (hφ : Set.InjOn φ (finiteEdges (f.newtonPolygon v))) {σ τ : ℝ}
+    (hedges : finiteEdges (g.newtonPolygon w) = φ '' finiteEdges (f.newtonPolygon v))
+    (hslope : ∀ n ∈ finiteEdges (f.newtonPolygon v),
+      unitSlope (g.newtonPolygon w) (φ n) = τ ↔ unitSlope (f.newtonPolygon v) n = σ) :
+    g.newtonSlopeMultiplicity w τ = f.newtonSlopeMultiplicity v σ := by
+  have hset : {m | m ∈ finiteEdges (g.newtonPolygon w) ∧ unitSlope (g.newtonPolygon w) m = τ} =
+      φ '' {n | n ∈ finiteEdges (f.newtonPolygon v) ∧ unitSlope (f.newtonPolygon v) n = σ} := by
+    ext m
+    simp only [Set.mem_ofPred_eq, hedges, Set.mem_image]
+    constructor
+    · rintro ⟨⟨n, hn, rfl⟩, hm⟩
+      exact ⟨n, ⟨hn, (hslope n hn).mp hm⟩, rfl⟩
+    · rintro ⟨n, ⟨hn, hnσ⟩, rfl⟩
+      exact ⟨⟨n, hn, rfl⟩, (hslope n hn).mpr hnσ⟩
+  rw [newtonSlopeMultiplicity_def, newtonSlopeMultiplicity_def, hset]
+  exact Set.InjOn.ncard_image (hφ.mono fun _ h => h.1)
+
+/-- Slope multiplicities depend only on the Newton polygon. -/
+theorem newtonSlopeMultiplicity_congr {g : S⟦X⟧} {w : AddValuation S (WithTop ℝ)}
+    (h : f.newtonPolygon v = g.newtonPolygon w) (σ : ℝ) :
+    f.newtonSlopeMultiplicity v σ = g.newtonSlopeMultiplicity w σ :=
+  newtonSlopeMultiplicity_eq_of_injOn (f := g) (v := w) (g := f) (w := v)
+    Function.injective_id.injOn (by rw [h, Set.image_id]) fun _ _ => by rw [h, id]
+
+variable (f v)
+
+/-- Negation preserves slope multiplicities. -/
+@[simp]
+theorem newtonSlopeMultiplicity_neg (σ : ℝ) :
+    (-f).newtonSlopeMultiplicity v σ = f.newtonSlopeMultiplicity v σ :=
+  newtonSlopeMultiplicity_congr (f.newtonPolygon_neg v) σ
+
+/-- Multiplying by a constant of finite valuation preserves slope multiplicities. -/
+theorem newtonSlopeMultiplicity_C_mul {c : R} (hc : v c ≠ ⊤) (σ : ℝ) :
+    (C c * f).newtonSlopeMultiplicity v σ = f.newtonSlopeMultiplicity v σ := by
+  obtain ⟨r, hr⟩ := WithTop.ne_top_iff_exists.mp hc
+  have hpoly : (C c * f).newtonPolygon v =
+      fun n => f.newtonPolygon v n + ((r + 0 * n : ℝ) : WithTop ℝ) := by
+    simp [newtonPolygon_C_mul, ← hr, add_comm]
+  exact newtonSlopeMultiplicity_eq_of_injOn Function.injective_id.injOn
+    (by rw [hpoly, finiteEdges_add_affine, Set.image_id])
+    fun n hn => by rw [hpoly, id, unitSlope_add_affine hn, add_zero]
+
+/-- Multiplying by a scalar of finite valuation preserves slope multiplicities. -/
+theorem newtonSlopeMultiplicity_smul {c : R} (hc : v c ≠ ⊤) (σ : ℝ) :
+    (c • f).newtonSlopeMultiplicity v σ = f.newtonSlopeMultiplicity v σ := by
+  rw [smul_eq_C_mul, newtonSlopeMultiplicity_C_mul f v hc]
+
+/-- Multiplying by `X ^ k` preserves slope multiplicities: zero roots contribute no finite
+slopes. -/
+@[simp]
+theorem newtonSlopeMultiplicity_X_pow_mul (k : ℕ) (σ : ℝ) :
+    (X ^ k * f).newtonSlopeMultiplicity v σ = f.newtonSlopeMultiplicity v σ :=
+  newtonSlopeMultiplicity_eq_of_injOn (φ := (· + k)) (add_left_injective k).injOn
+    (by rw [newtonPolygon_X_pow_mul, finiteEdges_shift])
+    fun n _ => by rw [newtonPolygon_X_pow_mul, unitSlope_shift]
+
+/-- Mapping the coefficients along a ring homomorphism compatible with the valuations preserves
+slope multiplicities. -/
+theorem newtonSlopeMultiplicity_map (φ : R →+* S) {w : AddValuation S (WithTop ℝ)}
+    (hφ : ∀ x, w (φ x) = v x) (σ : ℝ) :
+    (map φ f).newtonSlopeMultiplicity w σ = f.newtonSlopeMultiplicity v σ :=
+  newtonSlopeMultiplicity_congr (f.newtonPolygon_map v φ hφ) σ
+
+/-- Mapping the coefficients along a ring homomorphism that multiplies the valuations by a positive
+real factor `c` multiplies the finite slopes by `c`, preserving multiplicities. -/
+theorem newtonSlopeMultiplicity_map_eq_map_mul (φ : R →+* S) {w : AddValuation S (WithTop ℝ)}
+    {c : ℝ} (hc : 0 < c) (hφ : ∀ x, w (φ x) = (v x).map (c * ·)) (σ : ℝ) :
+    (map φ f).newtonSlopeMultiplicity w (c * σ) = f.newtonSlopeMultiplicity v σ := by
+  have hpoly := f.newtonPolygon_map_eq_map_mul v φ hc hφ
+  have hslope (n : ℕ) :
+      unitSlope ((map φ f).newtonPolygon w) n = c * unitSlope (f.newtonPolygon v) n := by
+    rw [hpoly]
+    simpa using unitSlope_map (h := f.newtonPolygon v) (AddMonoidHom.mulLeft c) n
+  exact newtonSlopeMultiplicity_eq_of_injOn Function.injective_id.injOn
+    (by rw [hpoly, finiteEdges_map (f := (c * ·)), Set.image_id])
+    fun n _ => by rw [id, hslope n, mul_right_inj' hc.ne']
+
 end Ring
 
 section CommRing
@@ -109,11 +206,9 @@ theorem newtonSlopeMultiplicity_rescale (f : R⟦X⟧) {c : R} (hc : v c ≠ ⊤
       fun n => f.newtonPolygon v n + ((0 + r * n : ℝ) : WithTop ℝ) := by
     simp only [f.newtonPolygon_rescale v hc, ← hr, ← WithTop.coe_nsmul, nsmul_eq_mul, zero_add,
       mul_comm]
-  rw [newtonSlopeMultiplicity_def, newtonSlopeMultiplicity_def, hpoly, finiteEdges_add_affine]
-  congr 1
-  ext n
-  refine and_congr_right fun hn => ?_
-  rw [unitSlope_add_affine hn, ← hr, WithTop.untop₀_coe, add_left_inj]
+  exact newtonSlopeMultiplicity_eq_of_injOn Function.injective_id.injOn
+    (by rw [hpoly, finiteEdges_add_affine, Set.image_id])
+    fun n hn => by rw [hpoly, id, unitSlope_add_affine hn, ← hr, WithTop.untop₀_coe, add_left_inj]
 
 end CommRing
 

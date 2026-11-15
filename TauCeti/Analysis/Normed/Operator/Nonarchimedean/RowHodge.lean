@@ -76,4 +76,17 @@ theorem isSupportingLine_newtonPolygon_charPowerSeries [NontriviallyNormedField 
     (norm_matrixCoeff_le_rowNorm u i j).trans
       ((rowNorm_le_ringOpNorm u i).trans_eq (ringOpNorm_eq_opNorm u))
 
+/-- **Slope lower bound by the operator norm.** Let `v` be a real additive valuation on an
+ultrametric nontrivially normed field with `‖x‖ = b ^ (-v x)` for `x ≠ 0`, where `b > 1`. For an
+endomorphism `u` of `C₀(I, K)`, every finite unit slope of the Newton polygon of
+`u.matrixCoeff.charPowerSeries` is at least `-logb b ‖u‖`. -/
+theorem neg_logb_norm_le_unitSlope_newtonPolygon_charPowerSeries [NontriviallyNormedField K]
+    [IsUltrametricDist K] {v : AddValuation K (WithTop ℝ)} (u : C₀(I, K) →L[K] C₀(I, K))
+    (hb : 1 < b) (hv : ∀ x ≠ 0, ‖x‖ = b ^ (-(v x).untop₀)) {n : ℕ}
+    (hn : n ∈ finiteEdges (u.matrixCoeff.charPowerSeries.newtonPolygon v)) :
+    -Real.logb b ‖u‖ ≤ unitSlope (u.matrixCoeff.charPowerSeries.newtonPolygon v) n :=
+  Matrix.neg_logb_le_unitSlope_newtonPolygon_charPowerSeries hb hv (fun i j ↦
+    (norm_matrixCoeff_le_rowNorm u i j).trans
+      ((rowNorm_le_ringOpNorm u i).trans_eq (ringOpNorm_eq_opNorm u))) hn
+
 end ContinuousLinearMap

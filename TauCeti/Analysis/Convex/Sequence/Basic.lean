@@ -254,6 +254,29 @@ theorem sub_le_mul_slope {i j m : ℕ} (hi : h i ≠ ⊤) (hm' : h (m + 1) ≠ �
   · obtain rfl : i = j := by omega
     simp
 
+/-- The slope at the least finite unit edge of a convex height sequence is the least finite unit
+slope. -/
+theorem isLeast_image_unitSlope_of_isLeast {m : ℕ} (hm : IsLeast (finiteEdges h) m) :
+    IsLeast (unitSlope h '' finiteEdges h) (unitSlope h m) :=
+  ⟨⟨m, hm.1, rfl⟩, by
+    rintro _ ⟨n, hn, rfl⟩
+    exact hh.monotoneOn hm.1 hn (hm.2 hn)⟩
+
+/-- Every nonempty set of finite unit slopes of a convex height sequence has a least element. -/
+theorem exists_isLeast_image_unitSlope (hne : (finiteEdges h).Nonempty) :
+    ∃ σ : ℝ, IsLeast (unitSlope h '' finiteEdges h) σ := by
+  classical
+  exact ⟨_, hh.isLeast_image_unitSlope_of_isLeast
+    ⟨Nat.find_spec hne, fun _ hn => Nat.find_min' hne hn⟩⟩
+
+/-- The slopes of the finite unit edges of a convex height sequence are bounded below: if there is
+a finite unit edge, the slope of the first one bounds every finite unit slope. -/
+theorem bddBelow_image_unitSlope : BddBelow (unitSlope h '' finiteEdges h) := by
+  rcases (finiteEdges h).eq_empty_or_nonempty with hemp | hne
+  · simp [hemp]
+  · obtain ⟨_, hleast⟩ := hh.exists_isLeast_image_unitSlope hne
+    exact hleast.bddBelow
+
 /-- The affine line through a finite edge lies below the entire height sequence,
 including indices outside its finite domain. -/
 theorem supportingLine_le {n : ℕ} (hn : h n ≠ ⊤) (hn' : h (n + 1) ≠ ⊤) (k : ℕ) :
