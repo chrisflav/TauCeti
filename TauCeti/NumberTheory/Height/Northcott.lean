@@ -21,7 +21,9 @@ Over a number field the scalar hypothesis follows from Mathlib's number-field in
 Normalizing a nonzero coordinate to `1` bounds the scalar height of every coordinate of the
 representative by the projective height. Such representatives form a finite product of finite
 scalar sublevel sets. The statement concerns projective points: tuple heights are invariant
-under nonzero scaling, so bounded-height tuples need not form a finite set.
+under nonzero scaling, so bounded-height tuples need not form a finite set; in dimension at least
+`2`, they instead lie in finitely many proper (`1`-dimensional) subspaces
+(`Height.exists_finset_submodule_of_mulHeight_le`).
 
 ## References
 
@@ -70,3 +72,33 @@ instance instNorthcottLogHeight [Northcott (mulHeight (K := K) (ι := ι))] :
     bddAbove_def.mpr ⟨Real.exp B, fun _ ↦ Real.le_exp_of_log_le⟩
 
 end Projectivization
+
+namespace Height
+
+variable {K : Type*} [Field K] [AdmissibleAbsValues K] {ι : Type*} [Finite ι]
+
+/-- In a coordinate space of dimension at least `2` over a field with the Northcott property for
+projective multiplicative height (in particular, any field with the Northcott property for scalar
+multiplicative height, such as a number field), all nonzero tuples of multiplicative height at most
+`R` lie in finitely many proper subspaces. -/
+theorem exists_finset_submodule_of_mulHeight_le
+    [Northcott (Projectivization.mulHeight (K := K) (ι := ι))] [Nontrivial ι] (R : ℝ) :
+    ∃ U : Finset (Submodule K (ι → K)), (∀ W ∈ U, W ≠ ⊤) ∧
+      ∀ x : ι → K, x ≠ 0 → mulHeight x ≤ R → ∃ W ∈ U, x ∈ W := by
+  classical
+  have : Fintype ι := Fintype.ofFinite ι
+  have hfin : {p : Projectivization K (ι → K) | Projectivization.mulHeight p ≤ R}.Finite :=
+    Northcott.finite_le (h := Projectivization.mulHeight (K := K) (ι := ι)) R
+  refine ⟨hfin.toFinset.image Projectivization.submodule, ?_, fun x hx hR ↦ ?_⟩
+  · intro W hW
+    rcases Finset.mem_image.mp hW with ⟨p, _, rfl⟩
+    intro htop
+    have h1 : Module.finrank K p.submodule = 1 := p.finrank_submodule
+    rw [htop, finrank_top, Module.finrank_fintype_fun_eq_card] at h1
+    have hlt : 1 < Fintype.card ι := Fintype.one_lt_card
+    omega
+  · refine ⟨(Projectivization.mk K x hx).submodule, ?_, Submodule.mem_span_singleton_self x⟩
+    refine Finset.mem_image_of_mem _ (hfin.mem_toFinset.mpr ?_)
+    simpa [Projectivization.mulHeight_mk hx] using hR
+
+end Height
