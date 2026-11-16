@@ -18,6 +18,8 @@ particular every empty space is delta-generated.
 A continuous map from a generated space lifts uniquely through the generated-topology
 counit on its target (`ContinuousMap.toGeneratedBy`). The source's generation hypothesis is
 retained explicitly, as required for parameter families into a refined mapping space.
+Refining a topology to a generated topology also preserves `T2Space` and `R1Space`
+(`Topology.WithGeneratedByTopology.instT2Space`, `Topology.WithGeneratedByTopology.instR1Space`).
 -/
 
 public section
@@ -44,6 +46,57 @@ theorem counit_apply {ι : Type*} (G : ι → Type*) [∀ i, TopologicalSpace (G
     {X : Type*} [TopologicalSpace X] (x : WithGeneratedByTopology G X) :
     counit G X x = equiv x :=
   (rfl)
+
+/-- Refining a Hausdorff topology to a `G`-generated topology preserves Hausdorffness. -/
+instance instT2Space {ι : Type*} (G : ι → Type*) [∀ i, TopologicalSpace (G i)]
+    (X : Type*) [TopologicalSpace X] [T2Space X] :
+    T2Space (WithGeneratedByTopology G X) :=
+  T2Space.of_injective_continuous (equiv (X := G) (Y := X)).injective continuous_equiv
+
+/-- Refining an R₁ topology to a `G`-generated topology preserves the R₁ property, for any family
+`G` of test spaces. -/
+instance instR1Space {ι : Type*} (G : ι → Type*) [∀ i, TopologicalSpace (G i)]
+    (X : Type*) [TopologicalSpace X] [R1Space X] :
+    R1Space (WithGeneratedByTopology G X) := by
+  classical
+  by_cases hdisc : ∀ i, DiscreteTopology (G i)
+  · have : DiscreteTopology (WithGeneratedByTopology G X) :=
+      discreteTopology_iff_forall_isOpen.2 fun U ↦
+        WithGeneratedByTopology.isOpen_iff.2 fun i _ ↦
+          discreteTopology_iff_forall_isOpen.1 (hdisc i) _
+    infer_instance
+  · push Not at hdisc
+    obtain ⟨i, hi⟩ := hdisc
+    obtain ⟨A, hA⟩ : ∃ A : Set (G i), ¬ IsOpen A := by
+      by_contra h
+      push Not at h
+      exact hi (discreteTopology_iff_forall_isOpen.2 h)
+    refine r1Space_iff_inseparable_or_disjoint_nhds.2 fun x y ↦ ?_
+    rcases r1Space_iff_inseparable_or_disjoint_nhds.1 ‹R1Space X› (equiv x) (equiv y) with
+      hxy | hdisj
+    · left
+      refine inseparable_iff_forall_isOpen.2 fun U hU ↦ ?_
+      suffices ∀ a b : WithGeneratedByTopology G X, Inseparable (equiv a) (equiv b) →
+          a ∈ U → b ∈ U from
+        ⟨this x y hxy, this y x hxy.symm⟩
+      intro a b hab haU
+      by_contra hbU
+      let f : G i → X := fun z ↦ if z ∈ A then equiv a else equiv b
+      have hf : Continuous f := continuous_def.2 fun W hW ↦ by
+        have hiff := inseparable_iff_forall_isOpen.1 hab W hW
+        by_cases hWa : equiv a ∈ W
+        · convert isOpen_univ; ext z; by_cases hz : z ∈ A <;> simp [f, hz, hWa, hiff.1 hWa]
+        · convert isOpen_empty; ext z; by_cases hz : z ∈ A <;> simp [f, hz, hWa, mt hiff.2 hWa]
+      have hpre : IsOpen ((equiv.symm ∘ f) ⁻¹' U) :=
+        hU.preimage ((IsGeneratedBy.equiv_symm_comp_continuous_iff (X := G) _).2 hf)
+      have heq : (equiv.symm ∘ f) ⁻¹' U = A := by
+        ext z
+        by_cases hz : z ∈ A <;> simp [f, hz, haU, hbU]
+      exact hA (heq ▸ hpre)
+    · right
+      exact (Filter.disjoint_comap hdisj).mono
+        continuous_equiv.continuousAt.tendsto.le_comap
+        continuous_equiv.continuousAt.tendsto.le_comap
 
 end Topology.WithGeneratedByTopology
 
