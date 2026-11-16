@@ -9,6 +9,7 @@ public import TauCeti.Probability.PopulationSampling.Basic
 public import TauCeti.Probability.Process.EmpiricalMeasure
 public import TauCeti.Probability.UniformSampling
 public import Mathlib.MeasureTheory.Measure.FiniteMeasurePi
+import TauCeti.Data.Fintype.Card.Embedding
 
 /-!
 # Sampling finite populations with and without replacement
@@ -51,7 +52,15 @@ of the latter's sampling law, without separation assumptions on the value space.
   `sampleWithReplacement_le_sampleWithoutReplacement_add`: the eventwise collision bounds.
 * `sampleWithoutReplacement_le_sampleWithReplacement_add_collision`,
   `sampleWithReplacement_le_sampleWithoutReplacement_add_collision`: the stronger bounds that
-  retain the exact collision event, before applying the union bound.
+  retain the exact collision event, before applying the union bound;
+* `sampleWithoutReplacement_dirac_apply_singleton`, `sampleWithReplacement_dirac_apply_singleton`:
+  singleton masses of sampled words as fibre counts divided by `(card κ).descFactorial (card ι)`
+  and `card κ ^ card ι`;
+* `sampleWithoutReplacement_eq_zero_of_isEmpty`: sampling without replacement is the zero measure
+  when no injective selection exists;
+* `sampleWithoutReplacement_eq_sampleWithReplacement_of_subsingleton`,
+  `sampleWithoutReplacement_eq_sampleWithReplacement_of_card_le_one`: equality of the two sampling
+  laws when the sample size is at most one.
 
 ## References
 
@@ -90,6 +99,13 @@ theorem sampleWithoutReplacement_def {ι κ : Type*} [MeasurableSpace κ] (ρ : 
     sampleWithoutReplacement (ι := ι) ρ =
       samplePopulation (uniformOn {k : ι → κ | Function.Injective k}) ρ :=
   (rfl)
+
+/-- Sampling without replacement from a finite population law gives a finite law. -/
+instance isFiniteMeasure_sampleWithoutReplacement {ι κ : Type*} [MeasurableSpace κ]
+    (ρ : Measure (κ → α)) [IsFiniteMeasure ρ] :
+    IsFiniteMeasure (sampleWithoutReplacement (ι := ι) ρ) := by
+  rw [sampleWithoutReplacement_def]
+  infer_instance
 
 /-- Sampling a deterministic population without replacement is the pushforward of uniform
 injective selections. -/
@@ -130,6 +146,15 @@ theorem isProbabilityMeasure_sampleWithoutReplacement {ι κ : Type*} [Finite κ
     isProbabilityMeasure_uniformOn (Set.toFinite E) ⟨e, e.injective⟩
   rw [sampleWithoutReplacement_def]
   infer_instance
+
+/-- If no injective selection exists, sampling without replacement is the zero measure. -/
+theorem sampleWithoutReplacement_eq_zero_of_isEmpty {ι κ : Type*} [MeasurableSpace κ]
+    [IsEmpty (ι ↪ κ)] (ρ : Measure (κ → α)) :
+    sampleWithoutReplacement (ι := ι) ρ = 0 := by
+  have hempty : {k : ι → κ | Function.Injective k} = ∅ :=
+    Set.eq_empty_of_forall_notMem fun k hk => isEmptyElim (⟨k, hk⟩ : ι ↪ κ)
+  rw [sampleWithoutReplacement_def, hempty, uniformOn_empty_meas, samplePopulation_def,
+    Measure.zero_prod, Measure.map_zero]
 
 section EmpiricalPopulation
 
@@ -325,6 +350,72 @@ theorem sampleWithReplacement_le_sampleWithoutReplacement_add
     (add_le_add le_rfl uniformOn_not_injective_le)
 
 end Bounds
+
+/-- When the sample index has at most one element, every selection is injective, so sampling
+without replacement and sampling with replacement coincide for every population law. -/
+theorem sampleWithoutReplacement_eq_sampleWithReplacement_of_subsingleton [Fintype ι]
+    [Subsingleton ι] [Finite κ] (ρ : Measure (κ → α)) :
+    sampleWithoutReplacement (ι := ι) ρ = sampleWithReplacement (ι := ι) ρ := by
+  rw [sampleWithoutReplacement_def, sampleWithReplacement_eq_samplePopulation_uniformOn]
+  congr 2
+  exact Set.eq_univ_of_forall Function.injective_of_subsingleton
+
+/-- For sample size at most one, sampling without replacement and sampling with replacement
+coincide for every population law. -/
+theorem sampleWithoutReplacement_eq_sampleWithReplacement_of_card_le_one [Fintype ι] [Finite κ]
+    (hm : Fintype.card ι ≤ 1) (ρ : Measure (κ → α)) :
+    sampleWithoutReplacement (ι := ι) ρ = sampleWithReplacement (ι := ι) ρ := by
+  have : Subsingleton ι := Fintype.card_le_one_iff_subsingleton.1 hm
+  exact sampleWithoutReplacement_eq_sampleWithReplacement_of_subsingleton ρ
+
+/-- The singleton mass of a sampled word under deterministic sampling without replacement is the
+number of embeddings producing that word divided by `(card κ).descFactorial (card ι)`. When
+`card κ < card ι`, both sides are zero (`0 / 0 = 0` in `ℝ≥0∞`). -/
+theorem sampleWithoutReplacement_dirac_apply_singleton [Fintype ι] [Fintype κ]
+    [MeasurableSingletonClass α] (x : κ → α) (y : ι → α) :
+    sampleWithoutReplacement (ι := ι) (Measure.dirac x) {y} =
+      (Nat.card {f : ι ↪ κ // x ∘ f = y} : ℝ≥0∞) /
+        (Fintype.card κ).descFactorial (Fintype.card ι) := by
+  classical
+  let s : Finset (ι → κ) := Finset.univ.filter Function.Injective
+  let t : Finset (ι → κ) := Finset.univ.filter fun k => x ∘ k = y
+  have hs : {k : ι → κ | Function.Injective k} = (s : Set (ι → κ)) := by simp [s]
+  have ht : (fun k : ι → κ => fun i => x (k i)) ⁻¹' {y} = (t : Set (ι → κ)) := by
+    ext k
+    simp [t, Function.comp_def]
+  have hcards : s.card = (Fintype.card κ).descFactorial (Fintype.card ι) := by
+    rw [← Fintype.card_subtype]
+    exact Fintype.card_subtype_injective
+  have hcardst : (s ∩ t).card = Nat.card {f : ι ↪ κ // x ∘ f = y} := by
+    let e : {k : ι → κ // Function.Injective k ∧ x ∘ k = y} ≃ {f : ι ↪ κ // x ∘ f = y} :=
+      { toFun := fun k => ⟨⟨k.1, k.2.1⟩, k.2.2⟩
+        invFun := fun f => ⟨f.1, f.1.injective, f.2⟩
+        left_inv := fun _ => rfl
+        right_inv := fun _ => rfl }
+    rw [← Nat.card_congr e, Nat.card_eq_fintype_card, Fintype.card_subtype]
+    congr 1
+    ext k
+    simp [s, t]
+  rw [sampleWithoutReplacement_dirac,
+    Measure.map_apply (measurable_readPopulation x) (measurableSet_singleton y), hs, ht,
+    uniformOn_apply_finset, hcards, hcardst]
+
+/-- The singleton mass of a sampled word under deterministic sampling with replacement is the
+number of index maps producing that word divided by `card κ ^ card ι`. When `ι → κ` is empty,
+both sides are zero (`0 / 0 = 0` in `ℝ≥0∞`). -/
+theorem sampleWithReplacement_dirac_apply_singleton [Fintype ι] [Fintype κ]
+    [MeasurableSingletonClass α] (x : κ → α) (y : ι → α) :
+    sampleWithReplacement (ι := ι) (Measure.dirac x) {y} =
+      (Nat.card {f : ι → κ // x ∘ f = y} : ℝ≥0∞) /
+        (Fintype.card κ : ℝ≥0∞) ^ Fintype.card ι := by
+  classical
+  have hset : (fun k : ι → κ => fun i => x (k i)) ⁻¹' {y} = {f : ι → κ | x ∘ f = y} := by
+    ext f
+    simp [Function.comp_def]
+  rw [sampleWithReplacement_dirac,
+    Measure.map_apply (measurable_readPopulation x) (measurableSet_singleton y), hset,
+    uniformOn_univ, Measure.count_apply_finite _ (Set.toFinite _), Fintype.card_fun,
+    Nat.cast_pow, ← Set.ncard_eq_toFinset_card, ← Nat.card_coe_set_eq, Set.coe_ofPred]
 
 end Sampling
 
