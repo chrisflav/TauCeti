@@ -185,4 +185,23 @@ theorem reflectionBond_add_add [P.IsReduced] [NoZeroDivisors R] {χ : M}
     rintro ⟨β, hβ, h'⟩
     exact h ⟨β, hβ, by simpa [hrefl] using h'⟩
 
+/-- Negating and swapping the two weights preserves their reflection bond: if `y = s_β x`, then
+`-x = s_β (-y)` and `⟨-x, β^∨⟩ = -⟨x, β^∨⟩ = ⟨y, β^∨⟩`. -/
+theorem reflectionBond_neg_neg [P.IsReduced] [NoZeroDivisors R] (x y : M) :
+    P.reflectionBond b (-y) (-x) = P.reflectionBond b x y := by
+  by_cases hxy : y = x
+  · simp [hxy]
+  have hne : -x ≠ -y := fun h ↦ hxy (neg_inj.mp h).symm
+  by_cases h : ∃ β, b.IsPos β ∧ P.reflection β x = y
+  · obtain ⟨β, hβ, h⟩ := h
+    have h' : P.reflection β (-y) = -x := by
+      rw [map_neg, ← h, P.reflection_same]
+    rw [reflectionBond_eq_coroot' hβ h' hne, reflectionBond_eq_neg_coroot' hβ h hxy, map_neg]
+  · rw [reflectionBond_eq_zero_of_not_exists h, reflectionBond_eq_zero_of_not_exists]
+    rintro ⟨β, hβ, h'⟩
+    refine h ⟨β, hβ, ?_⟩
+    have h'' := congrArg (P.reflection β) h'
+    rw [P.reflection_same, map_neg] at h''
+    exact neg_inj.mp h''.symm
+
 end RootPairing
