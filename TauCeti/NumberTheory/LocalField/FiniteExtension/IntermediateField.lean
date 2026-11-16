@@ -40,6 +40,9 @@ they make the intermediate field a nonarchimedean local field.
 * `IntermediateField.valuativeExtension_of_isNonarchimedeanLocalField`: when the ambient field
   is itself a nonarchimedean local field extending `K`, this holds for every compatible
   intermediate field, and is an instance.
+* `IntermediateField.isNonarchimedeanLocalField_of_norm_algebraMap`: when the ambient field is a
+  normed field extending `TauCeti.normalizedAbsoluteValue K`, every finite intermediate field is a
+  nonarchimedean local field for its subspace topology.
 
 ## References
 
@@ -112,5 +115,17 @@ instance _root_.IntermediateField.valuativeExtension_of_isNonarchimedeanLocalFie
     ValuativeExtension E Ω :=
   have := finite_of_valuativeExtension K Ω
   E.valuativeExtension
+
+variable {K} in
+/-- **A finite intermediate field of a normed extension is a local field for the subspace
+topology.** When the norm on `Ω` extends `TauCeti.normalizedAbsoluteValue K`, the spectral-norm
+topology on a finite intermediate field `E ⊆ Ω` coincides with the subspace topology, making `E` a
+nonarchimedean local field with its subspace topology and `algebraicExtensionValuativeRel K E`. -/
+theorem _root_.IntermediateField.isNonarchimedeanLocalField_of_norm_algebraMap
+    {Ω : Type*} [NormedField Ω] [Algebra K Ω] (E : IntermediateField K Ω) [Module.Finite K E]
+    (hnorm : ∀ x : K, ‖algebraMap K Ω x‖ = normalizedAbsoluteValue K x) :
+    @IsNonarchimedeanLocalField E _ (algebraicExtensionValuativeRel K E) inferInstance := by
+  rw [← E.algebraicExtensionNormedFieldTopology_eq hnorm]
+  exact finiteExtension_isNonarchimedeanLocalField K E
 
 end TauCeti

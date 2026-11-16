@@ -7,14 +7,23 @@ module
 
 public import TauCeti.GroupTheory.FixedSubgroup
 public import Mathlib.Algebra.Algebra.Subalgebra.Basic
+public import Mathlib.Algebra.Field.Subfield.Defs
 public import Mathlib.LinearAlgebra.Matrix.GeneralLinearGroup.Defs
+import Mathlib.LinearAlgebra.Matrix.NonsingularInverse
+import TauCeti.LinearAlgebra.Matrix.GeneralLinearGroup.Map
 
 /-!
-# Invertible matrices over subalgebras
+# Invertible matrices over subalgebras, subrings, and subfields
 
 An invertible matrix over a commutative algebra comes from a subalgebra exactly when its entries
 and those of its inverse lie in that subalgebra. This distinguishes invertibility over the
-subalgebra from invertibility over the ambient algebra.
+subalgebra from invertibility over the ambient algebra. Over a subfield of a field, however, the
+inverse of an invertible matrix with entries in the subfield automatically has entries in the
+subfield as well (`Matrix.GeneralLinearGroup.inv_apply_mem_subfield`), so the entry condition
+alone characterizes membership in the image of `GL ι K`
+(`Matrix.GeneralLinearGroup.mem_range_map_subfield_iff`). Similarly, any group homomorphism
+`Γ →* GL ι R` whose matrix entries lie in a subring `S ⊆ R` automatically sends inverses into `S`
+and therefore lifts to `Γ →* GL ι S` (`Matrix.GeneralLinearGroup.liftSubring`).
 
 For the equalizer of an algebra endomorphism with the identity, the inverse-entry condition follows
 from the entry condition: an entrywise map is a group homomorphism, so it fixes the inverse of every
@@ -26,6 +35,11 @@ endomorphisms of algebras over finite fields, including the zero ring.
 
 * `Matrix.GeneralLinearGroup.mem_range_map_val_iff`: descent to a subalgebra is equivalent to
   membership of the entries of the matrix and its inverse.
+* `Matrix.GeneralLinearGroup.liftSubring`: lift a group homomorphism `Γ →* GL ι R` whose entries
+  lie in a subring `S` to `Γ →* GL ι S`.
+* `Matrix.GeneralLinearGroup.inv_apply_mem_subfield` and
+  `Matrix.GeneralLinearGroup.mem_range_map_subfield_iff`: over a subfield `K ⊆ L`, invertibility
+  over `L` implies invertibility over `K`.
 * `Matrix.GeneralLinearGroup.map_eq_self_iff_mem_equalizer`: a matrix is fixed by an entrywise
   algebra endomorphism exactly when its entries lie in its equalizer with the identity. The base
   may be a commutative semiring.
@@ -76,6 +90,114 @@ theorem mem_range_map_val_iff (S : Subalgebra R A) (g : Matrix.GeneralLinearGrou
       simpa only [Matrix.map_mul, Matrix.map_one, map_zero, map_one, hM, hN] using g.inv_mul
 
 end Subalgebra
+
+section Subring
+
+private def mkSubring {R : Type*} [CommRing R] (S : Subring R) (g : GL ι R)
+    (hg : ∀ i j, (g : Matrix ι ι R) i j ∈ S)
+    (hg' : ∀ i j, ((g⁻¹ : GL ι R) : Matrix ι ι R) i j ∈ S) : GL ι S where
+  val := Matrix.of fun i j ↦ ⟨(g : Matrix ι ι R) i j, hg i j⟩
+  inv := Matrix.of fun i j ↦ ⟨((g⁻¹ : GL ι R) : Matrix ι ι R) i j, hg' i j⟩
+  val_inv := by
+    apply Matrix.map_injective S.subtype_injective
+    have hM : (Matrix.of fun i j ↦ (⟨(g : Matrix ι ι R) i j, hg i j⟩ : S)).map S.subtype =
+        (g : Matrix ι ι R) := rfl
+    have hN : (Matrix.of fun i j ↦ (⟨((g⁻¹ : GL ι R) : Matrix ι ι R) i j, hg' i j⟩ : S)).map
+        S.subtype = ((g⁻¹ : GL ι R) : Matrix ι ι R) := rfl
+    simpa only [Matrix.map_mul, Matrix.map_one, map_zero, map_one, hM, hN] using g.mul_inv
+  inv_val := by
+    apply Matrix.map_injective S.subtype_injective
+    have hM : (Matrix.of fun i j ↦ (⟨(g : Matrix ι ι R) i j, hg i j⟩ : S)).map S.subtype =
+        (g : Matrix ι ι R) := rfl
+    have hN : (Matrix.of fun i j ↦ (⟨((g⁻¹ : GL ι R) : Matrix ι ι R) i j, hg' i j⟩ : S)).map
+        S.subtype = ((g⁻¹ : GL ι R) : Matrix ι ι R) := rfl
+    simpa only [Matrix.map_mul, Matrix.map_one, map_zero, map_one, hM, hN] using g.inv_mul
+
+private theorem map_mkSubring {R : Type*} [CommRing R] (S : Subring R) (g : GL ι R)
+    (hg : ∀ i j, (g : Matrix ι ι R) i j ∈ S)
+    (hg' : ∀ i j, ((g⁻¹ : GL ι R) : Matrix ι ι R) i j ∈ S) :
+    Matrix.GeneralLinearGroup.map S.subtype (mkSubring S g hg hg') = g :=
+  Units.ext rfl
+
+/-- **Lift a matrix group homomorphism to a subring.** If a group homomorphism `ρ : Γ →* GL ι R`
+has all matrix entries in a subring `S : Subring R`, then `(ρ g)⁻¹ = ρ g⁻¹` also has all entries
+in `S`, so `ρ` lifts canonically to a homomorphism `Γ →* GL ι S`. -/
+def liftSubring {Γ R : Type*} [Group Γ] [CommRing R] (S : Subring R) (ρ : Γ →* GL ι R)
+    (hmem : ∀ g i j, (ρ g : Matrix ι ι R) i j ∈ S) : Γ →* GL ι S where
+  toFun g := mkSubring S (ρ g) (hmem g) fun i j ↦ by simpa [map_inv] using hmem g⁻¹ i j
+  map_one' := by
+    apply Matrix.GeneralLinearGroup.map_injective S.subtype_injective
+    rw [map_mkSubring, map_one, map_one]
+  map_mul' g h := by
+    apply Matrix.GeneralLinearGroup.map_injective S.subtype_injective
+    rw [map_mkSubring, map_mul, map_mul, map_mkSubring, map_mkSubring]
+
+@[simp]
+theorem map_liftSubring {Γ R : Type*} [Group Γ] [CommRing R] (S : Subring R) (ρ : Γ →* GL ι R)
+    (hmem : ∀ g i j, (ρ g : Matrix ι ι R) i j ∈ S) (g : Γ) :
+    Matrix.GeneralLinearGroup.map S.subtype (liftSubring S ρ hmem g) = ρ g :=
+  Units.ext rfl
+
+@[simp]
+theorem liftSubring_apply {Γ R : Type*} [Group Γ] [CommRing R] (S : Subring R) (ρ : Γ →* GL ι R)
+    (hmem : ∀ g i j, (ρ g : Matrix ι ι R) i j ∈ S) (g : Γ) (i j : ι) :
+    ((liftSubring S ρ hmem g : Matrix ι ι S) i j : R) = (ρ g : Matrix ι ι R) i j := by
+  have h := congrArg (fun M : GL ι R ↦ (M : Matrix ι ι R) i j) (map_liftSubring S ρ hmem g)
+  simpa only [Matrix.GeneralLinearGroup.map_apply, Subring.coe_subtype] using h
+
+end Subring
+
+section Subfield
+
+variable {L : Type*} [Field L]
+
+/-- **The inverse of a nonsingular matrix with entries in a subfield has entries in that subfield.**
+-/
+theorem inv_apply_mem_subfield (K : Subfield L) (g : GL ι L)
+    (hg : ∀ i j, (g : Matrix ι ι L) i j ∈ K) (i j : ι) :
+    ((g⁻¹ : GL ι L) : Matrix ι ι L) i j ∈ K := by
+  let gK : Matrix ι ι K := fun a b ↦ ⟨(g : Matrix ι ι L) a b, hg a b⟩
+  have hmap : gK.map K.subtype = (g : Matrix ι ι L) := rfl
+  have hdet_ne : gK.det ≠ 0 := by
+    intro h0
+    have hdet0 : (g : Matrix ι ι L).det = 0 := by
+      rw [← hmap]
+      simpa [h0] using (K.subtype.map_det gK).symm
+    exact ((Matrix.isUnit_iff_isUnit_det (g : Matrix ι ι L)).mp g.isUnit).ne_zero hdet0
+  have hmul : gK * gK⁻¹ = 1 := Matrix.mul_nonsing_inv gK (isUnit_iff_ne_zero.mpr hdet_ne)
+  have hmap_inv : (g : Matrix ι ι L) * gK⁻¹.map K.subtype = 1 := by
+    rw [← hmap, ← Matrix.map_mul, hmul, Matrix.map_one K.subtype (map_zero _) (map_one _)]
+  have hEq : gK⁻¹.map K.subtype = ((g⁻¹ : GL ι L) : Matrix ι ι L) := by
+    calc gK⁻¹.map K.subtype
+        = ((g⁻¹ : GL ι L) : Matrix ι ι L) * ((g : Matrix ι ι L) * gK⁻¹.map K.subtype) := by
+          rw [← Matrix.mul_assoc, ← Units.val_mul, inv_mul_cancel, Units.val_one, Matrix.one_mul]
+      _ = ((g⁻¹ : GL ι L) : Matrix ι ι L) := by rw [hmap_inv, Matrix.mul_one]
+  rw [← hEq, Matrix.map_apply]
+  exact SetLike.coe_mem (gK⁻¹ i j)
+
+/-- **Invertible matrices over a subfield**: an element of `GL ι L` lies in the image of `GL ι K`
+if and only if all of its entries lie in `K`. -/
+@[simp]
+theorem mem_range_map_subfield_iff (K : Subfield L) (g : GL ι L) :
+    (∃ h, Matrix.GeneralLinearGroup.map (n := ι) K.subtype h = g) ↔
+      ∀ i j, (g : Matrix ι ι L) i j ∈ K := by
+  constructor
+  · rintro ⟨h, rfl⟩ i j
+    rw [Matrix.GeneralLinearGroup.map_apply]
+    exact ((h : Matrix ι ι K) i j).2
+  · intro hg
+    have hg' := inv_apply_mem_subfield K g hg
+    let M : Matrix ι ι K := fun i j ↦ ⟨g i j, hg i j⟩
+    let N : Matrix ι ι K := fun i j ↦ ⟨g⁻¹ i j, hg' i j⟩
+    have hM : M.map K.subtype = (g : Matrix ι ι L) := rfl
+    have hN : N.map K.subtype = ((g⁻¹ : GL ι L) : Matrix ι ι L) := rfl
+    refine ⟨⟨M, N, ?_, ?_⟩, Units.ext rfl⟩
+    · apply Matrix.map_injective K.subtype_injective
+      simpa only [Matrix.map_mul, Matrix.map_one, map_zero, map_one, hM, hN] using g.mul_inv
+    · apply Matrix.map_injective K.subtype_injective
+      simpa only [Matrix.map_mul, Matrix.map_one, map_zero, map_one, hM, hN] using g.inv_mul
+
+end Subfield
 
 section Equalizer
 
