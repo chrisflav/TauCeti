@@ -36,9 +36,14 @@ most `‖(aᵢ)‖_{ℓ²}` (`lp.norm_sum_single_comp_lsmul_le`, `lp.norm_sum_ls
 A uniformly bounded family of operators with a common domain assembles into an `ℓ∞`-valued
 operator (`ContinuousLinearMap.piLpInfty`), with the same norm bound.
 
-For a finite exponent `p` and a countable index type, `lp E p` is separable as soon as every
-`E i` is (`lp.separableSpace`): the finite sums of coordinate vectors with entries in countable
-dense subsets are dense.
+For a finite exponent `p`, every sequence in `lp E p` has countable support
+(`Memℓp.countable_dsupport`, `lp.countable_dsupport`). For a finite exponent `p ≥ 1` and a
+countable index type, `lp E p` is separable as soon as every `E i` is (`lp.separableSpace`): the
+finite sums of coordinate vectors with entries in countable dense subsets are dense. Conversely,
+for a nontrivial normed group `G` and any `1 ≤ p ≤ ∞`, distinct single-coordinate vectors are
+uniformly separated (`lp.norm_single_sub_single`, `lp.dist_single_of_ne`,
+`lp.dist_single_two_of_ne`), so separability of `ℓ^p(ι, G)` forces `ι` to be countable
+(`lp.countable_of_separableSpace`, `lp.separableSpace_iff_countable`).
 
 For `p ≠ ∞` the coordinate vectors span a dense subspace, so a uniformly bounded family of
 operators on `lp E p` that converges on every `single i x` converges at every vector
@@ -168,6 +173,96 @@ theorem separableSpace [Countable ι] [∀ i, TopologicalSpace.SeparableSpace (E
   refine (hS.span (R := ℕ)).closure.mono fun f _ ↦
     mem_closure_of_tendsto (lp.hasSum_single hp f) (Filter.Eventually.of_forall fun s ↦ ?_)
   exact Submodule.sum_mem _ fun i _ ↦ Submodule.subset_span (Set.mem_iUnion.2 ⟨i, f i, rfl⟩)
+
+/-- For a finite exponent `p ≠ ∞`, every sequence in `ℓᵖ` has countable dependent support. -/
+theorem _root_.Memℓp.countable_dsupport {f : ∀ i, E i} (hf : Memℓp f p) (hp : p ≠ ∞) :
+    {i | f i ≠ 0}.Countable := by
+  rcases eq_or_ne p 0 with rfl | hp0
+  · exact hf.finite_dsupport.countable
+  · have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp
+    have hsupp : {i | f i ≠ 0} = Function.support fun i ↦ ‖f i‖ ^ p.toReal := by
+      ext i
+      simp [Function.mem_support, Real.rpow_eq_zero (norm_nonneg _) hpr.ne']
+    rw [hsupp]
+    exact (hf.summable hpr).countable_support
+
+/-- For a finite exponent `p ≠ ∞`, every sequence in `ℓᵖ` has countable support. -/
+theorem _root_.Memℓp.countable_support {G : Type*} [NormedAddCommGroup G] {f : ι → G}
+    (hf : Memℓp f p) (hp : p ≠ ∞) : (Function.support f).Countable :=
+  hf.countable_dsupport hp
+
+/-- For a finite exponent `p ≠ ∞`, every element of `lp E p` has countable dependent support. -/
+theorem countable_dsupport (f : lp E p) (hp : p ≠ ∞) : {i | f i ≠ 0}.Countable :=
+  (lp.memℓp f).countable_dsupport hp
+
+/-- For a finite exponent `p ≠ ∞`, every element of `ℓ^p(ι, G)` has countable support. -/
+theorem countable_support {G : Type*} [NormedAddCommGroup G] (f : ℓ^p(ι, G)) (hp : p ≠ ∞) :
+    (Function.support (f : ι → G)).Countable :=
+  (lp.memℓp f).countable_support hp
+
+/-- The `ℓᵖ` norm of the difference of two single-coordinate vectors at distinct indices. -/
+theorem norm_single_sub_single [DecidableEq ι] (hp : 0 < p.toReal) {i j : ι} (hij : i ≠ j)
+    (a : E i) (b : E j) :
+    ‖lp.single p i a - lp.single p j b‖ = (‖a‖ ^ p.toReal + ‖b‖ ^ p.toReal) ^ (1 / p.toReal) := by
+  let f : ∀ k, E k := fun k ↦ if h : k = i then h ▸ a else if h' : k = j then h' ▸ (-b) else 0
+  have hsum : lp.single p i a - lp.single p j b =
+      ∑ k ∈ ({i, j} : Finset ι), lp.single p k (f k) := by
+    rw [Finset.sum_pair hij]
+    simp [f, hij.symm, sub_eq_add_neg]
+  have hpow : ‖lp.single p i a - lp.single p j b‖ ^ p.toReal = ‖a‖ ^ p.toReal + ‖b‖ ^ p.toReal := by
+    rw [hsum, lp.norm_sum_single hp f {i, j}, Finset.sum_pair hij]
+    simp [f, hij.symm]
+  have h0 : 0 ≤ ‖lp.single p i a - lp.single p j b‖ := lp.norm_nonneg' _
+  calc ‖lp.single p i a - lp.single p j b‖
+      = (‖lp.single p i a - lp.single p j b‖ ^ p.toReal) ^ (1 / p.toReal) := by
+        rw [← Real.rpow_mul h0, mul_one_div_cancel hp.ne', Real.rpow_one]
+    _ = (‖a‖ ^ p.toReal + ‖b‖ ^ p.toReal) ^ (1 / p.toReal) := by rw [hpow]
+
+/-- For `1 ≤ p < ∞`, distinct coordinate vectors in `ℓ^p(ι, G)` with the same entry `a` lie at
+distance `2 ^ (1 / p.toReal) * ‖a‖`. -/
+theorem dist_single_of_ne {G : Type*} [NormedAddCommGroup G] [DecidableEq ι]
+    [Fact (1 ≤ p)] (hp : p ≠ ∞) {i j : ι} (hij : i ≠ j) (a : G) :
+    dist (lp.single (E := fun _ : ι ↦ G) p i a) (lp.single (E := fun _ : ι ↦ G) p j a) =
+      (2 : ℝ) ^ (1 / p.toReal) * ‖a‖ := by
+  have hp0 : p ≠ 0 := (zero_lt_one.trans_le Fact.out).ne'
+  have hpr : 0 < p.toReal := ENNReal.toReal_pos hp0 hp
+  rw [dist_eq_norm, norm_single_sub_single (E := fun _ : ι ↦ G) (p := p) hpr hij a a, ← two_mul,
+    Real.mul_rpow (by positivity) (by positivity), ← Real.rpow_mul (norm_nonneg a),
+    mul_one_div_cancel hpr.ne', Real.rpow_one]
+
+/-- In `ℓ²`, distinct coordinate vectors with the same entry `a` lie at distance `√2 ‖a‖`. -/
+theorem dist_single_two_of_ne {G : Type*} [NormedAddCommGroup G] [DecidableEq ι]
+    {i j : ι} (hij : i ≠ j) (a : G) :
+    dist (lp.single (E := fun _ : ι ↦ G) 2 i a) (lp.single (E := fun _ : ι ↦ G) 2 j a) =
+      Real.sqrt 2 * ‖a‖ := by
+  rw [dist_single_of_ne (p := 2) (by norm_num) hij a, ENNReal.toReal_ofNat, ← Real.sqrt_eq_rpow]
+
+/-- If `ℓ^p(ι, G)` is separable for `1 ≤ p ≤ ∞` and a nontrivial normed group `G`, then the index
+type `ι` is countable. -/
+theorem countable_of_separableSpace {G : Type*} [NormedAddCommGroup G] [Nontrivial G]
+    [Fact (1 ≤ p)] [TopologicalSpace.SeparableSpace ℓ^p(ι, G)] : Countable ι := by
+  classical
+  obtain ⟨v, hv⟩ := exists_ne (0 : G)
+  have hvpos : 0 < ‖v‖ := norm_pos_iff.2 hv
+  have hp0 : p ≠ 0 := (zero_lt_one.trans_le Fact.out).ne'
+  let e : ι → ℓ^p(ι, G) := fun i ↦ lp.single p i v
+  have hsep : Pairwise fun i j : ι ↦ ‖v‖ ≤ dist (e i) (e j) := by
+    intro i j hij
+    rw [dist_eq_norm]
+    calc ‖v‖ = ‖(e i - e j) i‖ := by simp [e, Pi.single_eq_of_ne hij]
+      _ ≤ ‖e i - e j‖ := lp.norm_apply_le_norm hp0 _ i
+  have hdisj : Pairwise fun i j : ι ↦
+      Disjoint (Metric.ball (e i) (‖v‖ / 2)) (Metric.ball (e j) (‖v‖ / 2)) :=
+    fun i j hij ↦ Metric.ball_disjoint_ball (by linarith [hsep hij])
+  exact hdisj.countable_of_isOpen_disjoint (fun _ ↦ Metric.isOpen_ball)
+    fun i ↦ ⟨e i, Metric.mem_ball_self (half_pos hvpos)⟩
+
+/-- For a finite exponent `1 ≤ p < ∞` and a nontrivial separable normed group `G`, the sequence
+space `ℓ^p(ι, G)` is separable if and only if the index type `ι` is countable. -/
+theorem separableSpace_iff_countable {G : Type*} [NormedAddCommGroup G] [Nontrivial G]
+    [TopologicalSpace.SeparableSpace G] [Fact (1 ≤ p)] (hp : p ≠ ∞) :
+    TopologicalSpace.SeparableSpace ℓ^p(ι, G) ↔ Countable ι :=
+  ⟨fun _ ↦ countable_of_separableSpace (G := G) (p := p), fun _ ↦ lp.separableSpace hp⟩
 
 section Single
 

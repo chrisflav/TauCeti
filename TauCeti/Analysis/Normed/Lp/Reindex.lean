@@ -15,8 +15,11 @@ import TauCeti.Algebra.BigOperators.Intervals
 Let `f : ι → G` be a sequence in `ℓᵖ` and let `g : ι' → ι` be injective on a set `s ⊆ ι'`. The
 sequence `s.indicator (f ∘ g)`, which reads `f` along `g` on `s` and vanishes off `s`, takes each
 value of `f` at most once, so it again lies in `ℓᵖ`, with no larger norm
-(`Memℓp.indicator_comp`, `lp.norm_le_of_forall_eq_indicator_comp`). Shifts of a sequence indexed
-by `ℕ` are the basic examples: `j ↦ f (j + d)` and, on `{j | d ≤ j}`, `j ↦ f (j - d)`. In
+(`Memℓp.indicator_comp`, `lp.norm_le_of_forall_eq_indicator_comp`). In particular, reindexing
+along a bijection `e : ι ≃ ι'` preserves membership in `ℓᵖ` (`Memℓp.comp_equiv`,
+`Equiv.memℓp_comp_iff`) and for `1 ≤ p` induces a linear isometric equivalence
+`LinearIsometryEquiv.lpCongrLeft` between `ℓ^p(ι, E)` and `ℓ^p(ι', E)`. Shifts of a sequence
+indexed by `ℕ` are the basic examples: `j ↦ f (j + d)` and, on `{j | d ≤ j}`, `j ↦ f (j - d)`. In
 particular a sequence indexed by `ℕ` lies in `ℓᵖ` exactly when its tail `j ↦ f (j + d)` does
 (`TauCeti.memℓp_nat_add_iff`).
 
@@ -88,6 +91,80 @@ theorem lp.norm_le_of_forall_eq_indicator_comp (hp : p ≠ 0) {f : lp (fun _ : �
     simp_rw [h]
     exact (Finset.sum_apply_indicator_comp_eq_sum_image (h := fun x : G ↦ ‖x‖ ^ p.toReal)
       (by simp [Real.zero_rpow hp'.ne']) hg t).trans_le (lp.sum_rpow_le_norm_rpow hp' f _)
+
+/-- Reindexing a sequence in `ℓᵖ` along an equivalence preserves membership in `ℓᵖ`. -/
+theorem Memℓp.comp_equiv {f : ι → G} (hf : Memℓp f p) (e : ι' ≃ ι) :
+    Memℓp (f ∘ e) p := by
+  simpa only [Set.indicator_univ] using hf.indicator_comp (s := Set.univ) e.injective.injOn
+
+/-- A sequence reindexed along an equivalence lies in `ℓᵖ` if and only if the original sequence
+does. -/
+theorem Equiv.memℓp_comp_iff (e : ι' ≃ ι) {f : ι → G} : Memℓp (f ∘ e) p ↔ Memℓp f p :=
+  ⟨fun hf ↦ by simpa [Function.comp_assoc] using hf.comp_equiv e.symm, fun hf ↦ hf.comp_equiv e⟩
+
+section lpCongrLeft
+
+variable (p : ℝ≥0∞) [Fact (1 ≤ p)] (𝕜 : Type*) [NormedRing 𝕜]
+  (E : Type*) [NormedAddCommGroup E] [Module 𝕜 E] [IsBoundedSMul 𝕜 E]
+
+/-- An equivalence of index types induces a linear isometric equivalence of `ℓᵖ` spaces. -/
+noncomputable def LinearIsometryEquiv.lpCongrLeft {ι ι' : Type*} (e : ι ≃ ι') :
+    lp (fun _ : ι ↦ E) p ≃ₗᵢ[𝕜] lp (fun _ : ι' ↦ E) p where
+  toFun f := ⟨f ∘ e.symm, (lp.memℓp f).comp_equiv e.symm⟩
+  invFun g := ⟨g ∘ e, (lp.memℓp g).comp_equiv e⟩
+  left_inv f := lp.ext <| funext fun i ↦ by simp
+  right_inv g := lp.ext <| funext fun j ↦ by simp
+  map_add' _ _ := lp.ext <| funext fun _ ↦ rfl
+  map_smul' _ _ := lp.ext <| funext fun _ ↦ rfl
+  norm_map' f := by
+    have hp : p ≠ 0 := (zero_lt_one.trans_le Fact.out).ne'
+    refine le_antisymm ?_ ?_
+    · exact lp.norm_le_of_forall_eq_indicator_comp hp (s := Set.univ)
+        e.symm.injective.injOn fun j ↦ by simp
+    · exact lp.norm_le_of_forall_eq_indicator_comp hp (s := Set.univ)
+        e.injective.injOn fun i ↦ by simp
+
+/-- Coordinate formula for reindexing an element of `ℓᵖ` along an equivalence. -/
+@[simp]
+theorem LinearIsometryEquiv.lpCongrLeft_apply {ι ι' : Type*} (e : ι ≃ ι')
+    (f : lp (fun _ : ι ↦ E) p) (j : ι') :
+    LinearIsometryEquiv.lpCongrLeft p 𝕜 E e f j = f (e.symm j) := (rfl)
+
+/-- The inverse of `LinearIsometryEquiv.lpCongrLeft` is reindexing along the inverse equivalence.
+-/
+@[simp]
+theorem LinearIsometryEquiv.lpCongrLeft_symm {ι ι' : Type*} (e : ι ≃ ι') :
+    (LinearIsometryEquiv.lpCongrLeft p 𝕜 E e).symm =
+      LinearIsometryEquiv.lpCongrLeft p 𝕜 E e.symm := by
+  ext f i
+  rfl
+
+/-- Reindexing `ℓᵖ` along the identity equivalence is the identity. -/
+@[simp]
+theorem LinearIsometryEquiv.lpCongrLeft_refl {ι : Type*} :
+    LinearIsometryEquiv.lpCongrLeft p 𝕜 E (Equiv.refl ι) =
+      LinearIsometryEquiv.refl 𝕜 (lp (fun _ : ι ↦ E) p) := by
+  ext f i
+  rfl
+
+/-- Composing two `ℓᵖ` reindexing equivalences reindexes along the composed equivalence. -/
+@[simp]
+theorem LinearIsometryEquiv.lpCongrLeft_trans {ι ι' ι'' : Type*} (e₁ : ι ≃ ι') (e₂ : ι' ≃ ι'') :
+    (LinearIsometryEquiv.lpCongrLeft p 𝕜 E e₁).trans (LinearIsometryEquiv.lpCongrLeft p 𝕜 E e₂) =
+      LinearIsometryEquiv.lpCongrLeft p 𝕜 E (e₁.trans e₂) := by
+  ext f k
+  rfl
+
+/-- Reindexing `ℓᵖ` along `e` sends the single-coordinate vector at `i` to the one at `e i`. -/
+@[simp high]
+theorem LinearIsometryEquiv.lpCongrLeft_single {ι ι' : Type*} [DecidableEq ι] [DecidableEq ι']
+    (e : ι ≃ ι') (i : ι) (v : E) :
+    LinearIsometryEquiv.lpCongrLeft p 𝕜 E e (lp.single p i v) =
+      lp.single (E := fun _ : ι' ↦ E) p (e i) v := by
+  ext j
+  simp [Pi.single_apply, Equiv.symm_apply_eq]
+
+end lpCongrLeft
 
 namespace TauCeti
 
