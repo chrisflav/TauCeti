@@ -29,6 +29,8 @@ reflections are indexed by an empty type has a trivial group.
   Coxeter matrix is `2`.
 * `CoxeterSystem.isConj_wordProd_append_comm`: rotating a word `l₁ ++ l₂` to `l₂ ++ l₁` conjugates
   the element it spells.
+* `CoxeterMatrix.isLiftable_of_mul_self_of_braidWord`: a family of involutions in a monoid
+  satisfying the braid relations of `M` satisfies `M.IsLiftable`.
 -/
 
 public section
@@ -77,6 +79,42 @@ theorem reverse_alternatingWord (i i' : B) (m : ℕ) :
     by_cases hm : Even m <;> simp [hm, CoxeterSystem.alternatingWord_succ', parity_simps]
 
 end TauCeti
+
+namespace CoxeterMatrix
+
+/-- A family of involutions in a monoid satisfying the braid relations of `M` satisfies the Coxeter
+relations of `M`. -/
+theorem isLiftable_of_mul_self_of_braidWord {B H : Type*} [Monoid H] (M : CoxeterMatrix B)
+    {t : B → H} (hsq : ∀ i, t i * t i = 1)
+    (hbraid : ∀ i j, ((CoxeterSystem.braidWord M i j).map t).prod =
+      ((CoxeterSystem.braidWord M j i).map t).prod) :
+    M.IsLiftable t := by
+  intro i j
+  have hpow : ∀ k : ℕ, (t i * t j) ^ k * (t j * t i) ^ k = 1 := fun k ↦ by
+    induction k with
+    | zero => simp
+    | succ k ih =>
+      rw [pow_succ, pow_succ', mul_assoc, ← mul_assoc (t i * t j), mul_assoc (t i),
+        ← mul_assoc (t j), hsq j, one_mul, hsq i, one_mul, ih]
+  have hb := hbraid i j
+  rw [CoxeterSystem.braidWord, CoxeterSystem.braidWord, M.symmetric j i,
+    TauCeti.prod_map_alternatingWord, TauCeti.prod_map_alternatingWord] at hb
+  rcases Nat.even_or_odd' (M i j) with ⟨k, hm | hm⟩
+  · rw [hm] at hb ⊢
+    simp only [even_two, Even.mul_right, ↓reduceIte, one_mul, Nat.mul_div_right _ two_pos] at hb
+    rw [two_mul, pow_add]
+    nth_rw 2 [hb]
+    exact hpow k
+  · rw [hm] at hb ⊢
+    have hodd : ¬Even (2 * k + 1) := Nat.not_even_iff_odd.mpr ⟨k, rfl⟩
+    have hdiv : (2 * k + 1) / 2 = k := by omega
+    rw [ite_eq_right hodd, ite_eq_right hodd, hdiv] at hb
+    have hadd : 2 * k + 1 = (k + 1) + k := by omega
+    rw [hadd, pow_add, pow_succ, mul_assoc, mul_assoc (t i), hb, ← mul_assoc (t i), hsq i,
+      one_mul]
+    exact hpow k
+
+end CoxeterMatrix
 
 namespace CoxeterSystem
 
