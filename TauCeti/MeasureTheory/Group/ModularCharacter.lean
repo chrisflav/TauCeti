@@ -9,6 +9,7 @@ public import Mathlib.Analysis.LocallyConvex.SeparatingDual
 public import Mathlib.MeasureTheory.Group.ModularCharacter
 public import TauCeti.MeasureTheory.Group.Integral
 public import TauCeti.MeasureTheory.Measure.WithDensity
+import TauCeti.MeasureTheory.Measure.Count.Topology
 
 /-!
 # The modular character: continuity, right translation and inversion
@@ -43,11 +44,20 @@ none of this assumes σ-finiteness.
 
 ## Main statements
 
+* `TauCeti.modularCharacter_continuousMulEquiv`: topological group isomorphisms preserve the
+  modular character.
+* `TauCeti.modularCharacter_eq_one_of_isMulRightInvariant` and
+  `TauCeti.modularCharacter_eq_one_of_discreteTopology`: triviality of the modular character for
+  groups admitting a bi-invariant Haar measure and for discrete topological groups.
 * `TauCeti.integral_mul_right_eq_modularCharacter_smul`: right translation of compactly
   supported integrands.
 * `TauCeti.integral_modularCharacter_smul_inv_eq_self` and
   `TauCeti.integral_inv_eq_integral_modularCharacter_smul`: the inversion formula on compactly
   supported integrands.
+* `MeasureTheory.Measure.isHaarMeasure_inv_of_isMulRightInvariant`,
+  `TauCeti.integral_mul_left_eq_modularCharacter_inv_smul` and
+  `TauCeti.integral_modularCharacter_inv_smul_inv_eq_self`: the left-translation and inversion
+  formulas for right Haar measures.
 * `MeasureTheory.Measure.measure_mul_right_null_of_innerRegular`: right translation preserves null
   sets of an inner regular locally finite left-invariant measure (without `[μ.IsOpenPosMeasure]`).
 * `MeasureTheory.Measure.isMulRightInvariant_withDensity_modularCharacter`: `μ.withDensity c`
@@ -58,6 +68,8 @@ none of this assumes σ-finiteness.
   `map (· * g) μ = c(g) • μ` for a regular Haar measure `μ`.
 * `MeasureTheory.Measure.inv_eq_withDensity_modularCharacter_of_regular`:
   `μ.inv = μ.withDensity c` for a regular Haar measure `μ`.
+* `MeasureTheory.Measure.isInvInvariant_of_isMulRightInvariant`: a regular bi-invariant Haar
+  measure is invariant under inversion.
 * `MeasureTheory.Measure.quasiMeasurePreserving_mul_right_of_regular`,
   `MeasureTheory.Measure.quasiMeasurePreserving_inv_of_regular` and
   `MeasureTheory.Measure.quasiMeasurePreserving_inv_mul_of_regular`: right translation, inversion
@@ -130,6 +142,61 @@ theorem modularCharacter_mul_inv_cancel_right (x y : G) :
       Measure.modularCharacter x := by
   rw [map_mul, NNReal.coe_mul, mul_assoc, modularCharacter_mul_inv, mul_one]
 
+/-- A topological group isomorphism preserves the modular character. -/
+theorem modularCharacter_continuousMulEquiv {G₁ G₂ : Type*}
+    [Group G₁] [TopologicalSpace G₁] [IsTopologicalGroup G₁] [LocallyCompactSpace G₁]
+    [Group G₂] [TopologicalSpace G₂] [IsTopologicalGroup G₂] [LocallyCompactSpace G₂]
+    (e : G₁ ≃ₜ* G₂) (g : G₁) :
+    Measure.modularCharacter (G := G₂) (e g) = Measure.modularCharacter (G := G₁) g := by
+  borelize G₁ G₂
+  let μ₁ : Measure G₁ := Measure.haar
+  let μ₂ : Measure G₂ := μ₁.map e
+  have he_meas : Measurable (e : G₁ → G₂) := e.continuous.measurable
+  obtain ⟨⟨f, hf_cont⟩, hf_supp, hf_nonneg, hf1⟩ :
+      ∃ f : C(G₂, ℝ), HasCompactSupport f ∧ 0 ≤ f ∧ f 1 ≠ 0 :=
+    exists_continuous_nonneg_pos 1
+  have hint2 : ∫ y, f y ∂μ₂ ≠ 0 :=
+    (hf_cont.integral_pos_of_hasCompactSupport_nonneg_ne_zero hf_supp hf_nonneg hf1).ne'
+  have hcomp_cont : Continuous (fun x : G₁ => f (e x)) := hf_cont.comp e.continuous
+  have hcomp_supp : HasCompactSupport (fun x : G₁ => f (e x)) :=
+    hf_supp.comp_homeomorph e.toHomeomorph
+  have hint1 : ∫ x, f (e x) ∂μ₁ ≠ 0 := by
+    rwa [← integral_map he_meas.aemeasurable hf_cont.aestronglyMeasurable]
+  apply NNReal.coe_injective
+  calc (Measure.modularCharacter (G := G₂) (e g) : ℝ)
+      = Measure.haarScalarFactor (μ₂.map (· * e g)) μ₂ := by
+          rw [modularCharacter_apply, Measure.modularCharacterFun_eq_haarScalarFactor μ₂ (e g)]
+    _ = (∫ y, f y ∂(μ₂.map (· * e g))) / ∫ y, f y ∂μ₂ :=
+          Measure.haarScalarFactor_eq_integral_div _ _ hf_cont hf_supp hint2
+    _ = (∫ x, f (e (x * g)) ∂μ₁) / ∫ x, f (e x) ∂μ₁ := by
+          have hmul_cont : Continuous fun x : G₂ => f (x * e g) :=
+            hf_cont.comp (continuous_mul_const (e g))
+          rw [integral_map (continuous_mul_const (e g)).aemeasurable hf_cont.aestronglyMeasurable,
+            integral_map he_meas.aemeasurable hmul_cont.aestronglyMeasurable,
+            integral_map he_meas.aemeasurable hf_cont.aestronglyMeasurable]
+          simp only [map_mul]
+    _ = (∫ x, f (e x) ∂(μ₁.map (· * g))) / ∫ x, f (e x) ∂μ₁ := by
+          rw [integral_map (continuous_mul_const g).aemeasurable hcomp_cont.aestronglyMeasurable]
+    _ = Measure.haarScalarFactor (μ₁.map (· * g)) μ₁ :=
+          (Measure.haarScalarFactor_eq_integral_div _ _ hcomp_cont hcomp_supp hint1).symm
+    _ = Measure.modularCharacter (G := G₁) g := by
+          rw [modularCharacter_apply, Measure.modularCharacterFun_eq_haarScalarFactor μ₁ g]
+
+/-- A locally compact group admitting a bi-invariant Haar measure has trivial modular character. -/
+theorem modularCharacter_eq_one_of_isMulRightInvariant [MeasurableSpace G] [BorelSpace G]
+    {μ : Measure G} [μ.IsHaarMeasure] [μ.IsMulRightInvariant] (g : G) :
+    Measure.modularCharacter g = 1 := by
+  rw [modularCharacter_apply]
+  simp [Measure.modularCharacterFun_eq_haarScalarFactor μ g, map_mul_right_eq_self μ g,
+    Measure.haarScalarFactor_self]
+
+/-- Every discrete topological group has trivial modular character. -/
+theorem modularCharacter_eq_one_of_discreteTopology {H : Type*} [Group H]
+    [TopologicalSpace H] [IsTopologicalGroup H] [DiscreteTopology H] (g : H) :
+    Measure.modularCharacter g = 1 := by
+  let : MeasurableSpace H := ⊤
+  have : DiscreteMeasurableSpace H := ⟨fun _ => trivial⟩
+  exact modularCharacter_eq_one_of_isMulRightInvariant (μ := (Measure.count : Measure H)) g
 
 section Integral
 
@@ -216,6 +283,64 @@ theorem integral_inv_eq_integral_modularCharacter_smul {f : G → E} (hf : Conti
     (hf.comp continuous_inv) (hfc.comp_homeomorph (Homeomorph.inv G))).symm
 
 end Integral
+
+end TauCeti
+
+namespace MeasureTheory.Measure
+
+/-- The inverse of a right Haar measure is a left Haar measure. -/
+theorem isHaarMeasure_inv_of_isMulRightInvariant {G : Type*} [Group G] [TopologicalSpace G]
+    [IsTopologicalGroup G] [MeasurableSpace G] [BorelSpace G]
+    (μ : Measure G) [μ.IsMulRightInvariant] [IsFiniteMeasureOnCompacts μ]
+    [μ.IsOpenPosMeasure] : μ.inv.IsHaarMeasure where
+  lt_top_of_isCompact K hK := by
+    rw [Measure.inv_apply]
+    exact hK.inv.measure_lt_top
+  open_pos U hU hne := by
+    rw [Measure.inv_apply]
+    exact hU.inv.measure_ne_zero μ hne.inv
+
+end MeasureTheory.Measure
+
+namespace TauCeti
+
+section RightHaarIntegral
+
+variable {G : Type*} [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
+  [LocallyCompactSpace G] [MeasurableSpace G] [BorelSpace G]
+  {E : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E]
+
+/-- **Left translation of a compactly supported integrand against a right Haar measure**
+multiplies the integral by the inverse of the modular character. -/
+theorem integral_mul_left_eq_modularCharacter_inv_smul {μ : Measure G} [μ.IsMulRightInvariant]
+    [IsFiniteMeasureOnCompacts μ] [μ.IsOpenPosMeasure] {f : G → E}
+    (hf : Continuous f) (hfc : HasCompactSupport f) (g : G) :
+    ∫ x, f (g * x) ∂μ = (Measure.modularCharacter g : ℝ)⁻¹ • ∫ x, f x ∂μ := by
+  have : μ.inv.IsHaarMeasure := μ.isHaarMeasure_inv_of_isMulRightInvariant
+  have hinv : ∫ x, f (g * x) ∂μ = ∫ x, f (x * g⁻¹)⁻¹ ∂μ.inv := by
+    rw [integral_inv_measure]
+    simp only [mul_inv_rev, inv_inv]
+  rw [hinv, integral_mul_right_eq_modularCharacter_smul (f := fun x => f x⁻¹)
+    (hf.comp continuous_inv) (hfc.comp_homeomorph (Homeomorph.inv G)) g⁻¹,
+    map_inv, NNReal.coe_inv, integral_inv_measure]
+  simp only [inv_inv]
+
+/-- **The inversion formula for a right Haar measure** on compactly supported integrands:
+weighting by the inverse of the modular character makes inversion preserve the integral. -/
+theorem integral_modularCharacter_inv_smul_inv_eq_self {μ : Measure G} [μ.IsMulRightInvariant]
+    [IsFiniteMeasureOnCompacts μ] [μ.IsOpenPosMeasure] {f : G → E}
+    (hf : Continuous f) (hfc : HasCompactSupport f) :
+    ∫ x, (Measure.modularCharacter x : ℝ)⁻¹ • f x⁻¹ ∂μ = ∫ x, f x ∂μ := by
+  have : μ.inv.IsHaarMeasure := μ.isHaarMeasure_inv_of_isMulRightInvariant
+  have h1 : ∫ x, (Measure.modularCharacter x : ℝ)⁻¹ • f x⁻¹ ∂μ =
+      ∫ x, (Measure.modularCharacter x : ℝ) • f x ∂μ.inv := by
+    rw [integral_inv_measure]
+    congr 1 with x
+    simp only [map_inv, NNReal.coe_inv]
+  rw [h1, ← integral_inv_eq_integral_modularCharacter_smul hf hfc, integral_inv_measure]
+  simp only [inv_inv]
+
+end RightHaarIntegral
 
 end TauCeti
 
@@ -432,6 +557,16 @@ theorem inv_eq_withDensity_modularCharacter_of_regular :
     _ ≤ ν := le_iff.2 fun s hs => by
         rw [hν, withDensity_apply _ hs, withDensity_apply _ hs]
         exact lintegral_mono' (restrict_mono subset_rfl hle) le_rfl
+
+/-- A regular bi-invariant Haar measure on a locally compact group is invariant under inversion. -/
+theorem isInvInvariant_of_isMulRightInvariant [μ.IsMulRightInvariant] :
+    μ.IsInvInvariant := by
+  refine ⟨?_⟩
+  rw [inv_eq_withDensity_modularCharacter_of_regular μ]
+  have h1 : (fun x : G => (modularCharacter x : ℝ≥0∞)) = 1 := by
+    ext x
+    simp [modularCharacter_eq_one_of_isMulRightInvariant (μ := μ) x]
+  rw [h1, withDensity_one]
 
 /-- Inversion maps null sets of a regular Haar measure to null sets: `μ.inv ≪ μ`. Mathlib's
 `MeasureTheory.inv_absolutelyContinuous` needs σ-finiteness instead of regularity. -/
