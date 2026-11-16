@@ -92,4 +92,43 @@ theorem tensorPowerProjection_comp_lift (d : ℕ) (f : M →ₗ[R] N) :
         simp
       · simp
 
+/-- The degree-`1` projection sends a generator `ι R m` to the length-`1` pure tensor. -/
+@[simp]
+theorem tensorPowerProjection_one_ι (m : M) :
+    tensorPowerProjection 1 (ι R m) = PiTensorProduct.tprod R (fun _ : Fin 1 ↦ m) := by
+  simpa using tensorPowerProjection_ι_pow (R := R) 1 m
+
+/-- A positive-degree projection annihilates scalars. -/
+@[simp]
+theorem tensorPowerProjection_algebraMap_of_ne_zero {d : ℕ} (hd : d ≠ 0) (r : R) :
+    tensorPowerProjection (M := M) d (algebraMap R (TensorAlgebra R M) r) = 0 := by
+  rw [Algebra.algebraMap_eq_smul_one, map_smul]
+  have h1 : (1 : TensorAlgebra R M) = tprod R M 0 Fin.elim0 := by
+    simp [tprod_apply]
+  rw [h1, tensorPowerProjection_tprod, dite_eq_right (fun h ↦ absurd h.symm hd), smul_zero]
+
+/-- Two linear maps out of the tensor algebra agree if they agree on every pure tensor
+`TensorAlgebra.tprod R M n m`. -/
+theorem linearMap_ext_tprod {f g : TensorAlgebra R M →ₗ[R] N}
+    (h : ∀ (n : ℕ) (m : Fin n → M), f (tprod R M n m) = g (tprod R M n m)) : f = g := by
+  ext x
+  rw [← ofDirectSum_toDirectSum x]
+  generalize toDirectSum x = y
+  induction y using DirectSum.induction_on with
+  | zero => simp
+  | add x y hx hy => simp [hx, hy]
+  | of n x =>
+    induction x using PiTensorProduct.induction_on with
+    | add x y hx hy => simp [hx, hy]
+    | smul_tprod r m =>
+      simp only [DirectSum.of_smul, map_smul, ofDirectSum_of_tprod, h n m]
+
+/-- Multiplying two pure tensors in the tensor algebra concatenates their factors. -/
+theorem tprod_mul_tprod {m n : ℕ} (f : Fin m → M) (g : Fin n → M) :
+    tprod R M m f * tprod R M n g = tprod R M (m + n) (Fin.append f g) := by
+  rw [tprod_apply, tprod_apply, tprod_apply, ← List.prod_append, ← List.ofFn_fin_append]
+  congr 2
+  funext i
+  refine Fin.addCases ?_ ?_ i <;> simp
+
 end TensorAlgebra

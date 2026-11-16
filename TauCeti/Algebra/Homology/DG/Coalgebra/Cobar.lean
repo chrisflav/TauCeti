@@ -137,6 +137,15 @@ theorem cobarDifferential_mul {p : ℤ} {x : TensorAlgebra R C}
       cobarDifferential G Δ d x * y + p.negOnePow • (x * cobarDifferential G Δ d y) :=
   tensorAlgebraDerivation_mul_of_mem _ _ hx y
 
+/-- The **graded Leibniz rule** of the cobar differential for an arbitrary left factor, expressed
+via the Koszul twist automorphism of the cobar grading. -/
+theorem cobarDifferential_mul_eq (x y : TensorAlgebra R C) :
+    cobarDifferential G Δ d (x * y) =
+      cobarDifferential G Δ d x * y +
+        koszulTwistAlgEquiv (tensorAlgebraPiece (G.shift (-1))) 1 x *
+          cobarDifferential G Δ d y :=
+  tensorAlgebraDerivation_mul _ _ x y
+
 namespace IsNonCounitalDGCoalgebra
 
 variable {G Δ d}
