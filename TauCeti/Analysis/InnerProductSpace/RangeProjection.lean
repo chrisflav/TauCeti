@@ -9,14 +9,16 @@ public import Mathlib.Analysis.Calculus.ContDiff.Operations
 public import Mathlib.Analysis.InnerProductSpace.Adjoint
 public import Mathlib.Analysis.InnerProductSpace.Completion
 public import Mathlib.Analysis.InnerProductSpace.PiL2
+import Mathlib.Analysis.Normed.Module.ContinuousInverse
 import TauCeti.Analysis.InnerProductSpace.Adjoint
 
 /-!
 # The orthogonal projection onto the range of an operator
 
 If `B : F →L[𝕜] V` is an operator between inner product spaces whose Gram operator `B† B` is
-invertible, the orthogonal projection of `V` onto the range of `B` is `B (B† B)⁻¹ B†`. When `F` is
-finite-dimensional, `B† B` is invertible exactly when `B` is injective.
+invertible, the range of `B` is closed and the orthogonal projection of `V` onto the range of `B`
+is `B (B† B)⁻¹ B†`. When `F` is finite-dimensional, `B† B` is invertible exactly when `B` is
+injective.
 
 Over `ℝ` or `ℂ` this formula gives continuity for arbitrary topological parameter spaces
 (`ContinuousAt.starProjection_range`), with no inner product required on the source model.
@@ -29,6 +31,8 @@ complete: the formula is applied after embedding `V` into its completion.
 
 ## Main results
 
+* `ContinuousLinearMap.isClosed_range_of_isUnit_adjoint_comp`: if `B† B` is invertible, then the
+  range of `B` is closed.
 * `ContinuousLinearMap.starProjection_range_eq`: the formula `B (B† B)⁻¹ B†` for the orthogonal
   projection onto the range of `B`.
 * `ContinuousLinearMap.comp_adjoint_eq_starProjection_range`: for an isometry `B` it reduces to
@@ -91,6 +95,14 @@ private theorem contDiffAt_gramLeftInverse
   exact (((compL 𝕜 V F F).bilinearRestrictScalars ℝ).contDiff.contDiffAt.comp A
     (hi.comp (f := fun B : F →L[𝕜] V ↦ adjoint B ∘L B) A hgram.contDiffAt)).clm_apply
       ha.contDiffAt
+
+/-- If the Gram operator `B† B` of a continuous linear map `B` between complete inner product
+spaces is invertible, then the range of `B` is closed. -/
+theorem isClosed_range_of_isUnit_adjoint_comp {B : F →L[𝕜] V}
+    (hB : IsUnit (adjoint B ∘L B)) : IsClosed (Set.range B) :=
+  HasLeftInverse.isClosed_range ⟨gramLeftInverse B, fun x ↦ by
+    rw [gramLeftInverse, comp_apply, ← comp_apply (adjoint B), ← mul_apply_eq_comp,
+      Ring.inverse_mul_cancel _ hB, one_apply_eq_self]⟩
 
 /-- The orthogonal projection onto the range of `B` is `B (B† B)⁻¹ B†`, when the Gram operator
 `B† B` is invertible. -/
