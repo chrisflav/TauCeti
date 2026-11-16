@@ -34,8 +34,9 @@ the dimension.
   `Fintype.card ι` is `(-1) ^ Fintype.card ι * det A`.
 * `Matrix.eval_charpolyRev_eq_det_one_sub_smul`: the value of `det (1 - X A)` at `X = t` is
   `det (1 - t A)`; at `X = 1` this is `Matrix.eval_one_charpolyRev`.
-* `Matrix.charpolyRev_map`, `Matrix.charpolyRev_transpose`, `Matrix.charpolyRev_reindex`:
-  functoriality in the coefficient ring and invariance under transposition and relabelling.
+* `Matrix.charpolyRev_map`, `Matrix.charpolyRev_smul`, `Matrix.charpolyRev_transpose`,
+  `Matrix.charpolyRev_reindex`: functoriality in the coefficient ring, scalar scaling of the
+  indeterminate, and invariance under transposition and relabelling.
 * `Matrix.charpolyRev_eq_charpolyRev_iff`: for matrices of the same size, `det (1 - X A)`
   determines the characteristic polynomial and conversely.
 * `Matrix.charpolyRev_fromBlocks_zero₂₁`, `Matrix.BlockTriangular.charpolyRev`: multiplicativity on
@@ -158,6 +159,15 @@ theorem charpolyRev_map (A : Matrix ι ι R) (f : R →+* S) :
   congr 1
   ext i j
   by_cases h : i = j <;> simp [h]
+
+/-- Scaling a matrix scales the indeterminate in `det (1 - X A)`:
+`det (1 - X (c • A)) = det (1 - (c X) A)`. -/
+theorem charpolyRev_smul (c : R) (A : Matrix ι ι R) :
+    (c • A).charpolyRev = A.charpolyRev.comp (C c * X) := by
+  rw [charpolyRev, charpolyRev, Polynomial.comp, ← Polynomial.coe_eval₂RingHom, RingHom.map_det]
+  congr 1
+  refine Matrix.ext fun i j ↦ ?_
+  by_cases h : i = j <;> simp [h, Matrix.smul_apply, smul_eq_mul] <;> ring
 
 /-- `det (1 - X A)` is unchanged by transposition. -/
 @[simp]

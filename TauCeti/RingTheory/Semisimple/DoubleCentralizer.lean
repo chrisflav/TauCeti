@@ -5,6 +5,7 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.Algebra.Algebra.Pi
 public import Mathlib.LinearAlgebra.Basis.VectorSpace
 public import Mathlib.RingTheory.SimpleRing.Basic
 public import TauCeti.LinearAlgebra.End.Centralizer
@@ -49,6 +50,8 @@ implies the other.
   to an arbitrary family of targets.
 * `Algebra.lsmul_surjective_of_forall_end_eq_smul`: a finite semisimple module with scalar
   commuting endomorphisms has full endomorphism algebra as the image of its action.
+* `Algebra.pi_lsmul_surjective_of_forall_end_eq_smul`: the multi-factor form for finitely many
+  pairwise non-isomorphic finite simple modules with scalar commuting endomorphisms.
 * `TauCeti.algEquivEndEndOfIsSimpleRing`: the finite-dimensional-algebra form, where the finiteness
   hypothesis is supplied by finiteness over a commutative base ring acting compatibly.
 * `Subalgebra.centralizer_centralizer_of_isSemisimpleModule`: the **subalgebra form**. A subalgebra
@@ -231,6 +234,51 @@ theorem _root_.Algebra.lsmul_surjective_of_forall_end_eq_smul
         simpa only [Module.End.smul_def, RingHom.id_apply, hc] using f.map_smul c m }
   obtain ⟨r, hr⟩ := Module.Finite.toModuleEnd_moduleEnd_surjective (R := R) (M := M) f'
   exact ⟨r, LinearMap.ext fun m => LinearMap.congr_fun hr m⟩
+
+/-- **Multi-factor Jacobson density with scalar commutants.** For finitely many pairwise
+non-isomorphic finite simple modules whose `R`-endomorphisms are scalars from `K`, the diagonal
+action `R → ∏ i, End_K (T i)` is surjective. -/
+theorem _root_.Algebra.pi_lsmul_surjective_of_forall_end_eq_smul
+    {K ι : Type*} [CommSemiring K] [Algebra K R] [Finite ι]
+    (T : ι → Type*) [∀ i, AddCommGroup (T i)] [∀ i, Module K (T i)] [∀ i, Module R (T i)]
+    [∀ i, IsScalarTower K R (T i)] [∀ i, Module.Finite K (T i)] [∀ i, IsSimpleModule R (T i)]
+    (hne : ∀ i j, Nonempty (T i ≃ₗ[R] T j) → i = j)
+    (hscalar : ∀ i (g : Module.End R (T i)), ∃ c : K, ∀ x : T i, g x = c • x) :
+    Function.Surjective
+      (AlgHom.pi fun i ↦ (Algebra.lsmul K K (T i) : R →ₐ[K] Module.End K (T i))) := by
+  classical
+  let _ : Fintype ι := Fintype.ofFinite ι
+  let X := ∀ i, T i
+  have : Module.Finite (Module.End R X) X := Module.Finite.of_restrictScalars_finite K _ _
+  -- Every `R`-endomorphism of `∏ i, T i` acts by a `K`-scalar on each coordinate `T i`.
+  have hdiag (φ : Module.End R X) (i : ι) : ∃ c : K, ∀ x : X, φ x i = c • x i := by
+    obtain ⟨c, hc⟩ := hscalar i (LinearMap.proj i ∘ₗ φ ∘ₗ LinearMap.single R T i)
+    refine ⟨c, fun x ↦ ?_⟩
+    have hx : x = ∑ j : ι, LinearMap.single R T j (x j) := by
+      ext m
+      simp [Finset.sum_apply]
+    conv_lhs => rw [hx, map_sum, Finset.sum_apply]
+    rw [Finset.sum_eq_single i]
+    · exact hc (x i)
+    · intro j _ hji
+      rcases LinearMap.bijective_or_eq_zero
+          (LinearMap.proj (R := R) i ∘ₗ φ ∘ₗ LinearMap.single R T j) with hbij | hzero
+      · exact (hji (hne j i ⟨LinearEquiv.ofBijective _ hbij⟩)).elim
+      · exact LinearMap.congr_fun hzero (x j)
+    · intro hi; exact (hi (Finset.mem_univ i)).elim
+  intro f
+  let F : Module.End (Module.End R X) X :=
+    { toFun x i := f i (x i)
+      map_add' x y := by ext i; exact (f i).map_add (x i) (y i)
+      map_smul' φ x := by
+        ext i
+        obtain ⟨c, hc⟩ := hdiag φ i
+        simp only [Module.End.smul_def, RingHom.id_apply, hc, map_smul] }
+  obtain ⟨r, hr⟩ := Module.Finite.toModuleEnd_moduleEnd_surjective (R := R) (M := X) F
+  refine ⟨r, funext fun i ↦ LinearMap.ext fun y ↦ ?_⟩
+  have h := congrArg (fun g : Module.End (Module.End R X) X ↦ g (Pi.single i y) i) hr
+  simpa [X, F, AlgHom.pi_apply, Algebra.lsmul_coe, Module.toModuleEnd_apply,
+    Pi.smul_apply, Pi.single_eq_same] using h
 
 variable (R M)
 
