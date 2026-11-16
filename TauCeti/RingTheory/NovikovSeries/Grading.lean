@@ -5,7 +5,9 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import TauCeti.RingTheory.NovikovSeries.Map
 public import TauCeti.RingTheory.NovikovSeries.Multiplication
+public import TauCeti.RingTheory.NovikovSeries.Topology
 public import Mathlib.Algebra.MonoidAlgebra.Grading
 
 /-!
@@ -14,8 +16,10 @@ public import Mathlib.Algebra.MonoidAlgebra.Grading
 Let `f : H → ι` be a degree function on the exponents of Novikov series. A Novikov series is
 *homogeneous of degree `i`* when its support lies in the fibre `f ⁻¹' {i}`. These series form the
 submodule `TauCeti.NovikovSeries.gradeBy R N f i`, the Novikov analogue of Mathlib's
-`AddMonoidAlgebra.gradeBy`. For an additive degree function the pieces multiply as a graded
-monoid, and they are independent.
+`AddMonoidAlgebra.gradeBy`. Each homogeneous piece is closed in the period topology. For an
+additive degree function the pieces multiply as a graded monoid, and they are independent. A
+pushforward along an exponent homomorphism fitting into a commuting degree square preserves
+homogeneous pieces (`TauCeti.NovikovSeries.map_mem_gradeBy`).
 
 Unlike the group ring, the Novikov ring is in general *not* the direct sum of its homogeneous
 pieces: a series whose support meets infinitely many fibres is not a finite sum of homogeneous
@@ -33,9 +37,15 @@ theory on a spherically monotone symplectic manifold, graded by twice the first 
 
 ## Main results
 
+* `TauCeti.NovikovSeries.isClosed_supported` and `TauCeti.NovikovSeries.isClosed_gradeBy`:
+  support restrictions and homogeneous pieces are closed in the period topology.
 * `TauCeti.NovikovSeries.gradeBy.gradedMonoid`: for an additive degree function, the homogeneous
   pieces form a graded monoid.
 * `TauCeti.NovikovSeries.iSupIndep_gradeBy`: the homogeneous pieces are independent.
+* `TauCeti.NovikovSeries.map_mem_gradeBy`: a pushforward fitting into a commuting degree square
+  sends homogeneous series to homogeneous series.
+* `TauCeti.NovikovSeries.single_mul_mem_gradeBy_iff`: multiplying by a degree-zero monomial with
+  unit coefficient preserves and reflects homogeneous pieces.
 * `TauCeti.NovikovSeries.ofAddMonoidAlgebra_mem_gradeBy_iff`: the inclusion of the group ring
   preserves and reflects the degree.
 * `TauCeti.NovikovSeries.finite_support_of_mem_gradeBy`: a homogeneous series is finitely
@@ -171,7 +181,70 @@ instance gradeBy.gradedMonoid [AddMonoid H] {N : H →+ ℝ} [AddMonoid ι] (f :
     obtain ⟨u, hu, v, hv, rfl⟩ := support_mul_subset a b hh
     rw [mem_preimage, mem_singleton_iff, map_add, (ha hu : f u = i), (hb hv : f v = j)]
 
+/-- Multiplying on the left by a monomial of degree `0` preserves every homogeneous piece. -/
+theorem single_mul_mem_gradeBy_of_map_eq_zero [AddMonoid H] {N : H →+ ℝ} [AddMonoid ι]
+    {f : H →+ ι} {g : H} (hg : f g = 0) (r : R) {i : ι} {a : NovikovSeries R H N}
+    (ha : a ∈ gradeBy R N f i) : single g r * a ∈ gradeBy R N f i := by
+  have h0 : (single g r : NovikovSeries R H N) ∈ gradeBy R N f 0 := hg ▸ single_mem_gradeBy f g r
+  simpa only [zero_add] using SetLike.mul_mem_graded h0 ha
+
+/-- Over an additive group of exponents, multiplying by a degree-zero monomial with unit
+coefficient preserves and reflects every homogeneous piece. -/
+theorem single_mul_mem_gradeBy_iff [AddGroup H] {N : H →+ ℝ} [AddMonoid ι] {f : H →+ ι}
+    {g : H} (hg : f g = 0) (u : Rˣ) {i : ι} {a : NovikovSeries R H N} :
+    single g (u : R) * a ∈ gradeBy R N f i ↔ a ∈ gradeBy R N f i := by
+  refine ⟨fun ha => ?_, single_mul_mem_gradeBy_of_map_eq_zero hg (u : R)⟩
+  have hneg : f (-g) = 0 := by
+    have := map_add f (-g) g
+    rw [neg_add_cancel, map_zero, hg, add_zero] at this
+    exact this.symm
+  have h := single_mul_mem_gradeBy_of_map_eq_zero hneg (↑u⁻¹ : R) ha
+  simpa only [← mul_assoc, single_mul_single, neg_add_cancel, Units.inv_mul, single_zero_one,
+    one_mul] using h
+
 end Semiring
+
+section Closed
+
+variable [Ring R] [AddZeroClass H] {N : H →+ ℝ}
+
+/-- The series supported in a given set of exponents form a closed submodule in the period
+topology. -/
+theorem isClosed_supported (s : Set H) :
+    IsClosed (supported R N s : Set (NovikovSeries R H N)) := by
+  have h : (supported R N s : Set (NovikovSeries R H N)) =
+      ⋂ h ∈ sᶜ, (fun a : NovikovSeries R H N => a.coeff h) ⁻¹' {0} := by
+    ext a
+    simp only [SetLike.mem_coe, mem_supported, subset_def, mem_support, mem_iInter, mem_compl_iff,
+      mem_preimage, mem_singleton_iff]
+    exact ⟨fun ha h hs => by_contra fun hc => hs (ha h hc),
+      fun ha h hc => by_contra fun hs => hc (ha h hs)⟩
+  rw [h]
+  exact isClosed_biInter fun h _ => (isLocallyConstant_coeff (R := R) (N := N) h).isClosed_fiber 0
+
+/-- Each homogeneous piece `gradeBy R N f i` is closed in the period topology. -/
+theorem isClosed_gradeBy (f : H → ι) (i : ι) :
+    IsClosed (gradeBy R N f i : Set (NovikovSeries R H N)) :=
+  isClosed_supported (f ⁻¹' {i})
+
+end Closed
+
+section Map
+
+variable {S H' ι' : Type*} [Semiring R] [Semiring S] [AddZeroClass H] [AddZeroClass H']
+  {N : H →+ ℝ} {N' : H' →+ ℝ}
+
+/-- Pushforward along an exponent homomorphism fitting into a commuting degree square sends
+homogeneous series of degree `i` to homogeneous series of degree `ψ i`. -/
+theorem map_mem_gradeBy (ρ : R →+ S) (φ : H →+ H') (hφ : ∃ c > 0, ∀ h, N' (φ h) = c * N h)
+    {f : H → ι} {f' : H' → ι'} {ψ : ι → ι'} (hdeg : ∀ h, f' (φ h) = ψ (f h))
+    {i : ι} {a : NovikovSeries R H N} (ha : a ∈ gradeBy R N f i) :
+    map ρ φ hφ a ∈ gradeBy S N' f' (ψ i) := by
+  intro h' hh'
+  obtain ⟨h, hh, rfl⟩ := support_map_subset ρ φ hφ a hh'
+  rw [mem_preimage, mem_singleton_iff, hdeg h, (ha hh : f h = i)]
+
+end Map
 
 /-- The inclusion of the group ring into the Novikov series preserves and reflects the degree. -/
 theorem ofAddMonoidAlgebra_mem_gradeBy_iff [CommSemiring R] [AddMonoid H] {N : H →+ ℝ}
