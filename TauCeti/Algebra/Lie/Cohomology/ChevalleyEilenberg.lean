@@ -43,6 +43,7 @@ the differential with `d₀₁`, Mathlib's `d₁₂` and, after forgetting alter
 * `TauCeti.LieModule.Cohomology.cohomology`: Lie algebra cohomology in degree `n`.
 * `TauCeti.LieModule.Cohomology.oneCochainEquiv`, `TauCeti.LieModule.Cohomology.twoCochainEquiv`:
   the comparison with the low-degree cochains.
+* `TauCeti.LieModule.Cohomology.cohomologyZeroEquiv`: the identification `H⁰(L, M) ≃ₗ[R] M^L`.
 
 ## Main results
 
@@ -302,6 +303,32 @@ noncomputable abbrev cohomology (n : ℕ) : ModuleCat R :=
   (cochainComplex R L M).homology n
 
 /-! ### Comparison with the low-degree cochains -/
+
+/-- Degree-zero Lie algebra cohomology is linearly equivalent to the submodule
+`LieModule.maxTrivSubmodule R L M` of `L`-invariant elements of `M`. -/
+noncomputable def cohomologyZeroEquiv :
+    cohomology R L M 0 ≃ₗ[R] LieModule.maxTrivSubmodule R L M := by
+  let K := cochainComplex R L M
+  let e0 : (L [⋀^Fin 0]→ₗ[R] M) ≃ₗ[R] M :=
+    (constLinearEquivOfIsEmpty (R' := R) (M'' := L) (N'' := M) (ι := Fin 0)).symm
+  have hker : (LinearMap.ker (d R L M 0)).map e0.toLinearMap =
+      (LieModule.maxTrivSubmodule R L M).toSubmodule := by
+    ext m
+    simp only [Submodule.mem_map, LinearMap.mem_ker, LieSubmodule.mem_toSubmodule,
+      LieModule.mem_maxTrivSubmodule]
+    refine ⟨?_, fun hm ↦ ⟨e0.symm m, ?_, by simp⟩⟩
+    · rintro ⟨ω, hω, rfl⟩ x
+      have h0 := congrArg (fun f : L [⋀^Fin 1]→ₗ[R] M ↦ f ![x]) hω
+      simpa [e0, d_zero_apply] using h0
+    · ext v
+      simp [e0, d_zero_apply, hm (v 0)]
+  have hg : (K.sc' 0 0 1).g = ModuleCat.ofHom (d R L M 0) := cochainComplex_d_succ R L M 0
+  let eKer : LinearMap.ker ((K.sc' 0 0 1).g.hom) ≃ₗ[R] LinearMap.ker (d R L M 0) :=
+    LinearEquiv.ofEq _ _ (congrArg (fun f : K.X 0 ⟶ K.X 1 ↦ LinearMap.ker f.hom) hg)
+  let eInv : LinearMap.ker (d R L M 0) ≃ₗ[R] LieModule.maxTrivSubmodule R L M :=
+    e0.ofSubmodules _ _ hker
+  exact (K.isoHomologyπ₀.symm ≪≫ K.cyclesIsoSc' 0 0 1 (by simp) (by simp) ≪≫
+    (K.sc' 0 0 1).moduleCatCyclesIso).toLinearEquiv.trans (eKer.trans eInv)
 
 omit [LieRingModule L M] [LieModule R L M] in
 /-- One-cochains are linear maps. -/
