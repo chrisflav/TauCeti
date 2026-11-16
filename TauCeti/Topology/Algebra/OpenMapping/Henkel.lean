@@ -6,17 +6,20 @@ Authors: The Tau Ceti contributors
 module
 
 public import TauCeti.Topology.Algebra.OpenMapping.Complete
+public import Mathlib.Topology.Algebra.Module.ContinuousLinearMap.Basic
 public import Mathlib.Topology.Maps.Strict.Module
 public import Mathlib.Topology.Metrizable.CompletelyMetrizable
 import Mathlib.Topology.Baire.CompleteMetrizable
 import TauCeti.Topology.Algebra.Module.Submodule
 
 /-!
-# Henkel's open mapping theorem
+# The open mapping theorem over rings with a zero sequence of units
 
-A surjective equivariant additive map out of a complete first-countable nonarchimedean group is
+A surjective equivariant additive map out of a complete first-countable uniform additive group is
 open, provided the scalars carry a zero sequence of units and the target is a Baire space. This
-file assembles that statement from the pieces built around it.
+includes both Henkel's open mapping theorem over Tate rings and the Banach–Schauder / Fréchet open
+mapping theorem over nontrivially normed fields such as `ℝ` and `ℂ` (for which
+`TauCeti.NormedRing.IsTate.hasZeroSequenceOfUnits` supplies the zero sequence of units).
 
 Each hypothesis pays for one step and no other.
 
@@ -24,23 +27,27 @@ Each hypothesis pays for one step and no other.
   `TauCeti.HasZeroSequenceOfUnits.closure_image_mem_nhds_zero`: the *closure* of the image of a
   neighbourhood of zero is a neighbourhood of zero. Supplying that closure step is the only use
   the Baire hypothesis is put to here; whether a weaker hypothesis would do is not addressed.
-* Nonarchimedean plus countable generation of `𝓝 0` turn that into a sequence of subgroups
-  (`TauCeti.NonarchimedeanAddGroup.exists_antitone_basis_openAddSubgroup`) along which the
-  approximation can run.
-* Completeness removes the closure, in `TauCeti.mem_image_of_mem_closure_image`.
+* Countable generation of `𝓝 0` produces a halving neighbourhood basis
+  (`IsTopologicalAddGroup.exists_antitone_basis_nhds_zero`) along which the approximation runs.
+* Completeness removes the closure, in `TauCeti.mem_image_closure_of_mem_closure_image`.
 
 The last two steps do not depend on how the closure step was obtained, and are packaged as
 `TauCeti.isOpenMap_of_closure_image_mem_nhds`; this file feeds the Baire step into it.
 
 ## Main results
 
-* `TauCeti.HasZeroSequenceOfUnits.isOpenMap`: Henkel's open mapping theorem.
+* `TauCeti.HasZeroSequenceOfUnits.isOpenMap`: the open mapping theorem for Baire targets.
 * `TauCeti.HasZeroSequenceOfUnits.isQuotientMap`: the surjective map in `isOpenMap` induces the
   quotient topology on its target, so the target's topology is determined by the source's.
+* `TauCeti.HasZeroSequenceOfUnits.isOpenMap_of_completeSpace` and
+  `TauCeti.HasZeroSequenceOfUnits.isQuotientMap_of_completeSpace`: the complete first-countable
+  uniform target forms (in particular covering Fréchet spaces and F-spaces), deriving the Baire
+  property from `IsUniformAddGroup.uniformity_countably_generated`.
 * `LinearMap.isStrictMap_of_isClosed_range_of_hasZeroSequenceOfUnits`: over a ring with a zero
-  sequence of units, closed-range linear maps from a complete first-countable nonarchimedean
-  module into a completely metrisable module are strict, assuming continuity at zero for the map
-  and for the scalar action on the source, and continuity of constant scalar actions on the target.
+  sequence of units, closed-range linear maps from a complete first-countable uniform additive
+  module into a completely metrisable module are strict.
+* `ContinuousLinearMap.isOpenMap_of_hasZeroSequenceOfUnits` and
+  `ContinuousLinearMap.isOpenMap_of_completeSpace`: continuous linear map forms.
 
 The other two implications of Wedhorn's Theorem 6.16, that an open linear map is surjective and that
 a continuous one has a complete target, are in `TauCeti.Topology.Algebra.OpenMapping.Converse`.
@@ -48,11 +55,13 @@ a continuous one has a complete target, are in `TauCeti.Topology.Algebra.OpenMap
 Mathlib's `MonoidHom.isOpenMap_of_sigmaCompact` proves openness for a continuous surjection from
 a σ-compact source onto a T2 Baire target group (locally compact groups being the standard
 example of such a target). Neither theorem implies the other: both ask the target to be Baire,
-but this one asks the *source* to be complete, first countable and nonarchimedean where that one
-asks it to be σ-compact, and neither of those conditions implies the other.
+but this one asks the *source* to be complete and first countable where that one asks it to be
+σ-compact, and neither of those conditions implies the other.
 
 ## References
 
+* N. Bourbaki, *Topological Vector Spaces*, Chapter I, §3, no. 3, Theorem 1.
+* J.-P. Demailly, *Complex Analytic and Differential Geometry*, Chapter IX, Theorem 1.7.
 * L. Henkel, *An Open Mapping Theorem for rings which have a zero sequence of units*,
   [arXiv:1407.5647](https://arxiv.org/abs/1407.5647).
 * T. Wedhorn, *Adic Spaces*, Theorem 6.16.
@@ -61,18 +70,22 @@ asks it to be σ-compact, and neither of those conditions implies the other.
 public section
 
 open Filter Topology
+open scoped Uniformity
 
 namespace TauCeti
 
 variable {A M N : Type*} [MonoidWithZero A] [TopologicalSpace A] [HasZeroSequenceOfUnits A]
   [AddCommGroup M] [UniformSpace M] [IsUniformAddGroup M] [CompleteSpace M]
-  [(𝓝 (0 : M)).IsCountablyGenerated] [NonarchimedeanAddGroup M] [MulActionWithZero A M]
-  [AddGroup N] [TopologicalSpace N] [IsTopologicalAddGroup N] [T0Space N] [BaireSpace N]
+  [(𝓝 (0 : M)).IsCountablyGenerated] [MulActionWithZero A M]
+
+section Baire
+
+variable [AddGroup N] [TopologicalSpace N] [IsTopologicalAddGroup N] [T0Space N] [BaireSpace N]
   [MulAction A N] [ContinuousConstSMul A N]
 
-/-- **Henkel's open mapping theorem.** A surjective `A`-equivariant additive map from a complete
-first-countable nonarchimedean group to a Baire space is open, when `A` has a zero sequence of
-units.
+/-- **Open mapping theorem for Baire targets.** A surjective `A`-equivariant additive map from a
+complete first-countable uniform additive group to a `T0` Baire topological group is open, when
+`A` has a zero sequence of units.
 
 Only continuity at zero is asked of `f`, and only continuity in the scalar at zero is asked of
 the action, in the form `hc` that the Baire step already uses. -/
@@ -83,7 +96,7 @@ theorem HasZeroSequenceOfUnits.isOpenMap {F : Type*} [FunLike F M N] [MulActionH
   isOpenMap_of_closure_image_mem_nhds f hfc fun _ hU ↦
     HasZeroSequenceOfUnits.closure_image_mem_nhds_zero f hf hc hU
 
-/-- **Henkel's theorem in quotient form.** Under exactly the hypotheses of
+/-- **Open mapping theorem in quotient form.** Under the hypotheses of
 `TauCeti.HasZeroSequenceOfUnits.isOpenMap`, the map does not merely carry open sets to open sets:
 the topology of `N` is the one coinduced from `M`, so a map out of `N` is continuous exactly when
 its composite with `f` is.
@@ -100,6 +113,39 @@ theorem HasZeroSequenceOfUnits.isQuotientMap {F : Type*} [FunLike F M N]
   have hcont : Continuous (f : M → N) := continuous_of_continuousAt_zero f hfc
   (HasZeroSequenceOfUnits.isOpenMap f hf hfc hc).isQuotientMap hcont hf
 
+end Baire
+
+section CompleteTarget
+
+variable [AddGroup N] [UniformSpace N] [IsUniformAddGroup N] [CompleteSpace N]
+  [(𝓝 (0 : N)).IsCountablyGenerated] [T0Space N] [MulAction A N] [ContinuousConstSMul A N]
+
+/-- **Open mapping theorem for complete first-countable uniform targets.** A surjective
+`A`-equivariant additive map between complete first-countable uniform additive groups (with `T0`
+target) is open whenever `A` has a zero sequence of units.
+
+This bridges complete first-countable uniform additive groups (such as Fréchet spaces and F-spaces)
+to `TauCeti.HasZeroSequenceOfUnits.isOpenMap` via
+`IsUniformAddGroup.uniformity_countably_generated` and `BaireSpace.of_completelyPseudoMetrizable`.
+-/
+theorem HasZeroSequenceOfUnits.isOpenMap_of_completeSpace {F : Type*} [FunLike F M N]
+    [MulActionHomClass F A M N] [AddMonoidHomClass F M N] (f : F) (hf : Function.Surjective f)
+    (hfc : ContinuousAt (f : M → N) 0) (hc : ∀ x : M, ContinuousAt (fun a : A ↦ a • x) 0) :
+    IsOpenMap (f : M → N) := by
+  have : (𝓤 N).IsCountablyGenerated := IsUniformAddGroup.uniformity_countably_generated
+  have : BaireSpace N := BaireSpace.of_completelyPseudoMetrizable
+  exact HasZeroSequenceOfUnits.isOpenMap f hf hfc hc
+
+/-- **Quotient form of the open mapping theorem for complete first-countable uniform targets.** -/
+theorem HasZeroSequenceOfUnits.isQuotientMap_of_completeSpace {F : Type*} [FunLike F M N]
+    [MulActionHomClass F A M N] [AddMonoidHomClass F M N] (f : F) (hf : Function.Surjective f)
+    (hfc : ContinuousAt (f : M → N) 0) (hc : ∀ x : M, ContinuousAt (fun a : A ↦ a • x) 0) :
+    IsQuotientMap (f : M → N) :=
+  have hcont : Continuous (f : M → N) := continuous_of_continuousAt_zero f hfc
+  (HasZeroSequenceOfUnits.isOpenMap_of_completeSpace f hf hfc hc).isQuotientMap hcont hf
+
+end CompleteTarget
+
 end TauCeti
 
 namespace LinearMap
@@ -108,13 +154,13 @@ open TopologicalSpace
 
 variable {R E F : Type*} [Ring R] [TopologicalSpace R] [TauCeti.HasZeroSequenceOfUnits R]
   [AddCommGroup E] [UniformSpace E] [IsUniformAddGroup E] [CompleteSpace E]
-  [(𝓝 (0 : E)).IsCountablyGenerated] [NonarchimedeanAddGroup E] [Module R E]
+  [(𝓝 (0 : E)).IsCountablyGenerated] [Module R E]
   [AddCommGroup F] [TopologicalSpace F] [IsTopologicalAddGroup F]
   [IsCompletelyMetrizableSpace F] [Module R F] [ContinuousConstSMul R F]
 
 /-- A linear map with closed range is strict when the scalar ring has a zero sequence of units,
-the source is complete, first countable and nonarchimedean, and the target is completely
-metrisable. Only continuity at zero is needed for the map and for scalar multiplication.
+the source is complete and first countable, and the target is completely metrisable. Only
+continuity at zero is needed for the map and for scalar multiplication.
 
 The target's additive operations need only be continuous: no uniform structure on the target
 or uniform continuity of its operations is assumed. -/
@@ -132,5 +178,31 @@ theorem isStrictMap_of_isClosed_range_of_hasZeroSequenceOfUnits (f : E →ₗ[R]
         hcont.continuousAt hc⟩
 
 end LinearMap
+
+namespace ContinuousLinearMap
+
+variable {R E F : Type*} [Semiring R] [TopologicalSpace R] [TauCeti.HasZeroSequenceOfUnits R]
+  [AddCommGroup E] [UniformSpace E] [IsUniformAddGroup E] [CompleteSpace E]
+  [(𝓝 (0 : E)).IsCountablyGenerated] [Module R E] [ContinuousSMul R E]
+
+/-- **Open mapping theorem for continuous linear maps into Baire targets.** A surjective continuous
+linear map from a complete first-countable uniform topological module into a `T0` Baire topological
+module over a ring with a zero sequence of units is open. -/
+theorem isOpenMap_of_hasZeroSequenceOfUnits [AddCommGroup F] [TopologicalSpace F]
+    [IsTopologicalAddGroup F] [T0Space F] [BaireSpace F] [Module R F] [ContinuousConstSMul R F]
+    (f : E →L[R] F) (hf : Function.Surjective f) : IsOpenMap f :=
+  TauCeti.HasZeroSequenceOfUnits.isOpenMap f hf f.continuous.continuousAt fun _ ↦
+    (continuous_id.smul continuous_const).continuousAt
+
+/-- **Fréchet / F-space open mapping theorem.** A surjective continuous linear map between complete
+first-countable uniform topological modules (with `T0` target) over a ring with a zero sequence of
+units (such as `ℝ`, `ℂ`, any nontrivially normed field, or any Tate ring) is open. -/
+theorem isOpenMap_of_completeSpace [AddCommGroup F] [UniformSpace F] [IsUniformAddGroup F]
+    [CompleteSpace F] [(𝓝 (0 : F)).IsCountablyGenerated] [T0Space F] [Module R F]
+    [ContinuousConstSMul R F] (f : E →L[R] F) (hf : Function.Surjective f) : IsOpenMap f :=
+  TauCeti.HasZeroSequenceOfUnits.isOpenMap_of_completeSpace f hf f.continuous.continuousAt fun _ ↦
+    (continuous_id.smul continuous_const).continuousAt
+
+end ContinuousLinearMap
 
 end
