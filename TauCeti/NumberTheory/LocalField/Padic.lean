@@ -42,7 +42,8 @@ concrete p-adic norm and valuation APIs.
   of the ring of integers.
 * `Padic.normalizedValuationWithZero_eq_inv_mulValuation`: the zero-preserving normalized valuation
   on `ℚ_[p]` is the inverse of `Padic.mulValuation`.
-* `Padic.natCard_residueField` computes the residue-field cardinality of `ℚ_[p]`.
+* `Padic.natCard_residueField` and `Padic.ringChar_residueField` compute the residue-field
+  cardinality and characteristic of `ℚ_[p]`.
 * `Padic.normalizedAbsoluteValue_eq_nnnorm` identifies the normalized absolute value with
   Mathlib's norm on `ℚ_[p]`.
 * `Padic.natCastValuation_eq_padicValNat` identifies the normalized valuation of a natural
@@ -219,6 +220,14 @@ theorem natCastValuation_self :
     TauCeti.natCastValuation ℚ_[p] p (Nat.cast_ne_zero.mpr (Fact.out : p.Prime).ne_zero) = 1 := by
   rw [natCastValuation_eq_padicValNat, Nat.padicValNat_def,
     Nat.multiplicity_self (Fact.out : p.Prime).one_lt]
+
+/-- The residue characteristic of `ℚ_[p]` is `p`. -/
+@[simp]
+theorem ringChar_residueField : ringChar 𝓀[ℚ_[p]] = p := by
+  have hp : p.Prime := Fact.out
+  have hpK : (p : ℚ_[p]) ≠ 0 := Nat.cast_ne_zero.mpr hp.ne_zero
+  exact (TauCeti.natCastValuation_ne_zero_iff_ringChar_eq ℚ_[p] hp hpK).mp
+    (by rw [natCastValuation_self]; exact one_ne_zero)
 
 /-- The normalized valuation of `2` in `ℚ_[p]` vanishes for every odd `p`. -/
 theorem natCastValuation_two (hp : p ≠ 2) :
