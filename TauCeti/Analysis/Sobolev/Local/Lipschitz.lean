@@ -10,40 +10,55 @@ public import TauCeti.Analysis.Sobolev.Local.Basic
 import TauCeti.Analysis.Sobolev.WeakDeriv.Lipschitz
 
 /-!
-# Lipschitz maps are in every local `W^{1,p}` class
+# Locally Lipschitz maps are in every local `W^{1,p}` class
 
-A globally Lipschitz map from the plane into a finite-dimensional space is in the local class
-`W^{1,p}` on every set, for every exponent (`LipschitzWith.memWkpLoc_one`). By Rademacher's
-theorem its Fréchet derivative is a weak derivative, and that derivative is bounded by the
-Lipschitz constant.
+A map between finite-dimensional real normed spaces that is locally Lipschitz on an open set `Ω`
+lies in the local class `W^{1,p}` on every subset `U ⊆ Ω`, for every exponent `p` including `p = ∞`
+and `0 ≤ p < 1` (`LocallyLipschitzOn.memWkpLoc_one`), with respect to any additive Haar measure.
+In particular, every globally Lipschitz map is in `W^{1,p}_loc` on every set
+(`LipschitzWith.memWkpLoc_one`). By Rademacher's theorem its Fréchet derivative is a weak
+derivative, and it is locally bounded by the local Lipschitz constants.
 
 ## References
 
 * D. McDuff and D. Salamon, *J-holomorphic Curves and Symplectic Topology*, second edition,
   Appendix B.1.
+* L. C. Evans and R. F. Gariepy, *Measure Theory and Fine Properties of Functions*, revised ed.,
+  §4.2.3, Theorem 4.5.
 -/
 
 public section
 
-open MeasureTheory TopologicalSpace Filter
+open MeasureTheory TopologicalSpace Filter Set
 
 namespace TauCeti
 
-variable {F : Type*} [NormedAddCommGroup F] [NormedSpace ℝ F] {p : ENNReal} {U : Set ℂ}
+variable {E F : Type*} [NormedAddCommGroup E] [NormedSpace ℝ E] [FiniteDimensional ℝ E]
+  [MeasurableSpace E] [BorelSpace E] {μ : Measure E} [μ.IsAddHaarMeasure]
+  [NormedAddCommGroup F] [NormedSpace ℝ F] {p : ENNReal} {U : Set E}
 
-/-- A globally Lipschitz map from the plane into a finite-dimensional space is in the local
-class `W^{1,p}` on every set, for every exponent: its Fréchet derivative is a weak derivative
-bounded by the Lipschitz constant. -/
-theorem _root_.LipschitzWith.memWkpLoc_one [FiniteDimensional ℝ F] {K : NNReal} {u : ℂ → F}
-    (hu : LipschitzWith K u) : MemWkpLoc p U 1 u := by
-  refine memWkpLoc_succ_iff.2 ⟨hu.continuous.continuousOn.memLpLoc, fderiv ℝ u, ?_,
-    memWkpLoc_zero_iff.2 ?_⟩
-  · have hΩ : LocallyLipschitzOn ((⊤ : Opens ℂ) : Set ℂ) u :=
-      hu.locallyLipschitz.locallyLipschitzOn
-    exact (hΩ.hasWeakFDerivOn_fderiv (μ := volume)).mono le_top
-  · refine memLpLoc_iff.2 fun L _ hL => ?_
-    have : IsFiniteMeasure (volume.restrict L) := ⟨by simpa using hL.measure_lt_top⟩
-    exact MemLp.of_bound (measurable_fderiv ℝ u).aestronglyMeasurable K
-      (Eventually.of_forall fun _ => norm_fderiv_le_of_lipschitz ℝ hu)
+/-- A map between finite-dimensional real normed spaces that is locally Lipschitz on an open set
+`Ω` lies in `MemWkpLoc p U 1` on every `U ⊆ Ω`, for every exponent `p`: by Rademacher's theorem its
+Fréchet derivative is a weak derivative on `Ω`, and it is bounded on every compact subset of `U` by
+a Lipschitz constant on a slightly larger compact neighbourhood. -/
+theorem _root_.LocallyLipschitzOn.memWkpLoc_one [FiniteDimensional ℝ F] {Ω : Opens E}
+    {u : E → F} (hu : LocallyLipschitzOn (Ω : Set E) u) (hU : U ⊆ Ω) :
+    MemWkpLoc p U 1 u μ := by
+  refine memWkpLoc_one_iff.2 ⟨(hu.continuousOn.mono hU).memLpLoc, fderiv ℝ u,
+    (hu.hasWeakFDerivOn_fderiv (μ := μ)).mono (interior_subset.trans hU),
+    memLpLoc_iff.2 fun K hKU hK => ?_⟩
+  obtain ⟨W, hKW, hWΩ, hWc⟩ := Opens.exists_between_and_isCompact_closure hK (hKU.trans hU)
+  obtain ⟨C, hC⟩ := (hu.mono hWΩ).exists_lipschitzOnWith_of_compact hWc
+  have : IsFiniteMeasure (μ.restrict K) := ⟨by simpa using hK.measure_lt_top⟩
+  refine MemLp.of_bound (measurable_fderiv ℝ u).aestronglyMeasurable C ?_
+  filter_upwards [ae_restrict_mem hK.measurableSet] with x hx
+  exact norm_fderiv_le_of_lipschitzOn ℝ (W.isOpen.mem_nhds (hKW hx)) (hC.mono subset_closure)
+
+/-- A globally Lipschitz map between finite-dimensional real normed spaces is in the local class
+`W^{1,p}` on every set, for every exponent: its Fréchet derivative is a weak derivative bounded by
+the Lipschitz constant. -/
+theorem _root_.LipschitzWith.memWkpLoc_one [FiniteDimensional ℝ F] {K : NNReal} {u : E → F}
+    (hu : LipschitzWith K u) : MemWkpLoc p U 1 u μ :=
+  hu.locallyLipschitz.locallyLipschitzOn.memWkpLoc_one (Ω := ⊤) (subset_univ U)
 
 end TauCeti
