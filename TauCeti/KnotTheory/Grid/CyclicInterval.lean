@@ -34,6 +34,8 @@ directions before taking products.
 
 ## Main results
 
+* `TauCeti.Grid.mem_cIoo_of_val_lt`: in the non-wrapping case `a.val < b.val`, `cIoo a b` is the
+  ordinary strict interval.
 * `TauCeti.Grid.disjoint_cIoo_swap`: opposite open arcs are disjoint.
 * `TauCeti.Grid.mem_cIoo_or_mem_cIoo_swap_iff`: a point lies in one opposite arc exactly when
   it is not an endpoint.
@@ -66,9 +68,12 @@ directions before taking products.
 * `TauCeti.Grid.mem_cIco`: membership in the clockwise half-open arc.
 * `TauCeti.Grid.card_cIco`: the length of a half-open arc in standard representatives.
 * `TauCeti.Grid.cIco_union_swap`: opposite nondegenerate half-open arcs partition the grid.
+* `TauCeti.Grid.cIco_eq_cIco_iff`: nondegenerate half-open arcs are determined by their endpoints.
 * `TauCeti.Grid.cIco_union_cIco_eq_cIco_of_mem_cIoo`: an interior point cuts a half-open arc
   into two adjacent half-open arcs.
 * `TauCeti.Grid.disjoint_cIco_cIco_of_mem_cIoo`: the two pieces of such a cut are disjoint.
+* `TauCeti.Grid.notMem_cIco_of_mem_cIoo`: if `b` lies strictly between `a` and `c`, then `c`
+  misses the half-open arc from `a` to `b`.
 * `TauCeti.Grid.ite_eq_or_mem_cIoo_eq_add_add`: a cut at two points partitions a closed-end
   cyclic-order test into three disjoint cases, counted in `ℕ`.
 * `TauCeti.Grid.cIoo_union_insert_cIoo_eq_cIoo_of_mem_cIoo`: an interior point cuts an open arc
@@ -171,6 +176,13 @@ theorem mem_cIoo (a b x : Fin n) :
       rcases (by simpa [hab] using h.2) with hax | hxb
       · exact Or.inr (Or.inr ⟨hba, hax⟩)
       · exact Or.inr (Or.inl ⟨hxb, hba⟩)
+
+/-- For a non-wrapping pair `a.val < b.val`, membership in `cIoo a b` is the ordinary strict
+interval inequality. -/
+theorem mem_cIoo_of_val_lt {a b x : Fin n} (hab : a.val < b.val) :
+    x ∈ cIoo a b ↔ a.val < x.val ∧ x.val < b.val := by
+  have hne : a ≠ b := fun h => by subst h; omega
+  simp [mem_cIoo, hne, hab]
 
 /-- The open cyclic interval from a point to itself is empty. -/
 @[simp]
@@ -389,6 +401,18 @@ theorem notMem_cIco_iff_mem_cIco_swap {a b x : Fin n} (h : a ≠ b) :
   exact ⟨fun hab => (Finset.mem_union.1 hx).resolve_left hab,
     fun hba hab => Finset.disjoint_left.1 (disjoint_cIco_swap a b) hab hba⟩
 
+/-- Two nondegenerate half-open cyclic intervals are equal if and only if they have the same
+endpoints. -/
+theorem cIco_eq_cIco_iff {a b c d : Fin n} (hab : a ≠ b) (hcd : c ≠ d) :
+    cIco a b = cIco c d ↔ a = c ∧ b = d := by
+  refine ⟨fun h => ?_, fun ⟨hac, hbd⟩ => by rw [hac, hbd]⟩
+  have ha : a ∈ cIco c d := h ▸ left_mem_cIco hab
+  have hc : c ∈ cIco a b := h.symm ▸ left_mem_cIco hcd
+  have hb : b ∉ cIco c d := fun hb' => right_notMem_cIco a b (h ▸ hb')
+  have hd : d ∉ cIco a b := fun hd' => right_notMem_cIco c d (h.symm ▸ hd')
+  simp only [mem_cIco, ne_eq, ← Fin.val_inj] at hab hcd ha hc hb hd ⊢
+  split_ifs at ha hc hb hd <;> omega
+
 /-- Two oriented cyclic intervals have non-interleaving endpoint pairs.
 
 The endpoints `a₀`, `a₁` lie on the same side of the pair `b₀`, `b₁`, and conversely. This
@@ -494,6 +518,14 @@ theorem disjoint_cIco_cIco_of_mem_cIoo {a b c : Fin n} (h : b ∈ cIoo a c) :
   rw [mem_cIco] at hxab hxbc
   rw [mem_cIoo] at h
   split_ifs at h hxab hxbc <;> omega
+
+/-- If `b` lies strictly between `a` and `c`, then `c` does not lie in the half-open cyclic
+interval from `a` to `b`. -/
+theorem notMem_cIco_of_mem_cIoo {a b c : Fin n} (h : b ∈ cIoo a c) : c ∉ cIco a b := by
+  intro hc
+  rw [mem_cIco] at hc
+  rw [mem_cIoo] at h
+  split_ifs at h hc <;> omega
 
 /-- Of two distinct points of arcs with a common start, one lies in the arc of the other, and the
 other lies strictly between it and the end of that arc. -/
