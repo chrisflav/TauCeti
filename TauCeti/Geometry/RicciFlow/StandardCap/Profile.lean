@@ -185,6 +185,18 @@ theorem apply_le_sqrt_two {r : ℝ} (hr : 0 ≤ r) : f r ≤ √2 := by
         hf.monotoneOn (mem_Ici.2 hr) (mem_Ici.2 (hr.trans (le_max_left r R))) (le_max_left r R)
     _ = √2 := hR _ (le_max_right r R)
 
+/-- A standard cap profile satisfies `f r ≤ r` on `[0, ∞)`, since `f 0 = 0` and `f' ≤ 1`. -/
+theorem apply_le_self {r : ℝ} (hr : 0 ≤ r) : f r ≤ r := by
+  have hmono : MonotoneOn (fun x ↦ x - f x) (Ici 0) :=
+    monotoneOn_of_deriv_nonneg (convex_Ici 0)
+      (continuous_id.sub hf.contDiff.continuous).continuousOn
+      (differentiable_id.sub hf.differentiable).differentiableOn fun x hx ↦ by
+        rw [deriv_fun_sub differentiableAt_fun_id (hf.differentiable x), deriv_id'']
+        linarith [hf.deriv_le_one (interior_subset hx)]
+  have h := hmono (mem_Ici.2 le_rfl) (mem_Ici.2 hr) hr
+  simp only [hf.apply_zero, sub_zero] at h
+  linarith
+
 end IsStandardCapProfile
 
 /-! ### Existence of standard cap profiles -/
