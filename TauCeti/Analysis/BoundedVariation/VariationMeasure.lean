@@ -52,6 +52,8 @@ regular measures follows from `MeasureTheory.Measure.OuterRegular.ext_isOpen`.
   everywhere on `Ω`.
 * `TauCeti.variationMeasure_const_sub`: against an additive Haar measure, `c - u` has the same
   variation measure as `u`.
+* `TauCeti.variationMeasure_smul_measure`: scaling the ambient measure by a finite factor scales
+  the variation measure by the same factor.
 
 ## References
 
@@ -304,6 +306,41 @@ theorem variationMeasure_const_sub [μ.IsAddHaarMeasure] (c : ℝ) :
   refine variationMeasure_congr ⟨fun h => ?_, fun h => hc.sub h⟩ fun U _ =>
     totalVariationOn_const_sub c
   exact (locallyIntegrableOn_congr (ae_of_all _ fun x => sub_sub_cancel c (u x))).1 (hc.sub h)
+
+/-- Scaling the ambient measure by a finite factor scales the variation measure by the same
+factor. -/
+theorem variationMeasure_smul_measure {c : ℝ≥0∞} (hc : c ≠ ∞) :
+    variationMeasure (c • μ) Ω u = c • variationMeasure μ Ω u := by
+  by_cases hc0 : c = 0
+  · subst hc0
+    rw [zero_smul, zero_smul]
+    refine (eq_variationMeasure
+      (by simp [locallyIntegrableOn_iff Ω.isOpen.isLocallyClosed, IntegrableOn])
+      (fun K _ hKΩ => ⟨Ω, hKΩ, by
+        rw [← zero_smul ℝ≥0∞ μ, totalVariationOn_smul_measure ENNReal.zero_ne_top, zero_mul]
+        exact ENNReal.zero_ne_top⟩) fun U _ => ?_).symm
+    rw [← zero_smul ℝ≥0∞ μ, totalVariationOn_smul_measure ENNReal.zero_ne_top, zero_mul]
+    rfl
+  have hloc : LocallyIntegrableOn u Ω (c • μ) ↔ LocallyIntegrableOn u Ω μ := by
+    simp only [locallyIntegrableOn_iff Ω.isOpen.isLocallyClosed, IntegrableOn,
+      Measure.restrict_smul, integrable_smul_measure hc0 hc]
+  have hfin_iff : (∀ K, IsCompact K → K ⊆ Ω →
+      ∃ U : Opens E, K ⊆ (U : Set E) ∧ totalVariationOn (c • μ) U u ≠ ∞) ↔
+      ∀ K, IsCompact K → K ⊆ Ω →
+        ∃ U : Opens E, K ⊆ (U : Set E) ∧ totalVariationOn μ U u ≠ ∞ := by
+    refine forall₃_congr fun K _ _ => exists_congr fun U => and_congr_right fun _ => ?_
+    rw [totalVariationOn_smul_measure hc]
+    exact ⟨fun h ht => h (by rw [ht, ENNReal.mul_top hc0]), fun h => ENNReal.mul_ne_top hc h⟩
+  by_cases h : LocallyIntegrableOn u Ω μ ∧ ∀ K, IsCompact K → K ⊆ Ω →
+      ∃ U : Opens E, K ⊆ (U : Set E) ∧ totalVariationOn μ U u ≠ ∞
+  · have := Measure.OuterRegular.smul (variationMeasure μ Ω u) hc
+    refine (eq_variationMeasure (hloc.2 h.1) (hfin_iff.2 h.2) fun U hU => ?_).symm
+    rw [smul_apply, smul_eq_mul, variationMeasure_preimage_coe h.1 h.2 hU,
+      totalVariationOn_smul_measure hc]
+  · have h' : ¬(LocallyIntegrableOn u Ω (c • μ) ∧ ∀ K, IsCompact K → K ⊆ Ω →
+        ∃ U : Opens E, K ⊆ (U : Set E) ∧ totalVariationOn (c • μ) U u ≠ ∞) := by
+      rwa [hloc, hfin_iff]
+    rw [variationMeasure_eq_zero_of_not h', variationMeasure_eq_zero_of_not h, smul_zero]
 
 end Measure
 

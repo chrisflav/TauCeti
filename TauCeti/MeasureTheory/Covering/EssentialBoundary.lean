@@ -46,6 +46,8 @@ density zero at `x`.
 * `TauCeti.HasDensityAt μ s x d`: the set `s` has density `d` at `x` with respect to `μ`.
 * `TauCeti.essentialInterior`, `TauCeti.essentialExterior`, `TauCeti.essentialBoundary`.
 * `TauCeti.essentialInterior_congr_ae` and its companions: invariance under null modification.
+* `TauCeti.hasDensityAt_smul_measure`, `TauCeti.essentialBoundary_smul_measure` and companions:
+  invariance under positive finite scaling of the measure.
 * `TauCeti.essentialInterior_compl` and `TauCeti.essentialBoundary_compl`: complements.
 * `TauCeti.essentialBoundary_union_subset` and `TauCeti.essentialBoundary_inter_subset`.
 * `TauCeti.essentialInterior_preimage_add_right` and its companions: for a translation-invariant
@@ -224,6 +226,30 @@ theorem essentialBoundary_congr_ae (h : s =ᵐ[μ] t) :
     essentialBoundary μ s = essentialBoundary μ t := by
   rw [essentialBoundary_def, essentialBoundary_def, essentialInterior_congr_ae h,
     essentialExterior_congr_ae h]
+
+/-- Scaling the ambient measure by a positive finite factor does not change densities. -/
+theorem hasDensityAt_smul_measure {c : ℝ≥0∞} (hc0 : c ≠ 0) (hc : c ≠ ∞) :
+    HasDensityAt (c • μ) s x d ↔ HasDensityAt μ s x d := by
+  simp only [hasDensityAt_iff, smul_apply, smul_eq_mul, ENNReal.mul_div_mul_left _ _ hc0 hc]
+
+/-- Scaling the ambient measure by a positive finite factor does not change the essential
+interior. -/
+theorem essentialInterior_smul_measure {c : ℝ≥0∞} (hc0 : c ≠ 0) (hc : c ≠ ∞) :
+    essentialInterior (c • μ) s = essentialInterior μ s :=
+  ext fun _ => hasDensityAt_smul_measure hc0 hc
+
+/-- Scaling the ambient measure by a positive finite factor does not change the essential
+exterior. -/
+theorem essentialExterior_smul_measure {c : ℝ≥0∞} (hc0 : c ≠ 0) (hc : c ≠ ∞) :
+    essentialExterior (c • μ) s = essentialExterior μ s :=
+  ext fun _ => hasDensityAt_smul_measure hc0 hc
+
+/-- Scaling the ambient measure by a positive finite factor does not change the essential
+boundary. -/
+theorem essentialBoundary_smul_measure {c : ℝ≥0∞} (hc0 : c ≠ 0) (hc : c ≠ ∞) :
+    essentialBoundary (c • μ) s = essentialBoundary μ s := by
+  rw [essentialBoundary_def, essentialBoundary_def, essentialInterior_smul_measure hc0 hc,
+    essentialExterior_smul_measure hc0 hc]
 
 /-! ### Monotonicity, unions and intersections -/
 

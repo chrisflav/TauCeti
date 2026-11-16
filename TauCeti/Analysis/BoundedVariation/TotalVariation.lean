@@ -52,9 +52,10 @@ For `u` not locally integrable on `Ω` the integrals in the supremum may be Math
   partition of unity, and additivity on disjoint open sets. For `u` locally integrable on `Ω` of
   locally finite variation, these make the total variation the restriction to open sets of a
   measure (`TauCeti.variationMeasure`).
-* `TauCeti.totalVariationOn_neg`, `TauCeti.totalVariationOn_smul` and
-  `TauCeti.totalVariationOn_add_le`: the total variation is an extended (`[0, ∞]`-valued)
-  seminorm, subadditive on locally integrable functions.
+* `TauCeti.totalVariationOn_neg`, `TauCeti.totalVariationOn_smul`,
+  `TauCeti.totalVariationOn_smul_measure` and `TauCeti.totalVariationOn_add_le`: the total
+  variation is an extended (`[0, ∞]`-valued) seminorm, scales linearly in the measure, and is
+  subadditive on locally integrable functions.
 * `TauCeti.totalVariationOn_add_const` and `TauCeti.totalVariationOn_const`: against an additive
   Haar measure, constants have no variation.
 * `TauCeti.totalVariationOn_le_liminf_of_tendsto_integral` and
@@ -284,6 +285,15 @@ theorem totalVariationOn_smul (c : ℝ) :
   · rw [abs_of_nonneg hc, totalVariationOn_smul_of_nonneg hc]
   · rw [abs_of_nonpos hc, ← totalVariationOn_smul_of_nonneg (neg_nonneg.mpr hc), neg_smul,
       totalVariationOn_neg]
+
+/-- Scaling the ambient measure by a finite factor scales the total variation by the same
+factor. -/
+theorem totalVariationOn_smul_measure {c : ℝ≥0∞} (hc : c ≠ ∞) :
+    totalVariationOn (c • μ) Ω u = c * totalVariationOn μ Ω u := by
+  simp_rw [totalVariationOn_def, ENNReal.mul_iSup]
+  refine iSup_congr fun φ => iSup_congr fun _ => ?_
+  rw [integral_smul_measure, smul_eq_mul, ENNReal.ofReal_mul ENNReal.toReal_nonneg,
+    ENNReal.ofReal_toReal hc]
 
 /-- A test vector field bounded by `c` pairs to at most `c |Du|(Ω)`. -/
 theorem ofReal_abs_integral_le_ofReal_mul_totalVariationOn (φ : 𝓓(Ω, E)) {c : ℝ}
