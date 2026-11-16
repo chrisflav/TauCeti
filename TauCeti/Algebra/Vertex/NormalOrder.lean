@@ -270,4 +270,90 @@ theorem normalOrder_sum_right {ι : Type*} (A : VertexOperator R V) (s : Finset 
     normalOrder A (∑ i ∈ s, B i) = ∑ i ∈ s, normalOrder A (B i) :=
   map_sum (normalOrderₗ A) B s
 
+private theorem normalOrderCoeff_comm_neg (A B : VertexOperator R V)
+    (h : ∀ r s : ℤ, r + s ≠ -1 → Commute (A[[r]]) (B[[s]])) (d : ℕ) (hd : 0 < d) (v : V) :
+    normalOrderCoeff A B (-(d : ℤ)) v = normalOrderCoeff B A (-(d : ℤ)) v := by
+  obtain ⟨NA, hNA⟩ := A.exists_forall_ncoeff_apply_eq_zero v
+  obtain ⟨NB, hNB⟩ := B.exists_forall_ncoeff_apply_eq_zero v
+  set K := max NA NB
+  have hA (r : ℤ) (hr : (K : ℤ) ≤ r) : (A[[r]]) v = 0 := hNA r (by omega)
+  have hB (r : ℤ) (hr : (K : ℤ) ≤ r) : (B[[r]]) v = 0 := hNB r (by omega)
+  rw [normalOrderCoeff_eq_sum A B (-(d : ℤ)) v (P := d + K) (Q := K)
+      (fun i hi ↦ hB _ (by omega)) (fun i hi ↦ hA _ (by omega)),
+    normalOrderCoeff_eq_sum B A (-(d : ℤ)) v (P := d + K) (Q := K)
+      (fun i hi ↦ hA _ (by omega)) (fun i hi ↦ hB _ (by omega)),
+    sum_range_add, sum_range_add]
+  have h1 : ∑ i ∈ range d, (A[[-(i : ℤ) - 1]]) ((B[[-(d : ℤ) + i]]) v) =
+      ∑ j ∈ range d, (B[[-(j : ℤ) - 1]]) ((A[[-(d : ℤ) + j]]) v) := by
+    refine sum_bij (fun i _ ↦ d - 1 - i)
+      (fun i hi ↦ mem_range.mpr (by have := mem_range.mp hi; omega))
+      (fun i₁ hi₁ i₂ hi₂ heq ↦ by have := mem_range.mp hi₁; have := mem_range.mp hi₂; omega)
+      (fun j hj ↦ ⟨d - 1 - j, mem_range.mpr (by have := mem_range.mp hj; omega),
+        by have := mem_range.mp hj; omega⟩)
+      (fun i hi ↦ ?_)
+    have hi' := mem_range.mp hi
+    have hcomm := LinearMap.congr_fun (h (-(i : ℤ) - 1) (-(d : ℤ) + i) (by omega)).eq v
+    simp only [mul_apply_eq_comp] at hcomm
+    rw [hcomm, show -(d : ℤ) + i = -((d - 1 - i : ℕ) : ℤ) - 1 by omega,
+      show -(i : ℤ) - 1 = -(d : ℤ) + ((d - 1 - i : ℕ) : ℤ) by omega]
+  have hshift (X Y : VertexOperator R V) :
+      ∑ i ∈ range K, (X[[-((d + i : ℕ) : ℤ) - 1]]) ((Y[[-(d : ℤ) + ↑(d + i)]]) v) =
+        ∑ i ∈ range K, (X[[-(d : ℤ) - i - 1]]) ((Y[[(i : ℤ)]]) v) :=
+    sum_congr rfl fun i _ ↦ by
+      rw [show -((d + i : ℕ) : ℤ) - 1 = -(d : ℤ) - i - 1 by omega,
+        show -(d : ℤ) + ↑(d + i) = (i : ℤ) by omega]
+  rw [h1, hshift A B, hshift B A]
+  abel
+
+private theorem normalOrderCoeff_comm_pos (A B : VertexOperator R V)
+    (h : ∀ r s : ℤ, r + s ≠ -1 → Commute (A[[r]]) (B[[s]])) (d : ℕ) (hd : 0 < d) (v : V) :
+    normalOrderCoeff A B d v = normalOrderCoeff B A d v := by
+  obtain ⟨NA, hNA⟩ := A.exists_forall_ncoeff_apply_eq_zero v
+  obtain ⟨NB, hNB⟩ := B.exists_forall_ncoeff_apply_eq_zero v
+  set K := max NA NB
+  have hA (r : ℤ) (hr : (K : ℤ) ≤ r) : (A[[r]]) v = 0 := hNA r (by omega)
+  have hB (r : ℤ) (hr : (K : ℤ) ≤ r) : (B[[r]]) v = 0 := hNB r (by omega)
+  rw [normalOrderCoeff_eq_sum A B d v (P := K) (Q := d + K)
+      (fun i hi ↦ hB _ (by omega)) (fun i hi ↦ hA _ (by omega)),
+    normalOrderCoeff_eq_sum B A d v (P := K) (Q := d + K)
+      (fun i hi ↦ hA _ (by omega)) (fun i hi ↦ hB _ (by omega)),
+    sum_range_add, sum_range_add]
+  have h1 : ∑ i ∈ range d, (B[[(d : ℤ) - i - 1]]) ((A[[(i : ℤ)]]) v) =
+      ∑ j ∈ range d, (A[[(d : ℤ) - j - 1]]) ((B[[(j : ℤ)]]) v) := by
+    refine sum_bij (fun i _ ↦ d - 1 - i)
+      (fun i hi ↦ mem_range.mpr (by have := mem_range.mp hi; omega))
+      (fun i₁ hi₁ i₂ hi₂ heq ↦ by have := mem_range.mp hi₁; have := mem_range.mp hi₂; omega)
+      (fun j hj ↦ ⟨d - 1 - j, mem_range.mpr (by have := mem_range.mp hj; omega),
+        by have := mem_range.mp hj; omega⟩)
+      (fun i hi ↦ ?_)
+    have hi' := mem_range.mp hi
+    have hcomm := LinearMap.congr_fun (h (i : ℤ) ((d : ℤ) - i - 1) (by omega)).eq v
+    simp only [mul_apply_eq_comp] at hcomm
+    rw [← hcomm, show (d : ℤ) - i - 1 = ((d - 1 - i : ℕ) : ℤ) by omega,
+      show (i : ℤ) = (d : ℤ) - ((d - 1 - i : ℕ) : ℤ) - 1 by omega]
+  have hshift (X Y : VertexOperator R V) :
+      ∑ i ∈ range K, (X[[(d : ℤ) - ↑(d + i) - 1]]) ((Y[[((d + i : ℕ) : ℤ)]]) v) =
+        ∑ i ∈ range K, (X[[-(i : ℤ) - 1]]) ((Y[[(d : ℤ) + i]]) v) :=
+    sum_congr rfl fun i _ ↦ by
+      rw [show (d : ℤ) - ↑(d + i) - 1 = -(i : ℤ) - 1 by omega,
+        show ((d + i : ℕ) : ℤ) = (d : ℤ) + i by omega]
+  rw [h1, hshift B A, hshift A B]
+  abel
+
+/-- **Commutativity of normal ordering:** if all mode pairs `(A[[r]], B[[s]])` with `r + s ≠ -1`
+commute, then `:A B: = :B A:`. In particular, normal ordering is symmetric for fields with at most
+a constant simple-pole commutator (such as commuting or beta-gamma fields). -/
+theorem normalOrder_comm_of_commute_ne_neg_one (A B : VertexOperator R V)
+    (h : ∀ r s : ℤ, r + s ≠ -1 → Commute (A[[r]]) (B[[s]])) :
+    normalOrder A B = normalOrder B A := by
+  refine ext_ncoeff fun n ↦ LinearMap.ext fun v ↦ ?_
+  simp only [ncoeff_normalOrder]
+  rcases lt_trichotomy n 0 with hn | rfl | hn
+  · obtain ⟨d, rfl⟩ : ∃ d : ℕ, n = -(d : ℤ) := ⟨(-n).toNat, by omega⟩
+    exact normalOrderCoeff_comm_neg A B h d (by omega) v
+  · simp only [normalOrderCoeff_apply, zero_add, zero_sub]
+    exact add_comm _ _
+  · lift n to ℕ using hn.le
+    exact normalOrderCoeff_comm_pos A B h n (by omega) v
+
 end VertexOperator
