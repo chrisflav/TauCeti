@@ -195,6 +195,30 @@ theorem writhe_reidemeisterOne (D : OrientedPDCode n) (h : Fin (4 * n)) (b : Boo
   rw [writhe_def, writhe_def, Fin.sum_univ_castSucc]
   simp
 
+/-- Inserting an oriented kink adds one positive crossing exactly when `b = true`. -/
+@[simp]
+theorem positiveCrossingCount_reidemeisterOne (D : OrientedPDCode n) (h : Fin (4 * n)) (b : Bool) :
+    (D.reidemeisterOne h b).positiveCrossingCount =
+      D.positiveCrossingCount + if b then 1 else 0 := by
+  have hsum := (D.reidemeisterOne h b).positiveCrossingCount_add_negativeCrossingCount
+  have hsumD := D.positiveCrossingCount_add_negativeCrossingCount
+  have hw := (D.reidemeisterOne h b).writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  have hwD := D.writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  rw [writhe_reidemeisterOne] at hw
+  cases b <;> simp only [Bool.false_eq_true, ↓reduceIte] at hw ⊢ <;> omega
+
+/-- Inserting an oriented kink adds one negative crossing exactly when `b = false`. -/
+@[simp]
+theorem negativeCrossingCount_reidemeisterOne (D : OrientedPDCode n) (h : Fin (4 * n)) (b : Bool) :
+    (D.reidemeisterOne h b).negativeCrossingCount =
+      D.negativeCrossingCount + if b then 0 else 1 := by
+  have hsum := (D.reidemeisterOne h b).positiveCrossingCount_add_negativeCrossingCount
+  have hsumD := D.positiveCrossingCount_add_negativeCrossingCount
+  have hw := (D.reidemeisterOne h b).writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  have hwD := D.writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  rw [writhe_reidemeisterOne] at hw
+  cases b <;> simp only [Bool.false_eq_true, ↓reduceIte] at hw ⊢ <;> omega
+
 /-- **The writhe-normalized Kauffman bracket is invariant under the oriented first Reidemeister
 move.** -/
 @[simp]

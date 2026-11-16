@@ -282,6 +282,17 @@ components of the surrounding diagram. -/
     ← faceCount_eq_orbitCount_crossingRotation_mul_edgePair]
   omega
 
+/-- Adjoining a crossing-free circle leaves the permutation triple of the underlying graph
+unchanged. -/
+@[simp] theorem toPermutationTriple_adjoinCircle (D : PDCode n) :
+    D.adjoinCircle.toPermutationTriple = D.toPermutationTriple :=
+  PermutationTriple.ext_of_two (by simp [crossingRotation_def]) (by simp)
+
+/-- Adjoining a crossing-free circle preserves planarity. -/
+@[simp] theorem isPlanar_adjoinCircle_iff (D : PDCode n) :
+    D.adjoinCircle.IsPlanar ↔ D.IsPlanar := by
+  simp [isPlanar_def]
+
 /-- The first Reidemeister move on a crossing-free circle preserves planarity. -/
 @[simp] theorem isPlanar_adjoinKink_iff (D : PDCode n) (b : Bool) :
     (D.adjoinKink b).IsPlanar ↔ D.IsPlanar := by

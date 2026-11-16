@@ -178,6 +178,20 @@ def adjoinCircle (D : OrientedPDCode n) (orientation : Bool) : OrientedPDCode n 
     (OrientedPDCode.adjoinCircle D orientation).writhe = D.writhe := by
   simp [writhe_def]
 
+/-- An isolated circle does not change the number of positive crossings. -/
+@[simp] theorem positiveCrossingCount_adjoinCircle (D : OrientedPDCode n)
+    (orientation : Bool) :
+    (OrientedPDCode.adjoinCircle D orientation).positiveCrossingCount =
+      D.positiveCrossingCount := by
+  simp [positiveCrossingCount_def]
+
+/-- An isolated circle does not change the number of negative crossings. -/
+@[simp] theorem negativeCrossingCount_adjoinCircle (D : OrientedPDCode n)
+    (orientation : Bool) :
+    (OrientedPDCode.adjoinCircle D orientation).negativeCrossingCount =
+      D.negativeCrossingCount := by
+  simp [negativeCrossingCount_def]
+
 /-- A code with a crossing-free circle of orientation `o` is obtained by adjoining that circle to
 the code without it. -/
 theorem exists_eq_adjoinCircle_of_mem {D : OrientedPDCode n} {o : Bool}

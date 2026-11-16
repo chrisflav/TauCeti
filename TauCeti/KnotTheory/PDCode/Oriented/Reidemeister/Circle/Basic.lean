@@ -97,6 +97,26 @@ def adjoinKink (D : OrientedPDCode n) (o b : Bool) : OrientedPDCode (n + 1) wher
   rw [writhe_def, writhe_def, Fin.sum_univ_castSucc]
   simp
 
+/-- The isolated kink adds one positive crossing exactly when `b = true`. -/
+@[simp] theorem positiveCrossingCount_adjoinKink (D : OrientedPDCode n) (o b : Bool) :
+    (D.adjoinKink o b).positiveCrossingCount = D.positiveCrossingCount + if b then 1 else 0 := by
+  have hsum := (D.adjoinKink o b).positiveCrossingCount_add_negativeCrossingCount
+  have hsumD := D.positiveCrossingCount_add_negativeCrossingCount
+  have hw := (D.adjoinKink o b).writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  have hwD := D.writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  rw [writhe_adjoinKink] at hw
+  cases b <;> simp only [Bool.false_eq_true, ↓reduceIte] at hw ⊢ <;> omega
+
+/-- The isolated kink adds one negative crossing exactly when `b = false`. -/
+@[simp] theorem negativeCrossingCount_adjoinKink (D : OrientedPDCode n) (o b : Bool) :
+    (D.adjoinKink o b).negativeCrossingCount = D.negativeCrossingCount + if b then 0 else 1 := by
+  have hsum := (D.adjoinKink o b).positiveCrossingCount_add_negativeCrossingCount
+  have hsumD := D.positiveCrossingCount_add_negativeCrossingCount
+  have hw := (D.adjoinKink o b).writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  have hwD := D.writhe_eq_positiveCrossingCount_sub_negativeCrossingCount
+  rw [writhe_adjoinKink] at hw
+  cases b <;> simp only [Bool.false_eq_true, ↓reduceIte] at hw ⊢ <;> omega
+
 /-- Removing the kink from an isolated oriented component leaves the normalized bracket
 unchanged. No nonemptiness assumption on the surrounding diagram is needed. -/
 @[simp] theorem normalizedKauffmanBracket_adjoinKink {R : Type*} [CommRing R]

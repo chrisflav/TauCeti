@@ -52,6 +52,8 @@ contracting equation constrains.
   side conditions are the `TauCeti.SpecialContraction` fields it carries.
 * `TauCeti.Contraction.homotopyEquiv`: the homotopy equivalence between `L` and `K` underlying a
   contraction.
+* `TauCeti.Contraction.ofIso` and `TauCeti.SpecialContraction.ofIso`: transport of a contraction
+  or special contraction along isomorphisms of its two complexes.
 
 ## Main results
 
@@ -372,6 +374,40 @@ theorem quasiIso_proj : QuasiIso c.proj := c.homotopyEquiv.quasiIso_inv
 
 end HomotopyEquivalence
 
+section Transport
+
+/-- Transport a contraction along isomorphisms of its two complexes. -/
+def ofIso {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    Contraction K' L' where
+  incl := eL.inv ≫ c.incl ≫ eK.inv
+  proj := eK.hom ≫ c.proj ≫ eL.hom
+  homotopy :=
+    (Cochain.ofHom eK.hom).comp
+      (c.homotopy.comp (Cochain.ofHom eK.inv) (by lia : (-1 : ℤ) + 0 = -1))
+      (by lia : (0 : ℤ) + (-1) = -1)
+  incl_comp_proj := by
+    simp [assoc, c.incl_comp_proj_assoc]
+  δ_homotopy := by
+    rw [δ_zero_cochain_comp _ _ 0 (by lia), δ_ofHom, Cochain.zero_comp, smul_zero, add_zero,
+      δ_comp_zero_cochain _ _ 0 (by lia), δ_ofHom, Cochain.comp_zero, zero_add, c.δ_homotopy,
+      ← Cochain.ofHom_comp, ← Cochain.ofHom_comp]
+    congr 1
+    simp [Preadditive.comp_sub, Preadditive.sub_comp, assoc]
+
+@[simp] theorem ofIso_incl {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    (c.ofIso eK eL).incl = eL.inv ≫ c.incl ≫ eK.inv := (rfl)
+
+@[simp] theorem ofIso_proj {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    (c.ofIso eK eL).proj = eK.hom ≫ c.proj ≫ eL.hom := (rfl)
+
+@[simp] theorem ofIso_homotopy {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    (c.ofIso eK eL).homotopy =
+      (Cochain.ofHom eK.hom).comp
+        (c.homotopy.comp (Cochain.ofHom eK.inv) (by lia : (-1 : ℤ) + 0 = -1))
+        (by lia : (0 : ℤ) + (-1) = -1) := (rfl)
+
+end Transport
+
 end Contraction
 
 namespace SpecialContraction
@@ -436,6 +472,44 @@ def refl (K : CochainComplex C ℤ) : SpecialContraction K K where
 @[simp] theorem refl_proj (K : CochainComplex C ℤ) : (refl K).proj = 𝟙 K := (rfl)
 
 @[simp] theorem refl_homotopy (K : CochainComplex C ℤ) : (refl K).homotopy = 0 := (rfl)
+
+/-- Transport a special contraction along isomorphisms of its two complexes. All three side
+conditions are preserved. -/
+def ofIso {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    SpecialContraction K' L' where
+  toContraction := s.toContraction.ofIso eK eL
+  incl_comp_homotopy := by
+    simp only [Contraction.ofIso_incl, Contraction.ofIso_homotopy]
+    rw [← Cochain.comp_assoc_of_first_is_zero_cochain, ← Cochain.ofHom_comp]
+    simp only [assoc, Iso.inv_hom_id, comp_id]
+    rw [Cochain.ofHom_comp, Cochain.comp_assoc_of_first_is_zero_cochain,
+      ← Cochain.comp_assoc_of_first_is_zero_cochain (Cochain.ofHom s.incl) s.homotopy
+        (Cochain.ofHom eK.inv) (by lia),
+      s.incl_comp_homotopy, Cochain.zero_comp, Cochain.comp_zero]
+  homotopy_comp_proj := by
+    simp only [Contraction.ofIso_proj, Contraction.ofIso_homotopy]
+    rw [Cochain.comp_assoc_of_first_is_zero_cochain,
+      Cochain.comp_assoc_of_third_is_zero_cochain, ← Cochain.ofHom_comp]
+    simp only [Iso.inv_hom_id_assoc]
+    rw [Cochain.ofHom_comp,
+      ← Cochain.comp_assoc_of_third_is_zero_cochain s.homotopy (Cochain.ofHom s.proj)
+        (Cochain.ofHom eL.hom) (by lia),
+      s.homotopy_comp_proj, Cochain.zero_comp, Cochain.comp_zero]
+  homotopy_comp_homotopy := by
+    simp only [Contraction.ofIso_homotopy]
+    rw [Cochain.comp_assoc_of_first_is_zero_cochain,
+      ← Cochain.comp_assoc (s.homotopy.comp (Cochain.ofHom eK.inv) (by lia))
+        (Cochain.ofHom eK.hom)
+        (s.homotopy.comp (Cochain.ofHom eK.inv) (by lia))
+        (by lia : (-1 : ℤ) + 0 = -1) (by lia : (0 : ℤ) + (-1) = -1) (by lia),
+      Cochain.comp_assoc_of_third_is_zero_cochain, ← Cochain.ofHom_comp, Iso.inv_hom_id,
+      Cochain.comp_id,
+      ← Cochain.comp_assoc s.homotopy s.homotopy (Cochain.ofHom eK.inv)
+        (by lia : (-1 : ℤ) + (-1) = -2) (by lia : (-1 : ℤ) + 0 = -1) (by lia),
+      s.homotopy_comp_homotopy, Cochain.zero_comp, Cochain.comp_zero]
+
+@[simp] theorem ofIso_toContraction {K' L' : CochainComplex C ℤ} (eK : K' ≅ K) (eL : L ≅ L') :
+    (s.ofIso eK eL).toContraction = s.toContraction.ofIso eK eL := (rfl)
 
 end SpecialContraction
 
