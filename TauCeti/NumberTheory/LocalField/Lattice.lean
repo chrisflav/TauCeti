@@ -44,6 +44,11 @@ compactness uses that `𝒪[E]` is compact.
   endomorphisms mapping a lattice into itself form a compact open subset of `Module.End E V`.
 * `Submodule.IsLattice.isOpen_stabilizer`, `Submodule.IsLattice.isCompact_stabilizer`: the
   stabilizer of a lattice in `V ≃ₗ[E] V` is open and compact.
+* `Matrix.GeneralLinearGroup.isOpenEmbedding_map_valuationSubring`,
+  `Matrix.GeneralLinearGroup.isOpen_range_map_valuationSubring`,
+  `Matrix.GeneralLinearGroup.compactSpace_valuationSubring`, and
+  `Matrix.GeneralLinearGroup.isCompact_range_map_valuationSubring`: `GL ι 𝒪[E]` is compact and
+  embeds as a compact open subgroup of `GL ι E`.
 
 ## References
 
@@ -226,3 +231,51 @@ theorem IsLattice.isCompact_stabilizer :
 end LocalField
 
 end Submodule
+
+namespace Matrix.GeneralLinearGroup
+
+open scoped MatrixGroups
+
+section ValuativeTopology
+
+variable {E ι : Type*} [Field E] [ValuativeRel E] [TopologicalSpace E] [IsValuativeTopology E]
+  [Fintype ι] [DecidableEq ι]
+
+/-- **The integral general linear group embeds as an open subgroup.** Over a field with a valuative
+topology, the inclusion `GL ι 𝒪[E] → GL ι E` is an open embedding. -/
+theorem isOpenEmbedding_map_valuationSubring :
+    Topology.IsOpenEmbedding (Matrix.GeneralLinearGroup.map (n := ι) (algebraMap 𝒪[E] E)) :=
+  (Valuation.isOpen_integer (R := E)).isOpenEmbedding_subtypeVal.generalLinearGroup_map
+
+/-- Over a field with a valuative topology, the image of `GL ι 𝒪[E]` is an open subgroup of
+`GL ι E`. -/
+theorem isOpen_range_map_valuationSubring :
+    IsOpen ((Matrix.GeneralLinearGroup.map (n := ι) (algebraMap 𝒪[E] E)).range : Set (GL ι E)) := by
+  simpa only [MonoidHom.coe_range] using
+    (isOpenEmbedding_map_valuationSubring (E := E) (ι := ι)).isOpen_range
+
+end ValuativeTopology
+
+section LocalField
+
+variable {E ι : Type*} [Field E] [ValuativeRel E] [TopologicalSpace E]
+  [IsNonarchimedeanLocalField E] [Fintype ι] [DecidableEq ι]
+
+/-- Over a nonarchimedean local field `E` (of arbitrary characteristic), `GL ι 𝒪[E]` is compact. -/
+theorem compactSpace_valuationSubring : CompactSpace (GL ι 𝒪[E]) := by
+  let : CompactSpace (Matrix ι ι 𝒪[E]) := inferInstanceAs (CompactSpace (ι → ι → 𝒪[E]))
+  let : T1Space (Matrix ι ι 𝒪[E]) := inferInstanceAs (T1Space (ι → ι → 𝒪[E]))
+  infer_instance
+
+/-- Over a nonarchimedean local field `E` (of arbitrary characteristic), the image of `GL ι 𝒪[E]`
+is a compact subgroup of `GL ι E`. -/
+theorem isCompact_range_map_valuationSubring :
+    IsCompact ((Matrix.GeneralLinearGroup.map (n := ι) (algebraMap 𝒪[E] E)).range :
+      Set (GL ι E)) := by
+  have := compactSpace_valuationSubring (E := E) (ι := ι)
+  simpa only [MonoidHom.coe_range] using isCompact_range
+    (isOpenEmbedding_map_valuationSubring (E := E) (ι := ι)).continuous
+
+end LocalField
+
+end Matrix.GeneralLinearGroup

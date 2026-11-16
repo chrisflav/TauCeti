@@ -6,10 +6,12 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Topology.Algebra.Module.FiniteDimension
+public import Mathlib.Topology.Algebra.Group.Matrix
 public import Mathlib.Topology.Algebra.Group.Units
 public import Mathlib.LinearAlgebra.Determinant
 public import Mathlib.LinearAlgebra.GeneralLinearGroup.Basic
 public import Mathlib.Topology.Instances.Matrix
+public import TauCeti.LinearAlgebra.Matrix.GeneralLinearGroup.Basis
 public import TauCeti.Topology.Algebra.Module.ModuleTopology
 public import TauCeti.Algebra.Module.Equiv.AutCongr
 
@@ -24,7 +26,10 @@ a topological group structure. In particular, continuity into this group is equi
 continuity of both the forward and inverse endomorphisms.
 Conjugation by a linear equivalence `V ≃ₗ[K] W` acts on both the forward and the inverse
 endomorphism by the linear map `LinearEquiv.conj`, so it is continuous between these groups
-(`LinearEquiv.continuous_autCongr`).
+(`LinearEquiv.continuous_autCongr`). In a finite basis `b : Module.Basis ι K V`, `Module.Basis.toGL`
+upgrades to a topological group isomorphism `Module.Basis.toGLContinuousMulEquiv : (V ≃ₗ[K] V) ≃ₜ*
+GL ι K`, and entrywise application of an open-embedding ring homomorphism gives an open embedding
+of general linear groups (`Topology.IsOpenEmbedding.generalLinearGroup_map`).
 
 Over a field, the endomorphism algebra of a finite-dimensional space is itself finite-dimensional,
 so its module topology is Hausdorff when the field is Hausdorff and locally compact when the field
@@ -274,5 +279,100 @@ theorem continuous_linearEquiv_det :
       (continuous_linearEquiv_iff.mp (continuous_id : Continuous fun e : V ≃ₗ[K] V ↦ e)).2
 
 end Det
+
+section MatrixGL
+
+open scoped MatrixGroups
+
+/-- **Topological group isomorphism with `GL ι K`.** A finite basis `b` of `V` over a commutative
+ring `K` with continuous addition and multiplication identifies the linear automorphism group
+`V ≃ₗ[K] V` with `GL ι K` both algebraically and topologically. -/
+noncomputable def _root_.Module.Basis.toGLContinuousMulEquiv {K V ι : Type*}
+    [CommRing K] [TopologicalSpace K] [IsTopologicalSemiring K]
+    [AddCommGroup V] [Module K V] [Fintype ι] [DecidableEq ι]
+    (b : Module.Basis ι K V) : (V ≃ₗ[K] V) ≃ₜ* GL ι K where
+  __ := b.toGL
+  continuous_toFun := by
+    let : IsModuleTopology K (Matrix ι ι K) := inferInstanceAs (IsModuleTopology K (ι → ι → K))
+    have : ContinuousAdd (Matrix ι ι K) := IsModuleTopology.toContinuousAdd K (Matrix ι ι K)
+    have hmat : Continuous (LinearMap.toMatrix b b : Module.End K V → Matrix ι ι K) :=
+      IsModuleTopology.continuous_of_linearMap (LinearMap.toMatrix b b).toLinearMap
+    refine Units.continuous_iff.mpr ⟨?_, ?_⟩
+    · exact (hmat.comp continuous_linearEquiv_toLinearMap).congr fun f ↦ (b.coe_toGL f).symm
+    · refine (hmat.comp (continuous_linearEquiv_iff.mp
+        (continuous_id : Continuous fun f : V ≃ₗ[K] V ↦ f)).2).congr fun f ↦ ?_
+      change LinearMap.toMatrix b b ((f⁻¹ : V ≃ₗ[K] V) : Module.End K V) =
+        (((b.toGL f)⁻¹ : GL ι K) : Matrix ι ι K)
+      rw [← map_inv, b.coe_toGL]
+  continuous_invFun := by
+    let : IsModuleTopology K (Matrix ι ι K) := inferInstanceAs (IsModuleTopology K (ι → ι → K))
+    have : ContinuousAdd (Module.End K V) := IsModuleTopology.toContinuousAdd K (Module.End K V)
+    have hlin : Continuous (Matrix.toLin b b : Matrix ι ι K → Module.End K V) :=
+      IsModuleTopology.continuous_of_linearMap (Matrix.toLin b b).toLinearMap
+    have hval (A : GL ι K) : ((b.toGL.symm A : V ≃ₗ[K] V) : Module.End K V) =
+        Matrix.toLin b b (A : Matrix ι ι K) := by
+      have h : (A : Matrix ι ι K) = LinearMap.toMatrix b b (b.toGL.symm A : V ≃ₗ[K] V) := by
+        rw [← b.coe_toGL (b.toGL.symm A), b.toGL.apply_symm_apply]
+      rw [h, Matrix.toLin_toMatrix]
+    refine continuous_linearEquiv_iff.mpr ⟨?_, ?_⟩
+    · exact (hlin.comp Units.continuous_val).congr fun A ↦ (hval A).symm
+    · exact (hlin.comp Units.continuous_coe_inv).congr fun A ↦ by
+        simpa [map_inv] using (hval A⁻¹).symm
+
+@[simp]
+theorem _root_.Module.Basis.coe_toGLContinuousMulEquiv {K V ι : Type*}
+    [CommRing K] [TopologicalSpace K] [IsTopologicalSemiring K]
+    [AddCommGroup V] [Module K V] [Fintype ι] [DecidableEq ι]
+    (b : Module.Basis ι K V) :
+    (b.toGLContinuousMulEquiv : (V ≃ₗ[K] V) ≃* GL ι K) = b.toGL :=
+  (rfl)
+
+@[simp]
+theorem _root_.Module.Basis.toGLContinuousMulEquiv_apply {K V ι : Type*}
+    [CommRing K] [TopologicalSpace K] [IsTopologicalSemiring K]
+    [AddCommGroup V] [Module K V] [Fintype ι] [DecidableEq ι]
+    (b : Module.Basis ι K V) (f : V ≃ₗ[K] V) :
+    b.toGLContinuousMulEquiv f = b.toGL f :=
+  (rfl)
+
+@[simp]
+theorem _root_.Module.Basis.toGLContinuousMulEquiv_symm_apply {K V ι : Type*}
+    [CommRing K] [TopologicalSpace K] [IsTopologicalSemiring K]
+    [AddCommGroup V] [Module K V] [Fintype ι] [DecidableEq ι]
+    (b : Module.Basis ι K V) (A : GL ι K) :
+    b.toGLContinuousMulEquiv.symm A = b.toGL.symm A :=
+  (rfl)
+
+/-- Entrywise application of an open-embedding ring homomorphism gives an open embedding of
+general linear groups. -/
+theorem _root_.Topology.IsOpenEmbedding.generalLinearGroup_map {R S ι : Type*}
+    [CommRing R] [CommRing S] [TopologicalSpace R] [TopologicalSpace S]
+    [Fintype ι] [DecidableEq ι] {f : R →+* S} (hf : Topology.IsOpenEmbedding f) :
+    Topology.IsOpenEmbedding (Matrix.GeneralLinearGroup.map (n := ι) f) := by
+  refine ⟨hf.isEmbedding.generalLinearGroup_map, ?_⟩
+  have hrange : Set.range (Matrix.GeneralLinearGroup.map (n := ι) f) =
+      (Units.val : GL ι S → Matrix ι ι S) ⁻¹' Set.range (fun A : Matrix ι ι R ↦ A.map f) ∩
+        (fun u : GL ι S ↦ ((u⁻¹ : GL ι S) : Matrix ι ι S)) ⁻¹'
+          Set.range (fun A : Matrix ι ι R ↦ A.map f) := by
+    ext u
+    simp only [Set.mem_range, Set.mem_inter_iff, Set.mem_preimage]
+    constructor
+    · rintro ⟨g, rfl⟩
+      exact ⟨⟨g, rfl⟩, ⟨g⁻¹, by simp [Matrix.GeneralLinearGroup.map]⟩⟩
+    · rintro ⟨⟨A, hA⟩, ⟨B, hB⟩⟩
+      have hAB : A * B = 1 := Matrix.map_injective hf.injective <| by
+        dsimp only
+        rw [← RingHom.mapMatrix_apply, map_mul, RingHom.mapMatrix_apply, RingHom.mapMatrix_apply,
+          hA, hB, Units.mul_inv, ← RingHom.mapMatrix_apply, map_one]
+      have hBA : B * A = 1 := Matrix.map_injective hf.injective <| by
+        dsimp only
+        rw [← RingHom.mapMatrix_apply, map_mul, RingHom.mapMatrix_apply, RingHom.mapMatrix_apply,
+          hA, hB, Units.inv_mul, ← RingHom.mapMatrix_apply, map_one]
+      exact ⟨⟨A, B, hAB, hBA⟩, Units.ext hA⟩
+  rw [hrange]
+  exact (hf.matrix_map.isOpen_range.preimage Units.continuous_val).inter
+    (hf.matrix_map.isOpen_range.preimage Units.continuous_coe_inv)
+
+end MatrixGL
 
 end TauCeti

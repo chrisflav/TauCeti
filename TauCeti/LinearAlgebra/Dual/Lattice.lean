@@ -23,7 +23,11 @@ admissible integral lattices.
 
 Evaluation restricts to an `R`-valued pairing between the integral dual and the
 submodule. Over a ring with fraction field `K`, this pairing is perfect for a free
-full lattice: its integral dual is its `R`-linear dual.
+full lattice: its integral dual is its `R`-linear dual, and in particular is again free.
+The integral dual sends `c • N` to `c⁻¹ • N^∨`, turns sums into intersections and (for
+free lattices) intersections into sums, reverses inclusions strictly on free full lattices,
+and satisfies biduality: the canonical evaluation map `V ≃ₗ[K] V^∨∨` carries a free full
+lattice `N` onto `(N^∨)^∨`.
 -/
 
 public section
@@ -67,6 +71,56 @@ theorem dualMap_mem_dualLattice (M : Submodule R V) (N : Submodule R W)
     {φ : Module.Dual K W} (hφ : φ ∈ N.dualLattice K) :
     f.dualMap φ ∈ M.dualLattice K := by
   exact (mem_dualLattice M _).mpr fun x hx => (mem_dualLattice N φ).mp hφ _ (hf x hx)
+
+/-- The integral dual of the zero submodule is the entire dual space. -/
+@[simp]
+theorem dualLattice_bot : (⊥ : Submodule R V).dualLattice K = ⊤ := by
+  ext φ
+  simp only [mem_dualLattice, mem_bot, mem_one, forall_eq, map_zero, mem_top, iff_true]
+  exact ⟨0, map_zero _⟩
+
+/-- The integral dual of a sum of submodules is the intersection of their integral duals. -/
+@[simp]
+theorem dualLattice_sup (M N : Submodule R V) :
+    (M ⊔ N).dualLattice K = M.dualLattice K ⊓ N.dualLattice K := by
+  ext φ
+  simp only [mem_dualLattice, mem_inf]
+  refine ⟨fun h ↦ ⟨fun x hx ↦ h x (mem_sup_left hx), fun y hy ↦ h y (mem_sup_right hy)⟩,
+    fun ⟨hM, hN⟩ z hz ↦ ?_⟩
+  obtain ⟨x, hx, y, hy, rfl⟩ := mem_sup.mp hz
+  rw [map_add]
+  exact add_mem (hM x hx) (hN y hy)
+
+open scoped Pointwise in
+/-- **Homothety scaling of the integral dual**: scaling a submodule by a unit `c : Kˣ` scales its
+integral dual by `c⁻¹`. -/
+@[simp]
+theorem dualLattice_smul [IsScalarTower R K V] (c : Kˣ) (N : Submodule R V) :
+    (c • N).dualLattice K = c⁻¹ • N.dualLattice K := by
+  ext φ
+  simp only [mem_dualLattice, Units.smul_def, mem_smul_pointwise_iff_exists]
+  constructor
+  · intro hφ
+    refine ⟨(c : K) • φ, fun x hx ↦ ?_, by rw [smul_smul, Units.inv_mul, one_smul]⟩
+    have hcx : φ ((c : K) • x) ∈ (1 : Submodule R K) := hφ _ ⟨x, hx, rfl⟩
+    simpa [map_smul] using hcx
+  · rintro ⟨ψ, hψ, rfl⟩ _ ⟨x, hx, rfl⟩
+    have h := hψ x hx
+    simpa [map_smul, ← mul_assoc] using h
+
+/-- Under evaluation at `1`, the integral dual of `1 : Submodule R K` is `1 : Submodule R K`. -/
+@[simp]
+theorem map_eval_one_dualLattice_one :
+    ((1 : Submodule R K).dualLattice K).map ((Module.Dual.eval K K 1).restrictScalars R) =
+      (1 : Submodule R K) := by
+  apply le_antisymm
+  · rintro _ ⟨φ, hφ, rfl⟩
+    exact (mem_dualLattice _ φ).mp hφ 1 (mem_one.mpr ⟨1, map_one _⟩)
+  · intro x hx
+    refine ⟨x • LinearMap.id, (mem_dualLattice _ _).mpr fun y hy ↦ ?_, by simp⟩
+    obtain ⟨r, rfl⟩ := mem_one.mp hx
+    obtain ⟨s, rfl⟩ := mem_one.mp hy
+    exact mem_one.mpr ⟨r * s, by simp [Algebra.smul_def]⟩
 
 end Submodule
 
@@ -172,6 +226,71 @@ instance isPerfPair_dualLatticePairing (N : Submodule R V) [N.IsLattice K] [Modu
       Submodule.mem_one.mpr ⟨g ⟨x, hx⟩, (hφ ⟨x, hx⟩).symm⟩⟩, LinearMap.ext fun x ↦ ?_⟩
     apply FaithfulSMul.algebraMap_injective R K
     simp [hφ]
+
+/-- **The integral dual of a free full lattice is free.** It is isomorphic to the `R`-linear dual
+of `N` via the perfect pairing `dualLatticePairing`. -/
+instance free_dualLattice (N : Submodule R V) [N.IsLattice K] [Module.Free R N] :
+    Module.Free R (N.dualLattice K) := by
+  classical
+  have := IsDomain.of_faithfulSMul R K
+  have : Finite (Module.Free.ChooseBasisIndex R N) :=
+    Module.Finite.finite_basis (Module.Free.chooseBasis R N)
+  exact Module.Free.of_basis
+    ((Module.Free.chooseBasis R N).dualBasis.map (N.dualLatticePairing K).toPerfPair.symm)
+
+/-- **Biduality for free full lattices.** The canonical evaluation equivalence `V ≃ₗ[K] V^∨∨`
+carries a free full lattice `N` onto its double integral dual `(N^∨)^∨`. -/
+theorem map_evalEquiv_eq_dualLattice_dualLattice [Module.IsReflexive K V]
+    (N : Submodule R V) [N.IsLattice K] [Module.Free R N] :
+    N.map ((Module.evalEquiv K V).toLinearMap.restrictScalars R) =
+      (N.dualLattice K).dualLattice K := by
+  classical
+  have := IsDomain.of_faithfulSMul R K
+  let b := Module.Free.chooseBasis R N
+  let e := b.extendOfIsLattice K
+  have : Finite (Module.Free.ChooseBasisIndex R N) := Module.Finite.finite_basis b
+  have heval : ((Module.evalEquiv K V).toLinearMap.restrictScalars R ∘ e) = e.dualBasis.dualBasis :=
+    funext fun i ↦ e.dualBasis.ext fun j ↦ by simp
+  rw [← b.span_range_extendOfIsLattice (K := K), e.dualLattice_span, e.dualBasis.dualLattice_span,
+    map_span, ← Set.range_comp, heval]
+
+/-- **Taking the integral dual strictly reverses inclusion on free full lattices.** -/
+theorem dualLattice_le_dualLattice_iff (M N : Submodule R V)
+    [M.IsLattice K] [Module.Free R M] [N.IsLattice K] [Module.Free R N] :
+    N.dualLattice K ≤ M.dualLattice K ↔ M ≤ N := by
+  refine ⟨fun h ↦ ?_, fun h ↦ dualLattice_antitone K h⟩
+  have := Module.Finite.of_isLattice (A := K) M
+  have h2 := dualLattice_antitone K h
+  rw [← map_evalEquiv_eq_dualLattice_dualLattice M,
+    ← map_evalEquiv_eq_dualLattice_dualLattice N] at h2
+  intro x hx
+  have hx' : Module.evalEquiv K V x ∈
+      N.map ((Module.evalEquiv K V).toLinearMap.restrictScalars R) :=
+    h2 (mem_map_of_mem hx)
+  obtain ⟨y, hy, hyx⟩ := hx'
+  exact (Module.evalEquiv K V).injective hyx ▸ hy
+
+/-- **The integral dual determines a free full lattice uniquely.** -/
+theorem dualLattice_eq_dualLattice_iff (M N : Submodule R V)
+    [M.IsLattice K] [Module.Free R M] [N.IsLattice K] [Module.Free R N] :
+    M.dualLattice K = N.dualLattice K ↔ M = N := by
+  simp only [le_antisymm_iff, dualLattice_le_dualLattice_iff, and_comm]
+
+/-- **The integral dual turns intersections into sums** for free full lattices whose intersection
+and dual sum are free full lattices (in particular for any two lattices over a principal ideal
+domain). -/
+theorem dualLattice_inf (M N : Submodule R V)
+    [M.IsLattice K] [Module.Free R M] [N.IsLattice K] [Module.Free R N]
+    [(M ⊓ N).IsLattice K] [Module.Free R (M ⊓ N : Submodule R V)]
+    [Module.Free R (M.dualLattice K ⊔ N.dualLattice K : Submodule R (Module.Dual K V))] :
+    (M ⊓ N).dualLattice K = M.dualLattice K ⊔ N.dualLattice K := by
+  have := IsDomain.of_faithfulSMul R K
+  have := Module.Finite.of_isLattice (A := K) M
+  rw [← dualLattice_eq_dualLattice_iff (K := K), dualLattice_sup,
+    ← map_evalEquiv_eq_dualLattice_dualLattice (M ⊓ N),
+    ← map_evalEquiv_eq_dualLattice_dualLattice M,
+    ← map_evalEquiv_eq_dualLattice_dualLattice N]
+  exact map_inf _ (Module.evalEquiv K V).injective
 
 end PerfectPairing
 
