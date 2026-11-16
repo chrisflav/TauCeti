@@ -37,6 +37,11 @@ locus of a section of an invertible sheaf.
   when `e` is a basis of `L` over `U`.
 * `AlgebraicGeometry.Scheme.Modules.bijective_smul_tensorPowSection`: if `e` is a basis of `L`
   over `U`, then `eⁿ` is a basis of `Lⁿ` over `U`.
+* `AlgebraicGeometry.Scheme.Modules.associator_hom_app_tmulRight`,
+  `AlgebraicGeometry.Scheme.Modules.leftUnitor_hom_app_tmulRight`, and
+  `AlgebraicGeometry.Scheme.Modules.tensorPowAddIso_hom_app_tmulRight_tensorPowSection`:
+  compatibility of `tmulRight` and `tensorPowSection` with associators, unitors, and
+  `tensorPowAddIso`.
 -/
 
 public section
@@ -121,6 +126,24 @@ theorem rightUnitor_inv_app_eq_tmulRight {U : X.Opens} (t : Γ(F, U)) :
   rw [← ConcreteCategory.comp_apply, ← Hom.comp_app, Iso.hom_inv_id, Hom.id_app]
   -- The identity of `Γ(F, U)` in `AddCommGrpCat` acts as the identity function.
   rfl
+
+/-- The associator of `X.Modules` sends `(a ⊗ b) ⊗ c` to `a ⊗ (b ⊗ c)`. -/
+theorem associator_hom_app_tmulRight (B C : X.Modules) {U : X.Opens}
+    (a : Γ(F, U)) (b : Γ(B, U)) (c : Γ(C, U)) :
+    (α_ F B C).hom.app U (tmulRight (F ⊗ B) c (tmulRight F b a)) =
+      tmulRight F (tmulRight B c b) a := by
+  have h := congrArg (fun φ ↦ φ.hom ((a ⊗ₜ b) ⊗ₜ c))
+    (Functor.LaxMonoidal.associativity (sectionsFunctor U) F B C)
+  simp only [ModuleCat.hom_comp, LinearMap.comp_apply] at h
+  exact h
+
+/-- The left unitor `𝒪_X ⊗ F ≅ F` sends `r ⊗ t` to `r • t`. -/
+theorem leftUnitor_hom_app_tmulRight {U : X.Opens} (r : Γ(X, U)) (t : Γ(F, U)) :
+    (λ_ F).hom.app U (tmulRight (𝟙_ X.Modules) t r) = r • t := by
+  have h := congrArg (fun φ ↦ φ.hom (r ⊗ₜ t))
+    (Functor.LaxMonoidal.left_unitality (sectionsFunctor U) F)
+  simp only [sectionsFunctor_ε, ModuleCat.hom_comp, LinearMap.comp_apply] at h
+  exact h.symm
 
 /-- Restriction to an open subscheme commutes with tensoring sections: the tensor map
 `F|_Y ⊗ L|_Y ⟶ (F ⊗ L)|_Y` of the restriction along an open immersion `j : Y ⟶ X` sends `t ⊗ e`
@@ -255,6 +278,22 @@ theorem tmulRight_tensorPowSection_smul {U : X.Opens} (r : Γ(X, U)) (e : Γ(L, 
     tmulRight F (tensorPowSection (r • e) n) t =
       tmulRight F (tensorPowSection e n) (r ^ n • t) := by
   rw [tensorPowSection_smul, tmulRight_smul, LinearMap.map_smul]
+
+/-- The block decomposition `tensorPow L m ⊗ tensorPow L k ≅ tensorPow L (k + m)` sends
+`eᵐ ⊗ eᵏ` to `e^{k + m}`. -/
+theorem tensorPowAddIso_hom_app_tmulRight_tensorPowSection {U : X.Opens} (e : Γ(L, U)) (m k : ℕ) :
+    (tensorPowAddIso L m k).hom.app U
+        (tmulRight (tensorPow L m) (tensorPowSection e k) (tensorPowSection e m)) =
+      tensorPowSection e (k + m) := by
+  induction m with
+  | zero =>
+    simpa only [tensorPowAddIso_zero, tensorPowSection_zero, Nat.add_zero, one_smul] using
+      leftUnitor_hom_app_tmulRight (tensorPow L k) (1 : Γ(X, U)) (tensorPowSection e k)
+  | succ m ih =>
+    rw [tensorPowAddIso_succ_hom, Hom.comp_app, ConcreteCategory.comp_apply,
+      tensorPowSection_succ, associator_hom_app_tmulRight, whiskerLeft_app_tmulRight, ih]
+    -- `k + (m + 1)` is definitionally `(k + m) + 1`.
+    rfl
 
 /-- If `e` is a basis of `L` over `U`, then `eⁿ` is a basis of `Lⁿ` over `U`. -/
 theorem bijective_smul_tensorPowSection {U : X.Opens} (e : Γ(L, U))

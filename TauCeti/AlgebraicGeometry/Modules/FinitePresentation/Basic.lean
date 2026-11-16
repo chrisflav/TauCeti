@@ -246,6 +246,17 @@ theorem _root_.ModuleCat.isFinitePresentation_tilde_iff (M : ModuleCat.{u} R) :
     let := h
     exact inferInstance
 
+/-- A quasi-coherent sheaf on `Spec R` is finitely presented if and only if its module of global
+sections is finitely presented over `R`. -/
+theorem
+    _root_.AlgebraicGeometry.Scheme.Modules.isFinitePresentation_iff_finitePresentation_moduleSpecΓ
+    (M : (Spec R).Modules) [M.IsQuasicoherent] :
+    M.IsFinitePresentation ↔ Module.FinitePresentation R (moduleSpecΓFunctor.obj M) := by
+  refine ⟨fun _ ↦ Scheme.Modules.finitePresentation_moduleSpecΓ M, fun _ ↦ ?_⟩
+  exact (SheafOfModules.isFinitePresentation (Spec R).ringCatSheaf).prop_of_iso
+    (@asIso _ _ _ _ M.fromTildeΓ (Scheme.Modules.isIso_fromTildeΓ_of_isQuasicoherent M))
+    (isFinitePresentation_tilde (moduleSpecΓFunctor.obj M))
+
 /-- A finitely presented sheaf on an affine scheme admits a global presentation with
 finitely many generators and finitely many relations. -/
 theorem _root_.AlgebraicGeometry.Scheme.Modules.exists_isFinite_presentation_of_isAffine

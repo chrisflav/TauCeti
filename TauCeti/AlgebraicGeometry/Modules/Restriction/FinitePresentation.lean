@@ -14,9 +14,12 @@ public import TauCeti.Algebra.Category.ModuleCat.Sheaf.Quasicoherent.FinitePrese
 # Restriction criteria for finitely presented modules on schemes
 
 The restriction of a finitely presented module along an open immersion is finitely presented.
-Conversely, finite presentation can be checked on restrictions to any open cover: every affine
-open contained in a member of the cover carries a finite global presentation, and these
-presentations descend. This is the finite-presentation analogue of
+On an affine scheme, a quasi-coherent module is finitely presented if and only if its global
+sections form a finitely presented module over the ring of global functions
+(`isFinitePresentation_iff_finitePresentation_globalSections_of_isAffine`). Conversely, finite
+presentation can be checked on restrictions to any open cover: every affine open contained in a
+member of the cover carries a finite global presentation, and these presentations descend. This is
+the finite-presentation analogue of
 `TauCeti.AlgebraicGeometry.isFiniteType_of_isFiniteType_restrict`.
 
 As an application, the cokernel of a morphism from a quasi-coherent module of finite type to a
@@ -50,6 +53,22 @@ theorem isFinitePresentation_restrict_iff_of_isIso {X Y : Scheme.{u}} (M : X.Mod
   exact (SheafOfModules.isFinitePresentation X.ringCatSheaf).prop_of_iso
     ((restrictFunctorInvCompHomIso (asIso f).symm).app M)
     (inferInstanceAs ((M.restrict f).restrict (inv f)).IsFinitePresentation)
+
+/-- A quasi-coherent module on an affine scheme is finitely presented if and only if its module of
+global sections is finitely presented over the ring of global functions. -/
+theorem isFinitePresentation_iff_finitePresentation_globalSections_of_isAffine
+    {X : Scheme.{u}} [IsAffine X] (M : X.Modules) [M.IsQuasicoherent] :
+    M.IsFinitePresentation ↔ Module.FinitePresentation Γ(X, ⊤) Γ(M, ⊤) := by
+  refine ⟨fun _ ↦ M.finitePresentation_globalSections_of_isAffine, fun _ ↦ ?_⟩
+  let htop := isAffineOpen_top X
+  have : IsIso htop.fromSpec := by rw [IsAffineOpen.fromSpec_top]; infer_instance
+  let K := M.restrict htop.fromSpec
+  have : K.IsQuasicoherent := inferInstance
+  have hK : Module.FinitePresentation Γ(X, ⊤) (moduleSpecΓFunctor.obj K) :=
+    Module.FinitePresentation.of_equiv (M.fromSpecSectionsEquiv htop)
+  have hKfp : K.IsFinitePresentation :=
+    (Scheme.Modules.isFinitePresentation_iff_finitePresentation_moduleSpecΓ K).mpr hK
+  exact (isFinitePresentation_restrict_iff_of_isIso M htop.fromSpec).mp hKfp
 
 /-- Finite presentation can be checked on restrictions to an open cover. -/
 theorem isFinitePresentation_of_isFinitePresentation_restrict {X : Scheme.{u}} {ι : Type*}

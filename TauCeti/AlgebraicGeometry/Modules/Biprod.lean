@@ -30,7 +30,10 @@ hypotheses to stay within the default typeclass search-size bound.
 * `AlgebraicGeometry.Scheme.Modules.containsZero_isFinitePresentation`,
   `AlgebraicGeometry.Scheme.Modules.isClosedUnderBinaryProducts_isFinitePresentation` and
   `AlgebraicGeometry.Scheme.Modules.isClosedUnderFiniteProducts_isFinitePresentation`:
-  finitely presented sheaves contain zero and are closed under binary and finite products.
+  finitely presented sheaves contain zero and are closed under binary and finite products;
+* `AlgebraicGeometry.Scheme.Modules.hasFiniteBiproducts` and
+  `AlgebraicGeometry.Scheme.Modules.isFinitePresentation_biproduct`: `X.Modules` has finite
+  biproducts, and a finite biproduct of finitely presented `𝒪ₓ`-modules is finitely presented.
 -/
 
 public section
@@ -78,5 +81,17 @@ instance isClosedUnderBinaryProducts_isFinitePresentation (X : Scheme.{u}) :
 /-- Finitely presented sheaves are closed under finite products. -/
 instance isClosedUnderFiniteProducts_isFinitePresentation (X : Scheme.{u}) :
     (SheafOfModules.isFinitePresentation X.ringCatSheaf).IsClosedUnderFiniteProducts := .mk'
+
+/-- `𝒪_X`-modules have finite biproducts. -/
+instance hasFiniteBiproducts (X : Scheme.{u}) : HasFiniteBiproducts X.Modules :=
+  .of_hasFiniteProducts
+
+/-- A finite biproduct of finitely presented `𝒪ₓ`-modules is finitely presented. -/
+instance isFinitePresentation_biproduct {ι : Type*} [Finite ι] (F : ι → X.Modules)
+    [∀ i, (F i).IsFinitePresentation] [HasBiproduct F] : (⨁ F).IsFinitePresentation := by
+  have := isClosedUnderFiniteProducts_isFinitePresentation X
+  exact ObjectProperty.prop_of_isLimit
+    (P := SheafOfModules.isFinitePresentation X.ringCatSheaf) (biproduct.isLimit F)
+    fun j ↦ inferInstanceAs (F j.as).IsFinitePresentation
 
 end AlgebraicGeometry.Scheme.Modules

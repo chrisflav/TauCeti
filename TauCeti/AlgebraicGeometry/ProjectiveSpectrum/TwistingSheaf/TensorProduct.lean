@@ -7,6 +7,7 @@ module
 
 public import TauCeti.AlgebraicGeometry.ProjectiveSpectrum.TwistingSheaf.LocalTriviality
 public import TauCeti.AlgebraicGeometry.LineBundle.Class
+public import TauCeti.CategoryTheory.Monoidal.TensorPow.Basic
 
 /-!
 # Tensor products of twisting sheaves
@@ -27,9 +28,13 @@ sheafified tensor product follows the Cartier divisor construction in
 
 * `AlgebraicGeometry.Proj.twistingSheaf.tensorPresheafHom`: multiplication of sections, as a
   morphism from the sectionwise tensor product of `𝒪(m)` and `𝒪(n)` to `𝒪(m + n)`.
-* `AlgebraicGeometry.Proj.twistingSheaf.tensorProductIso`: the isomorphism
-  `𝒪(m) ⊗ 𝒪(n) ≅ 𝒪(m + n)` when the degree-one standard opens cover `Proj A`, with
+* `AlgebraicGeometry.Proj.twistingSheaf.tensorProductIso` and
+  `AlgebraicGeometry.Proj.twistingSheaf.tensorIso`: the isomorphism `𝒪(m) ⊗ 𝒪(n) ≅ 𝒪(m + n)`
+  when the degree-one standard opens cover `Proj A`, with
   `AlgebraicGeometry.Proj.twistingSheaf.tensorProductIso_hom_tmul` describing it on pure tensors.
+* `AlgebraicGeometry.Proj.twistingSheaf.tensorPowIso` and
+  `AlgebraicGeometry.Proj.twistingSheaf.dualIsoNeg`: the identifications `𝒪(1)^{⊗n} ≅ 𝒪(n)` and
+  `𝒪(n)∨ ≅ 𝒪(-n)`.
 * `AlgebraicGeometry.Proj.lineBundleClass_twistingSheaf_eq_zpow`: `[𝒪(n)] = [𝒪(1)] ^ n` in the
   group of line-bundle classes.
 
@@ -243,6 +248,45 @@ theorem tensorProductIso_hom_tmul (U : (Proj 𝒜).Opens) (s : Γ(twistingSheaf 
         (twistingSheaf 𝒜 n)).inv ≫ (tensorProductIso f hf hcover m n).hom) U
       ((adj.unit.app P).app (op U) (s ⊗ₜ t)) = mul 𝒜 U m n s t at hU
   exact hU
+
+open MonoidalCategory in
+/-- **Monoidal tensor product of twisting sheaves**: `𝒪(m) ⊗ 𝒪(n) ≅ 𝒪(m + n)` in the monoidal
+category `(Proj A).Modules` when degree-one standard opens cover `Proj A`. -/
+def tensorIso (m n : ℤ) :
+    twistingSheaf 𝒜 m ⊗ twistingSheaf 𝒜 n ≅ twistingSheaf 𝒜 (m + n) :=
+  (twistingSheaf 𝒜 m).tensorUnderlyingIso (twistingSheaf 𝒜 n) ≪≫
+    (TauCeti.SheafOfModules.tensorProductIso (Proj 𝒜).sheaf _ _).symm ≪≫
+    tensorProductIso f hf hcover m n
+
+open MonoidalCategory in
+/-- **Iterated tensor powers of `𝒪(1)`**: `𝒪(1)^{⊗n} ≅ 𝒪(n)` for every `n : ℕ` when degree-one
+standard opens cover `Proj A`. -/
+def tensorPowIso : (n : ℕ) →
+    TauCeti.tensorPow (twistingSheaf 𝒜 1) n ≅ twistingSheaf 𝒜 (n : ℤ)
+  | 0 => unitIsoTwistingSheafZero 𝒜
+  | n + 1 =>
+      whiskerLeftIso (twistingSheaf 𝒜 1) (tensorPowIso n) ≪≫
+        tensorIso f hf hcover 1 (n : ℤ) ≪≫
+        eqToIso (congrArg (twistingSheaf 𝒜) (by omega))
+
+open MonoidalCategory in
+/-- **Dual of a twisting sheaf**: `𝒪(m)∨ ≅ 𝒪(-m)` when degree-one standard opens cover
+`Proj A`. -/
+def dualIsoNeg (m : ℤ) :
+    (twistingSheaf 𝒜 m).dual ≅ twistingSheaf 𝒜 (-m) :=
+  let hcov' : ⨆ x : Set.range f, basicOpen 𝒜 x.1 = ⊤ :=
+    (iSup_range' (fun a ↦ basicOpen 𝒜 a) f).trans hcover
+  let hf' : ∀ x : Set.range f, x.1 ∈ 𝒜 1 := fun ⟨_, i, hi⟩ ↦ hi ▸ hf i
+  let Lm : TauCeti.AlgebraicGeometry.InvertibleSheaf (Proj 𝒜) :=
+    ⟨twistingSheaf 𝒜 m, isInvertible_twistingSheaf_of_iSup_eq_top Subtype.val hf' hcov' m⟩
+  (λ_ (twistingSheaf 𝒜 m).dual).symm ≪≫
+    whiskerRightIso (unitIsoTwistingSheafZero 𝒜) _ ≪≫
+    whiskerRightIso (eqToIso (congrArg (twistingSheaf 𝒜) (neg_add_cancel m).symm)) _ ≪≫
+    whiskerRightIso (tensorIso f hf hcover (-m) m).symm _ ≪≫
+    α_ (twistingSheaf 𝒜 (-m)) (twistingSheaf 𝒜 m) (twistingSheaf 𝒜 m).dual ≪≫
+    whiskerLeftIso (twistingSheaf 𝒜 (-m))
+      (TauCeti.AlgebraicGeometry.InvertibleSheaf.evaluationDualIsoSheaf Lm) ≪≫
+    ρ_ (twistingSheaf 𝒜 (-m))
 
 end Cover
 

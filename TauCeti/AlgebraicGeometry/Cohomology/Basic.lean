@@ -28,7 +28,8 @@ For a scheme `X` and `M : X.Modules`, the main declarations are:
   `Scheme.Modules.cohomologyOnRes` its restriction maps,
   `Scheme.Modules.cohomologyOnMap` its functoriality in the coefficient sheaf,
   `Scheme.Modules.cohomologyOnZeroEquiv` the identification of `H⁰(U, M)` with `Γ(M, U)`, and
-  `Scheme.Modules.cohomologyOnTopIso` the identification of `Hⁿ(⊤, M)` with `Hⁿ(X, M)`.
+  `Scheme.Modules.cohomologyOnTopIso` the identification of `Hⁿ(⊤, M)` with `Hⁿ(X, M)`;
+* `Scheme.Modules.subsingleton_cohomology_of_isEmpty`, vanishing of cohomology on an empty scheme.
 
 The construction is stated for every sheaf of modules, which is the natural generality of sheaf
 cohomology. In particular it applies to finitely presented sheaves through their underlying
@@ -203,6 +204,33 @@ lemma _root_.AlgebraicGeometry.Scheme.Modules.cohomologyOnTopIso_hom_cohomologyO
     isTerminalTop).hom.naturality ((_root_.SheafOfModules.toSheaf X.ringCatSheaf).map f)) x
 
 end Opens
+
+/-- On an empty scheme, every sheaf of modules has trivial cohomology in every degree. -/
+theorem _root_.AlgebraicGeometry.Scheme.Modules.subsingleton_cohomology_of_isEmpty
+    {X : Scheme.{u}} [IsEmpty X] (M : X.Modules) (q : ℕ) :
+    Subsingleton (Cohomology M q) := by
+  have hzero : IsZero M := by
+    rw [IsZero.iff_id_eq_zero]
+    ext U x
+    have hU : U = ⊥ := by
+      ext p
+      exact (IsEmpty.false p).elim
+    subst hU
+    have hring : Subsingleton Γ(X, ⊥) :=
+      CommRingCat.subsingleton_of_isTerminal (TopCat.Sheaf.isTerminalOfEmpty X.sheaf)
+    have h10 : (1 : Γ(X, ⊥)) = 0 := Subsingleton.elim 1 0
+    have hx : x = 0 := by
+      calc
+        x = (1 : Γ(X, ⊥)) • x := (one_smul _ _).symm
+        _ = (0 : Γ(X, ⊥)) • x := by rw [h10]
+        _ = 0 := zero_smul _ _
+    simp [hx]
+  have hH : IsZero ((cohomologyFunctor X q).obj M) := (cohomologyFunctor X q).map_isZero hzero
+  have hid : 𝟙 ((cohomologyFunctor X q).obj M) = 0 := hH.eq_of_src _ _
+  refine ⟨fun a b ↦ ?_⟩
+  have hzero_el : ∀ x : Cohomology M q, x = 0 := fun x ↦
+    congrArg (fun f : (cohomologyFunctor X q).obj M ⟶ (cohomologyFunctor X q).obj M ↦ f.hom x) hid
+  exact (hzero_el a).trans (hzero_el b).symm
 
 end Scheme.Modules
 

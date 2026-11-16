@@ -22,7 +22,10 @@ tensor product. This supplies inverses for the Picard group.
 
 * `SheafOfModules.IsInvertible.dual` says that the dual of an invertible sheaf is invertible;
 * `SheafOfModules.isIso_evaluation_dual_of_isInvertible` says that evaluation of an invertible
-  sheaf against its dual is an isomorphism.
+  sheaf against its dual is an isomorphism;
+* `SheafOfModules.tensorRightEquivOfIsInvertible` and
+  `SheafOfModules.isEquivalence_tensorRight_of_isInvertible` show that tensoring on the right with
+  an invertible sheaf is an autoequivalence of sheaves of modules.
 
 ## References
 
@@ -115,6 +118,44 @@ instance _root_.SheafOfModules.isIso_evaluation_dual_of_isInvertible
       F.map ((ihom.ev M).app (unit (ringCatSheaf R)))) :=
     IsIso.of_isIso_comp_right _ (Functor.OplaxMonoidal.η F)
   exact IsIso.of_isIso_comp_left (Functor.LaxMonoidal.μ F M M.dual) _
+
+/-- Tensoring on the right with an invertible sheaf `M` is an autoequivalence of
+`SheafOfModules (ringCatSheaf R)`, with quasi-inverse given by tensoring with `M.dual`. -/
+def _root_.SheafOfModules.tensorRightEquivOfIsInvertible
+    (M : _root_.SheafOfModules.{u} (ringCatSheaf R)) [IsInvertible M] :
+    _root_.SheafOfModules.{u} (ringCatSheaf R) ≌ _root_.SheafOfModules.{u} (ringCatSheaf R) :=
+  let e : M ⊗ M.dual ≅ 𝟙_ (_root_.SheafOfModules.{u} (ringCatSheaf R)) :=
+    asIso ((ihom.ev M).app (unit (ringCatSheaf R)))
+  let e' : M.dual ⊗ M ≅ 𝟙_ (_root_.SheafOfModules.{u} (ringCatSheaf R)) :=
+    (BraidedCategory.braiding M.dual M) ≪≫ e
+  CategoryTheory.Equivalence.mk
+    (MonoidalCategory.tensorRight M) (MonoidalCategory.tensorRight M.dual)
+    ((rightUnitorNatIso _).symm ≪≫ (tensoringRight _).mapIso e.symm ≪≫ tensorRightTensor M M.dual)
+    ((tensorRightTensor M.dual M).symm ≪≫ (tensoringRight _).mapIso e' ≪≫ rightUnitorNatIso _)
+
+omit [HasPullbacks C] in
+/-- The forward functor of `tensorRightEquivOfIsInvertible` is tensoring on the right with `M`. -/
+@[simp]
+lemma _root_.SheafOfModules.tensorRightEquivOfIsInvertible_functor
+    (M : _root_.SheafOfModules.{u} (ringCatSheaf R)) [IsInvertible M] :
+    (tensorRightEquivOfIsInvertible (R := R) M).functor = MonoidalCategory.tensorRight M := by
+  rfl
+
+omit [HasPullbacks C] in
+/-- The quasi-inverse functor of `tensorRightEquivOfIsInvertible` is tensoring on the right with
+`M.dual`. -/
+@[simp]
+lemma _root_.SheafOfModules.tensorRightEquivOfIsInvertible_inverse
+    (M : _root_.SheafOfModules.{u} (ringCatSheaf R)) [IsInvertible M] :
+    (tensorRightEquivOfIsInvertible (R := R) M).inverse = MonoidalCategory.tensorRight M.dual := by
+  rfl
+
+/-- Tensoring on the right with an invertible sheaf is an equivalence of categories, hence exact
+and preserving all limits and colimits. -/
+instance _root_.SheafOfModules.isEquivalence_tensorRight_of_isInvertible
+    (M : _root_.SheafOfModules.{u} (ringCatSheaf R)) [IsInvertible M] :
+    (MonoidalCategory.tensorRight M).IsEquivalence :=
+  (tensorRightEquivOfIsInvertible (R := R) M).isEquivalence_functor
 
 end SheafOfModules
 

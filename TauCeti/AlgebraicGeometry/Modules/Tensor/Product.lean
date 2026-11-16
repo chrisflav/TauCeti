@@ -32,7 +32,9 @@ product of `𝒪ₓ`-modules is `M ⊗ N`.
   `𝒪ₓ`-modules;
 * `TauCeti.AlgebraicGeometry.isQuasicoherent_unit` and
   `TauCeti.AlgebraicGeometry.isQuasicoherent_structureSheaf`: the structure sheaf, viewed as a
-  module over itself, is quasi-coherent in monoidal-unit and explicit-unit notation.
+  module over itself, is quasi-coherent in monoidal-unit and explicit-unit notation;
+* `AlgebraicGeometry.Scheme.Modules.isFiniteType_tensorObj`: the tensor product of two
+  `𝒪ₓ`-modules of finite type is of finite type.
 
 -/
 
@@ -79,6 +81,11 @@ instance _root_.AlgebraicGeometry.Scheme.Modules.instMonoidalClosed :
 instance _root_.AlgebraicGeometry.Scheme.Modules.isQuasicoherent_tensorObj (M N : X.Modules)
     [M.IsQuasicoherent] [N.IsQuasicoherent] : (M ⊗ N).IsQuasicoherent :=
   SheafOfModules.isQuasicoherent_tensorObj (R := X.sheaf)
+
+/-- The tensor product of two `𝒪ₓ`-modules of finite type is of finite type. -/
+instance _root_.AlgebraicGeometry.Scheme.Modules.isFiniteType_tensorObj (M N : X.Modules)
+    [M.IsFiniteType] [N.IsFiniteType] : (M ⊗ N).IsFiniteType :=
+  SheafOfModules.isFiniteType_tensorObj (R := X.sheaf)
 
 /-- Quasi-coherence is a monoidal property of `𝒪ₓ`-modules, so quasi-coherent `𝒪ₓ`-modules form
 a monoidal full subcategory of `X.Modules`. -/

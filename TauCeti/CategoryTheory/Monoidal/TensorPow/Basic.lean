@@ -33,7 +33,8 @@ identity.
   isomorphisms and their associativity;
 * `TauCeti.tensorPowSuccIso`: appending a factor on the right, with its compatibilities
   `TauCeti.tensorPowSuccIso_hom_whiskerRight_tensorPowAddIso_hom` and
-  `TauCeti.tensorPowAddIso_hom_whiskerRight_tensorPowSuccIso_hom`.
+  `TauCeti.tensorPowAddIso_hom_whiskerRight_tensorPowSuccIso_hom`;
+* `TauCeti.tensorPowMulIso`: iterated tensor powers `(X^{⊗m})^{⊗n} ≅ X^{⊗(m * n)}`.
 -/
 
 public section
@@ -230,6 +231,26 @@ theorem tensorPowAddIso_hom_whiskerRight_tensorPowSuccIso_hom (X : C) (m n : ℕ
   rw [← cancel_mono (eqToHom (congrArg (tensorPow X) (by omega : n + m + 1 = 1 + n + m)))]
   simp only [Category.assoc, eqToHom_trans, eqToHom_refl, Category.comp_id]
   monoidal
+
+/-- The iterated tensor power `(X^{⊗d})^{⊗k}` is canonically isomorphic to `X^{⊗(d * k)}`. -/
+def tensorPowMulIso (X : C) (d : ℕ) : (k : ℕ) → tensorPow (tensorPow X d) k ≅ tensorPow X (d * k)
+  | 0 => eqToIso (by simp)
+  | k + 1 =>
+    whiskerLeftIso (tensorPow X d) (tensorPowMulIso X d k) ≪≫
+      tensorPowAddIso X d (d * k) ≪≫ eqToIso (congrArg (tensorPow X) (Nat.mul_succ d k).symm)
+
+/-- The zeroth iterated tensor power isomorphism is the identity on the monoidal unit. -/
+@[simp]
+theorem tensorPowMulIso_zero (X : C) (d : ℕ) :
+    tensorPowMulIso X d 0 = eqToIso (by simp) :=
+  (rfl)
+
+/-- The recursive step of the iterated tensor power isomorphism. -/
+theorem tensorPowMulIso_succ (X : C) (d k : ℕ) :
+    tensorPowMulIso X d (k + 1) =
+      whiskerLeftIso (tensorPow X d) (tensorPowMulIso X d k) ≪≫
+        tensorPowAddIso X d (d * k) ≪≫ eqToIso (congrArg (tensorPow X) (Nat.mul_succ d k).symm) :=
+  (rfl)
 
 section Map
 

@@ -7,6 +7,7 @@ module
 
 public import Mathlib.AlgebraicGeometry.Morphisms.QuasiSeparated
 public import TauCeti.AlgebraicGeometry.Cohomology.HigherDirectImage.Scalars
+public import TauCeti.AlgebraicGeometry.Cohomology.Module.Base
 public import TauCeti.AlgebraicGeometry.Modules.LocallyBijective
 import TauCeti.Algebra.Module.LocalizedModule.Map
 import TauCeti.AlgebraicGeometry.Cohomology.HigherDirectImage.Restrict
@@ -47,7 +48,13 @@ open of `Y` to a morphism from a quasi-compact quasi-separated scheme.
 * `AlgebraicGeometry.Scheme.Hom.isQuasicoherent_higherDirectImage`: the higher direct images of a
   quasi-coherent module along a quasi-compact quasi-separated morphism are quasi-coherent;
 * `AlgebraicGeometry.Scheme.Hom.higherDirectImageBasicOpenSectionsAddEquiv`: over an affine base,
-  the sections of `Rⁿ f_* M` over `D(g)` are `Hⁿ(f⁻¹ D(g), M)`.
+  the sections of `Rⁿ f_* M` over `D(g)` are `Hⁿ(f⁻¹ D(g), M)`;
+* `AlgebraicGeometry.Scheme.Hom.higherDirectImageTopAddEquiv`: over an affine base, the global
+  sections of `Rⁿ f_* M` are additively equivalent to `Hⁿ(X, M)`;
+* `AlgebraicGeometry.Scheme.Hom.higherDirectImageTopAddEquiv_smul`: compatibility of
+  `higherDirectImageTopAddEquiv` with the action of global functions via `f^*`;
+* `AlgebraicGeometry.Scheme.Hom.higherDirectImageTopBaseLinearEquiv`: over `Spec R`, the `R`-linear
+  equivalence `Hⁿ(X, M) ≃ₗ[R] Γ(Rⁿ f_* M, ⊤)` when the target is affine.
 
 ## References
 
@@ -164,6 +171,120 @@ private lemma isQuasicoherent_higherDirectImage_of_isAffine :
   exact Scheme.Modules.isQuasicoherent_sheafification_of_isLocalizedModule _
     (fun _ : Unit ↦ ⊤) (fun _ ↦ isAffineOpen_top Y) iSup_const
     fun _ ↦ f.isLocalizedModule_higherDirectImagePresheaf_map_basicOpen M n
+
+/-- Transporting cohomology along an equality of opens respects the action of global functions. -/
+private lemma eqToIso_cohomologyOn_inv_smul {X : Scheme.{u}} (M : X.Modules) (n : ℕ)
+    {U V : X.Opens} (h : U = V) (r : Γ(X, ⊤)) (x : cohomologyOn M n V) :
+    (eqToIso (congrArg (cohomologyOn M n) h)).inv (r • x) =
+      r • (eqToIso (congrArg (cohomologyOn M n) h)).inv x := by
+  subst h
+  rfl
+
+/-- **Global sections of a higher direct image over an affine base.** For a quasi-compact,
+quasi-separated morphism `f : X ⟶ Y` into an affine scheme `Y` and a quasi-coherent `𝒪_X`-module
+`M`, the global sections of `Rⁿ f_* M` are additively equivalent to `Hⁿ(X, M)`. -/
+def higherDirectImageTopAddEquiv :
+    Cohomology M n ≃+ Γ((f.higherDirectImage n).obj M, ⊤) :=
+  ((cohomologyOnTopIso M n).symm ≪≫
+    (eqToIso (congrArg (cohomologyOn M n) f.preimage_top)).symm).addCommGroupIsoToAddEquiv.trans
+    (f.higherDirectImageBasicOpenSectionsAddEquiv M n ⟨1, Y.basicOpen_one⟩)
+
+/-- The identification of `Hⁿ(X, M)` with the global sections of `Rⁿ f_* M` over an affine base
+is compatible with the action of global functions on `Y` via `f^*`. -/
+theorem higherDirectImageTopAddEquiv_smul (r : Γ(Y, ⊤)) (x : Cohomology M n) :
+    f.higherDirectImageTopAddEquiv M n (f.appTop r • x) =
+      r • f.higherDirectImageTopAddEquiv M n x := by
+  let i := (cohomologyOnTopIso M n).symm ≪≫
+    (eqToIso (congrArg (cohomologyOn M n) f.preimage_top)).symm
+  let e := (f.higherDirectImagePresheafToPresheafIso M n).app (.op ⊤)
+  obtain ⟨y₀, hy⟩ := (ConcreteCategory.bijective_of_isIso e.hom).2 (i.hom x)
+  let y : ((f.higherDirectImagePresheaf n).obj M).obj (.op ⊤) := y₀
+  let r' : Y.ringCatSheaf.obj.obj (.op ⊤) := r
+  have hy' : (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) y = i.hom x := hy
+  -- Ascribe `cohomologyOn M n (f ⁻¹ᵁ ⊤)` explicitly so `HSMul` resolves to the cohomology action.
+  have hy_coh : (show cohomologyOn M n (f ⁻¹ᵁ ⊤) from
+      (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) y) = i.hom x := hy
+  have he_smul : (show cohomologyOn M n (f ⁻¹ᵁ ⊤) from
+      (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) (r' • y)) =
+      f.appTop r • (show cohomologyOn M n (f ⁻¹ᵁ ⊤) from
+        (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) y) := by
+    -- Ascribe the ring-sheaf section type to match `higherDirectImagePresheafToPresheafIso`.
+    have hmap : (show Y.ringCatSheaf.obj.obj (.op ⊤) from
+        Y.presheaf.map (⊤ : Y.Opens).leTop.op r) = r' := by
+      -- The inclusion of `⊤` into itself is the identity, so restriction acts trivially on `r`.
+      rw [show (⊤ : Y.Opens).leTop = 𝟙 _ from rfl, op_id, CategoryTheory.Functor.map_id]
+      rfl
+    rw [← hmap]
+    exact f.higherDirectImagePresheafToPresheafIso_hom_app_smul M n r ⊤ y
+  have hinv_smul : (cohomologyOnTopIso M n).inv (f.appTop r • x) =
+      f.appTop r • (cohomologyOnTopIso M n).inv x := by
+    apply (ConcreteCategory.bijective_of_isIso (cohomologyOnTopIso M n).hom).1
+    rw [Iso.inv_hom_id_apply, ← cohomologyOnTopLinearEquiv_apply,
+      (cohomologyOnTopLinearEquiv M n).map_smul, cohomologyOnTopLinearEquiv_apply,
+      Iso.inv_hom_id_apply]
+  have hi_smul : i.hom (f.appTop r • x) = f.appTop r • i.hom x := by
+    dsimp only [i, Iso.trans_hom, Iso.symm_hom]
+    rw [ConcreteCategory.comp_apply, ConcreteCategory.comp_apply, hinv_smul,
+      eqToIso_cohomologyOn_inv_smul M n f.preimage_top]
+  have h1 : i.hom (f.appTop r • x) =
+      (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) (r' • y) :=
+    hi_smul.trans ((congrArg (f.appTop r • ·) hy_coh.symm).trans he_smul.symm)
+  have hstep (x' : Cohomology M n)
+      (z : ((f.higherDirectImagePresheaf n).obj M).obj (.op ⊤))
+      (hz : (f.higherDirectImagePresheafToPresheafIso M n).hom.app (.op ⊤) z = i.hom x') :
+      f.higherDirectImageTopAddEquiv M n x' =
+        ((f.higherDirectImagePresheafSheafificationIso n).app M).hom.val.app (.op ⊤)
+          (((PresheafOfModules.sheafificationAdjunction (𝟙 Y.ringCatSheaf.obj)).unit.app
+            ((f.higherDirectImagePresheaf n).obj M)).app (.op ⊤) z) := by
+    dsimp only [higherDirectImageTopAddEquiv, AddEquiv.trans_apply]
+    rw [Iso.addCommGroupIsoToAddEquiv_apply]
+    -- The isomorphism prefix matches `i.hom`, allowing rewriting via `hz`.
+    change f.higherDirectImageBasicOpenSectionsAddEquiv M n ⟨1, Y.basicOpen_one⟩ (i.hom x') = _
+    rw [← hz]
+    exact
+      f.higherDirectImageBasicOpenSectionsAddEquiv_higherDirectImagePresheafToPresheafIso_hom_app
+        M n ⟨1, Y.basicOpen_one⟩ z
+  rw [hstep (f.appTop r • x) (r' • y) h1.symm, hstep x y hy']
+  exact (congrArg (((f.higherDirectImagePresheafSheafificationIso n).app M).hom.val.app (.op ⊤))
+    ((((PresheafOfModules.sheafificationAdjunction (𝟙 Y.ringCatSheaf.obj)).unit.app
+      ((f.higherDirectImagePresheaf n).obj M)).app (.op ⊤)).hom.map_smul r' y)).trans
+    ((((f.higherDirectImagePresheafSheafificationIso n).app M).hom.val.app (.op ⊤)).hom.map_smul
+      r' _)
+
+/-- **Base-linear global sections of a higher direct image over an affine base.** When `f : X ⟶ Y`
+is a quasi-compact, quasi-separated morphism over `Spec R` into an affine scheme `Y` and `M` is
+quasi-coherent, `Hⁿ(X, M)` is `R`-linearly equivalent to `Γ(Rⁿ f_* M, ⊤)`. -/
+def higherDirectImageTopBaseLinearEquiv (R : Type u) [CommRing R]
+    [X.Over (Spec (.of R))] [Y.Over (Spec (.of R))] [f.IsOver (Spec (.of R))] :
+    Cohomology M n ≃ₗ[R] Γ((f.higherDirectImage n).obj M, ⊤) where
+  __ := f.higherDirectImageTopAddEquiv M n
+  map_smul' r x := by
+    have hr : f.appTop (baseRingToGlobalSections R Y r) = baseRingToGlobalSections R X r := by
+      rw [baseRingToGlobalSections_apply, baseRingToGlobalSections_apply,
+        ← CommRingCat.comp_apply, ← comp_appTop, HomIsOver.comp_over]
+    -- The inherited additive-equivalence field computes through `higherDirectImageTopAddEquiv`.
+    change f.higherDirectImageTopAddEquiv M n (r • x) =
+      r • f.higherDirectImageTopAddEquiv M n x
+    rw [base_smul_cohomology, base_smul_globalSections, ← hr,
+      f.higherDirectImageTopAddEquiv_smul M n]
+
+/-- The forward map of `higherDirectImageTopBaseLinearEquiv` is `higherDirectImageTopAddEquiv`. -/
+@[simp]
+lemma higherDirectImageTopBaseLinearEquiv_apply (R : Type u) [CommRing R]
+    [X.Over (Spec (.of R))] [Y.Over (Spec (.of R))] [f.IsOver (Spec (.of R))]
+    (x : Cohomology M n) :
+    f.higherDirectImageTopBaseLinearEquiv M n R x = f.higherDirectImageTopAddEquiv M n x := by
+  rfl
+
+/-- The inverse map of `higherDirectImageTopBaseLinearEquiv` is the inverse of
+`higherDirectImageTopAddEquiv`. -/
+@[simp]
+lemma higherDirectImageTopBaseLinearEquiv_symm_apply (R : Type u) [CommRing R]
+    [X.Over (Spec (.of R))] [Y.Over (Spec (.of R))] [f.IsOver (Spec (.of R))]
+    (x : Γ((f.higherDirectImage n).obj M, ⊤)) :
+    (f.higherDirectImageTopBaseLinearEquiv M n R).symm x =
+      (f.higherDirectImageTopAddEquiv M n).symm x := by
+  rfl
 
 end Affine
 

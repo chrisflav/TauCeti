@@ -5,11 +5,13 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.RingTheory.Noetherian.Defs
 public import TauCeti.AlgebraicGeometry.Cohomology.Basic
 public import TauCeti.AlgebraicGeometry.Cohomology.Module.Base
 public import TauCeti.AlgebraicGeometry.Modules.Sheaf
 public import TauCeti.CategoryTheory.Sites.SheafCohomology.LongExactSequence
 public import TauCeti.LinearAlgebra.Exact
+import Mathlib.RingTheory.Noetherian.Basic
 
 /-!
 # The long exact cohomology sequence of a short exact sequence of sheaves of modules
@@ -54,7 +56,9 @@ varies the coefficients.
   `Scheme.Modules.coe_cohomologyMapBaseLinear` and `Scheme.Modules.coe_cohomologyδBaseLinear`
   identify the underlying maps, and
   `Scheme.Modules.exact_cohomologyMapBaseLinear_cohomologyδBaseLinear` is exactness at `Hⁿ(X, M₃)`
-  for these linear maps.
+  for these linear maps;
+* `Scheme.Modules.finite_cohomology_X₃`: over a Noetherian base ring, `Hⁱ(X, M₃)` is finitely
+  generated when `Hⁱ(X, M₂)` and `Hⁱ⁺¹(X, M₁)` are.
 
 Additivity of the Euler characteristic, and with it Riemann-Roch, rest on this sequence. The
 sequence itself is Mathlib's `CategoryTheory.Sheaf.H.longSequence`, repackaged in
@@ -324,6 +328,23 @@ theorem exact_cohomologyMapBaseLinear_cohomologyδBaseLinear (hS : S.ShortExact)
       (cohomologyδBaseLinear R X hS i (i + 1) rfl) := by
   rw [coe_cohomologyδBaseLinear R X hS, coe_cohomologyMapBaseLinear R X]
   exact exact_cohomologyMap_cohomologyδ hS i (i + 1) rfl
+
+omit hS in
+/-- Over a Noetherian base ring `R`, in a short exact sequence `0 ⟶ M₁ ⟶ M₂ ⟶ M₃ ⟶ 0`, if
+`Hⁱ(X, M₂)` and `Hⁱ⁺¹(X, M₁)` are finitely generated over `R`, then so is `Hⁱ(X, M₃)`. -/
+theorem _root_.AlgebraicGeometry.Scheme.Modules.finite_cohomology_X₃ [IsNoetherianRing R]
+    (hS : S.ShortExact) (i : ℕ) [Module.Finite R (Cohomology S.X₂ i)]
+    [Module.Finite R (Cohomology S.X₁ (i + 1))] :
+    Module.Finite R (Cohomology S.X₃ i) := by
+  have : IsNoetherian R (Cohomology S.X₁ (i + 1)) :=
+    isNoetherian_of_isNoetherianRing_of_finite R _
+  have : Module.Finite R (LinearMap.range (cohomologyδBaseLinear R X hS i (i + 1) rfl)) :=
+    Module.finite_def.mpr ((Submodule.fg_top _).mpr (IsNoetherian.noetherian _))
+  have hex : Function.Exact (cohomologyMapBaseLinear R X S.g i)
+      (cohomologyδBaseLinear R X hS i (i + 1) rfl).rangeRestrict := by
+    rw [LinearMap.exact_iff, LinearMap.ker_rangeRestrict, ← LinearMap.exact_iff]
+    exact exact_cohomologyMapBaseLinear_cohomologyδBaseLinear R X hS i
+  exact Module.Finite.of_exact hex (LinearMap.surjective_rangeRestrict _)
 
 end Base
 

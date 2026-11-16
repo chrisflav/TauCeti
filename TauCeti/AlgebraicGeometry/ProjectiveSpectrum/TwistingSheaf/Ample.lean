@@ -6,7 +6,9 @@ Authors: The Tau Ceti contributors
 module
 
 public import TauCeti.AlgebraicGeometry.ProjectiveSpectrum.TwistingSheaf.LocalTriviality
+public import TauCeti.AlgebraicGeometry.ProjectiveSpectrum.TwistingSheaf.TensorProduct
 public import TauCeti.AlgebraicGeometry.LineBundle.Ample
+public import TauCeti.AlgebraicGeometry.LineBundle.GlobalGeneration.Ample
 public import TauCeti.AlgebraicGeometry.LineBundle.GlobalGeneration.Basic
 import TauCeti.AlgebraicGeometry.ProjectiveSpectrum.Basic
 
@@ -21,7 +23,11 @@ symmetric algebra of a finite module, over any commutative ring.
 
 This connects the local-fraction construction of twisting sheaves to positivity of line
 bundles. The standard affine opens are the affine nonvanishing loci needed for ampleness,
-which underlies generation and vanishing after sufficiently positive twisting.
+which underlies generation and vanishing after sufficiently positive twisting. In particular,
+`AlgebraicGeometry.Proj.exists_epi_biproduct_twistingSheaf_neg` and
+`TauCeti.SymmetricAlgebra.exists_epi_biproduct_twistingSheaf_neg` specialize Serre's Theorem A
+to present any finite-type quasi-coherent sheaf on `Proj` as a quotient of a finite direct sum
+of negative twists `𝒪(-n)`.
 
 ## References
 
@@ -118,6 +124,29 @@ theorem isAmple_twistingSheaf [CompactSpace (Proj 𝒜)] {n : ℕ} (hn : 0 < n) 
     exact isAffineOpen_basicOpen 𝒜 _
       (by simpa using SetLike.pow_mem_graded n (hf i)) hn
 
+include f hf hcover in
+open Limits in
+/-- **Presentation by negative twisting sheaves on `Proj`.** On a quasi-compact, quasi-separated
+`Proj A` covered by degree-one standard opens, every quasi-coherent module `F` of finite type is,
+for all sufficiently large `n : ℕ`, a quotient of a finite direct sum of copies of `𝒪(-n)`. -/
+theorem exists_epi_biproduct_twistingSheaf_neg [CompactSpace (Proj 𝒜)]
+    [QuasiSeparatedSpace (Proj 𝒜)] (F : (Proj 𝒜).Modules) [F.IsQuasicoherent] [F.IsFiniteType] :
+    ∃ n₀ : ℕ, ∀ n ≥ n₀,
+      ∃ (r : ℕ) (π : (⨁ fun _ : Fin r ↦ twistingSheaf 𝒜 (-(n : ℤ))) ⟶ F), Epi π := by
+  have hamp := isAmple_twistingSheaf f hf hcover (n := 1) Nat.one_pos
+  obtain ⟨n₀, hn₀⟩ := hamp.exists_epi_biproduct_dual_tensorPow F
+  refine ⟨n₀, fun n hn ↦ ?_⟩
+  obtain ⟨r, π, hπ⟩ := hn₀ n hn
+  let D : (Proj 𝒜).Modules := (TauCeti.tensorPow (twistingSheaf 𝒜 1) n).dual
+  let e : twistingSheaf 𝒜 (-(n : ℤ)) ≅ D :=
+    (twistingSheaf.dualIsoNeg f hf hcover (n : ℤ)).symm ≪≫
+      (_root_.SheafOfModules.dualIso (R := (Proj 𝒜).sheaf)
+        (twistingSheaf.tensorPowIso f hf hcover n)).symm
+  let eBip : (⨁ fun _ : Fin r ↦ twistingSheaf 𝒜 (-(n : ℤ))) ≅
+      (⨁ fun _ : Fin r ↦ D) :=
+    biproduct.mapIso fun _ ↦ e
+  exact ⟨r, eBip.hom ≫ π, @epi_comp _ _ _ _ _ eBip.hom (IsIso.epi_of_iso eBip.hom) π hπ⟩
+
 end AlgebraicGeometry.Proj
 
 namespace TauCeti.SymmetricAlgebra
@@ -131,5 +160,19 @@ theorem isAmple_twistingSheaf {n : ℕ} (hn : 0 < n) :
       ⟨Proj.twistingSheaf (homogeneousSubmodule R M) (n : ℤ), inferInstance⟩).IsAmple :=
   Proj.isAmple_twistingSheaf (_root_.SymmetricAlgebra.ι R M)
     (ι_mem_homogeneousSubmodule R M) (iSup_basicOpen_ι_eq_top R M id (by simp)) hn
+
+open Limits in
+/-- On `Proj (Sym M)` for a finite `R`-module `M`, every quasi-coherent module of finite type is,
+for all sufficiently large `n : ℕ`, a quotient of a finite direct sum of copies of `𝒪(-n)`. -/
+theorem exists_epi_biproduct_twistingSheaf_neg
+    (F : (Proj (homogeneousSubmodule R M)).Modules) [F.IsQuasicoherent] [F.IsFiniteType] :
+    ∃ n₀ : ℕ, ∀ n ≥ n₀,
+      ∃ (r : ℕ)
+        (π : (⨁ fun _ : Fin r ↦ Proj.twistingSheaf (homogeneousSubmodule R M) (-(n : ℤ))) ⟶ F),
+        Epi π := by
+  have : QuasiSeparatedSpace (Proj (homogeneousSubmodule R M)) :=
+    quasiSeparatedSpace_of_quasiSeparated (projToSpec R M)
+  exact Proj.exists_epi_biproduct_twistingSheaf_neg (_root_.SymmetricAlgebra.ι R M)
+    (ι_mem_homogeneousSubmodule R M) (iSup_basicOpen_ι_eq_top R M id (by simp)) F
 
 end TauCeti.SymmetricAlgebra

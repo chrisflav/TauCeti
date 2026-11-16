@@ -19,7 +19,9 @@ tensor product of a line bundle with its dual with the trivial line bundle.
 * `InvertibleSheaf.dual` is the dual line bundle;
 * `InvertibleSheaf.dualCongr` transports an isomorphism through duality;
 * `InvertibleSheaf.evaluationDualIsoSheaf` packages internal-Hom evaluation as an isomorphism;
-* `InvertibleSheaf.tensorDualIso` identifies `L ⊗ L.dual` with the trivial line bundle.
+* `InvertibleSheaf.tensorDualIso` identifies `L ⊗ L.dual` with the trivial line bundle;
+* `AlgebraicGeometry.Scheme.Modules.isEquivalence_tensorRight_of_isInvertible` shows that tensoring
+  with an invertible `𝒪_X`-module is an autoequivalence of `X.Modules`.
 
 These constructions supply inverses for the Picard group of a scheme.
 -/
@@ -162,6 +164,14 @@ lemma tensorDualIso_inv_val (L : InvertibleSheaf X) :
     _root_.AlgebraicGeometry.Scheme.Modules.isoOfSheafIso_inv_val]
 
 end InvertibleSheaf
+
+/-- Tensoring on the right with an invertible `𝒪_X`-module is an autoequivalence of `X.Modules`. -/
+instance _root_.AlgebraicGeometry.Scheme.Modules.isEquivalence_tensorRight_of_isInvertible
+    (L : X.Modules) [hL : SheafOfModules.isInvertible X L] :
+    (MonoidalCategory.tensorRight L).IsEquivalence :=
+  let _ : TauCeti.SheafOfModules.IsInvertible
+      (R := TauCeti.SheafOfModules.ringCatSheaf X.sheaf) L := hL
+  _root_.SheafOfModules.isEquivalence_tensorRight_of_isInvertible (R := X.sheaf) L
 
 end
 
