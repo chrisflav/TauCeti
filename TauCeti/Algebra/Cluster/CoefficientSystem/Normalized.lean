@@ -6,13 +6,11 @@ Authors: The Tau Ceti contributors
 module
 
 public import Mathlib.Algebra.BigOperators.Group.Finset.Basic
-public import Mathlib.Algebra.GroupWithZero.WithZero
-public import Mathlib.Algebra.Ring.WithZero
-public import TauCeti.Algebra.Cluster.CoefficientSemifield.Hom
+public import TauCeti.Algebra.Cluster.CoefficientSemifield.WithZero
 public import TauCeti.Algebra.Cluster.CoefficientSystem.Basic
 
 import Mathlib.Algebra.BigOperators.Intervals
-import Mathlib.Algebra.Group.WithOne.Basic
+import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.Ring.NNRat
 import Mathlib.Tactic.NormNum
 
@@ -52,6 +50,8 @@ exact factor governing `Y`-seed mutation.
 
 ## Main results
 
+* `TauCeti.ExchangePolynomial.sum_coeff_ne_zero`: the auxiliary coefficient sum of an exchange
+  polynomial over `WithZero P` is nonzero.
 * `TauCeti.CoefficientSystem.normalized_normalizer_scale`: homogeneity of degree `-1` on all units
   of `WithZero P`.
 * `TauCeti.CoefficientSystem.isNormalized_normalized_iff`: `H` is normalized if and only if its
@@ -71,43 +71,46 @@ exact factor governing `Y`-seed mutation.
 
 public section
 
+namespace TauCeti.ExchangePolynomial
+
+/-- The auxiliary sum of the coefficients of an exchange polynomial over `WithZero P` is nonzero,
+since addition on `WithZero P` is zero-sum-free and the constant term is nonzero. -/
+theorem sum_coeff_ne_zero {P : Type*} [CommMonoid P] [AddCommSemigroup P]
+    (H : ExchangePolynomial (WithZero P)) :
+    ∑ l ∈ Finset.range (H.degree + 1), H.coeff l ≠ 0 := by
+  intro h
+  exact H.isUnit_coeff_zero.ne_zero
+    (Finset.sum_eq_zero_iff.mp h 0 (Finset.mem_range.mpr (Nat.succ_pos _)))
+
+end TauCeti.ExchangePolynomial
+
 namespace TauCeti.CoefficientSystem
 
 variable {P Q P' : Type*} [CoefficientSemifield P] [CoefficientSemifield Q]
   [CoefficientSemifield P'] {R : Type*} [CommSemiring R]
 
-/-- The auxiliary sum of the coefficients of an exchange polynomial over `WithZero P` is nonzero,
-because the constant term is a unit. -/
-theorem sum_coeff_ne_zero (H : ExchangePolynomial (WithZero P)) :
-    ∑ l ∈ Finset.range (H.degree + 1), H.coeff l ≠ 0 := by
-  have : Subsingleton (AddUnits (WithZero P)) :=
-    subsingleton_of_forall_eq 0 fun u ↦ AddUnits.ext <| by
-      have hval := u.val_neg
-      cases hu : u.val with
-      | zero => rfl
-      | coe a =>
-        cases hv : u.neg with
-        | zero =>
-          rw [hu, hv, add_zero] at hval
-          exact absurd hval WithZero.coe_ne_zero
-        | coe b =>
-          rw [hu, hv, ← WithZero.coe_add] at hval
-          exact absurd hval WithZero.coe_ne_zero
-  intro h
-  have h0 : H.coeff 0 = 0 :=
-    Finset.sum_eq_zero_iff.mp h 0 (Finset.mem_range.mpr (Nat.succ_pos _))
-  exact H.isUnit_coeff_zero.ne_zero h0
+private noncomputable def normalizedNormalizer (H : ExchangePolynomial (WithZero P)) :
+    (WithZero P)ˣ :=
+  (Units.mk0 (∑ l ∈ Finset.range (H.degree + 1), H.coeff l) H.sum_coeff_ne_zero)⁻¹
+
+private theorem normalizedNormalizer_scale (e : (WithZero P)ˣ)
+    (H : ExchangePolynomial (WithZero P)) :
+    normalizedNormalizer (H.scale e) * e = normalizedNormalizer H := by
+  apply Units.ext
+  simp only [normalizedNormalizer, Units.val_mul, Units.val_inv_eq_inv_val, Units.val_mk0,
+    ExchangePolynomial.scale_degree, ExchangePolynomial.scale_coeff, ← Finset.mul_sum, mul_inv]
+  rw [mul_right_comm, inv_mul_cancel₀ e.ne_zero, one_mul]
 
 /-- The normalized coefficient system over `WithZero P` associated to a multiplicative group
 homomorphism `φ : P →* Rˣ`. The scalar map extends `φ` by zero, and the normalizer takes the
 inverse of the auxiliary sum of coefficients in `WithZero P`. -/
 noncomputable def normalized (φ : P →* Rˣ) : CoefficientSystem (WithZero P) R where
   toScalar := WithZero.lift' ((Units.coeHom R).comp φ)
-  normalizer H :=
-    (Units.mk0 (∑ l ∈ Finset.range (H.degree + 1), H.coeff l) (sum_coeff_ne_zero H))⁻¹
+  normalizer := normalizedNormalizer
   normalizer_reverse H := by
     apply Units.ext
-    simp only [Units.val_inv_eq_inv_val, Units.val_mk0, ExchangePolynomial.reverse_degree]
+    simp only [normalizedNormalizer, Units.val_inv_eq_inv_val, Units.val_mk0,
+      ExchangePolynomial.reverse_degree]
     congr 1
     have hsum :
         ∑ l ∈ Finset.range (H.degree + 1), H.reverse.coeff l =
@@ -116,21 +119,7 @@ noncomputable def normalized (φ : P →* Rˣ) : CoefficientSystem (WithZero P) 
       have hle : l ≤ H.degree := Nat.le_of_lt_succ (Finset.mem_range.mp hl)
       simp [hle]
     rw [hsum, Finset.sum_range_reflect]
-  normalizer_scale H H' := by
-    apply Units.ext
-    let mulAdd : WithZero P →+ WithZero P :=
-      { toFun := ((∑ l ∈ Finset.range (H'.degree + 1), H'.coeff l)⁻¹ * ·)
-        map_zero' := mul_zero _
-        map_add' := mul_add _ }
-    have hmul :
-        ∑ l ∈ Finset.range (H.degree + 1),
-            (∑ l' ∈ Finset.range (H'.degree + 1), H'.coeff l')⁻¹ * H.coeff l =
-          (∑ l' ∈ Finset.range (H'.degree + 1), H'.coeff l')⁻¹ *
-            ∑ l ∈ Finset.range (H.degree + 1), H.coeff l :=
-      (map_sum mulAdd (fun l ↦ H.coeff l) (Finset.range (H.degree + 1))).symm
-    simp only [Units.val_mul, Units.val_inv_eq_inv_val, Units.val_mk0,
-      ExchangePolynomial.scale_degree, ExchangePolynomial.scale_coeff, hmul, mul_inv, inv_inv]
-    rw [mul_right_comm, mul_inv_cancel₀ (sum_coeff_ne_zero H'), one_mul]
+  normalizer_scale H H' := normalizedNormalizer_scale (normalizedNormalizer H') H
 
 @[simp]
 theorem normalized_toScalar_coe (φ : P →* Rˣ) (p : P) :
@@ -151,33 +140,15 @@ theorem val_normalized_normalizer (φ : P →* Rˣ) (H : ExchangePolynomial (Wit
 of `WithZero P`. -/
 theorem normalized_normalizer_scale (φ : P →* Rˣ) (e : (WithZero P)ˣ)
     (H : ExchangePolynomial (WithZero P)) :
-    (normalized φ).normalizer (H.scale e) * e = (normalized φ).normalizer H := by
-  apply Units.ext
-  let mulAdd : WithZero P →+ WithZero P :=
-    { toFun := ((e : WithZero P) * ·)
-      map_zero' := mul_zero _
-      map_add' := mul_add _ }
-  have hmul :
-      ∑ l ∈ Finset.range (H.degree + 1), (e : WithZero P) * H.coeff l =
-        (e : WithZero P) * ∑ l ∈ Finset.range (H.degree + 1), H.coeff l :=
-    (map_sum mulAdd (fun l ↦ H.coeff l) (Finset.range (H.degree + 1))).symm
-  simp only [Units.val_mul, val_normalized_normalizer, ExchangePolynomial.scale_degree,
-    ExchangePolynomial.scale_coeff, hmul, mul_inv]
-  rw [mul_right_comm, inv_mul_cancel₀ e.ne_zero, one_mul]
+    (normalized φ).normalizer (H.scale e) * e = (normalized φ).normalizer H :=
+  normalizedNormalizer_scale e H
 
 /-- Every unit of `WithZero P` belongs to the normalizer subgroup of `normalized φ`. -/
 @[simp]
 theorem normalized_normalizerSubgroup (φ : P →* Rˣ) :
-    (normalized φ).normalizerSubgroup = ⊤ := by
-  rw [eq_top_iff]
-  intro e _
-  let H₀ := (normalized φ).normalize (ExchangePolynomial.binary (𝕂 := WithZero P))
-  have hnorm : (normalized φ).normalizer H₀ = 1 := (normalized φ).normalizer_normalize _
-  have hscale : (normalized φ).normalizer (H₀.scale e⁻¹) = e := by
-    have h := normalized_normalizer_scale φ e⁻¹ H₀
-    rw [hnorm] at h
-    exact eq_of_mul_inv_eq_one h
-  exact hscale ▸ (normalized φ).normalizer_mem_normalizerSubgroup (H₀.scale e⁻¹)
+    (normalized φ).normalizerSubgroup = ⊤ :=
+  eq_top_iff.mpr fun e _ ↦
+    (mem_normalizerSubgroup_iff_normalizer_scale _).mpr (normalized_normalizer_scale φ e)
 
 /-- An exchange polynomial over `WithZero P` is normalized in `normalized φ` if and only if the
 auxiliary sum of its coefficients is `1`. -/
@@ -300,18 +271,11 @@ noncomputable def normalizedBinomialEquiv (φ : P →* Rˣ) :
     P ≃ {H : ExchangePolynomial (WithZero P) // H.degree = 1 ∧ (normalized φ).IsNormalized H} where
   toFun y := ⟨normalizedBinomial y, normalizedBinomial_degree y,
     isNormalized_normalizedBinomial φ y⟩
-  invFun H := WithZero.unitsWithZeroEquiv
-    (H.1.isUnit_coeff_degree.unit * H.1.isUnit_coeff_zero.unit⁻¹)
+  invFun H := WithZero.unitsWithZeroEquiv H.1.isUnit_coeff_degree.unit *
+    (WithZero.unitsWithZeroEquiv H.1.isUnit_coeff_zero.unit)⁻¹
   left_inv y := by
-    let u₀ : (WithZero P)ˣ := WithZero.unitsWithZeroEquiv.symm (y + 1)⁻¹
-    let u₁ : (WithZero P)ˣ := WithZero.unitsWithZeroEquiv.symm (y * (y + 1)⁻¹)
-    have h0 : (normalizedBinomial y).isUnit_coeff_zero.unit = u₀ :=
-      Units.ext (by simp [u₀, normalizedBinomial_coeff_zero])
-    have h1 : (normalizedBinomial y).isUnit_coeff_degree.unit = u₁ :=
-      Units.ext (by simp [u₁, normalizedBinomial_degree, normalizedBinomial_coeff_one])
-    dsimp only
-    rw [h0, h1, map_mul, map_inv, MulEquiv.apply_symm_apply, MulEquiv.apply_symm_apply,
-      inv_inv, mul_assoc, inv_mul_cancel, mul_one]
+    apply WithZero.coe_injective
+    simp
   right_inv H := by
     rcases H with ⟨H, hdeg, hnorm⟩
     apply Subtype.ext
@@ -330,23 +294,22 @@ noncomputable def normalizedBinomialEquiv (φ : P →* Rˣ) :
         _ = (a₁ + a₀) * a₀⁻¹ := by rw [add_mul]
         _ = (a₀ + a₁) * a₀⁻¹ := by rw [add_comm]
         _ = a₀⁻¹ := by rw [hsum, one_mul]
-    have harg :
-        WithZero.unitsWithZeroEquiv (H.isUnit_coeff_degree.unit * H.isUnit_coeff_zero.unit⁻¹) =
-          a₁ * a₀⁻¹ := by
-      rw [map_mul, map_inv]
-    dsimp only
-    rw [harg]
-    ext l hl
-    · exact (normalizedBinomial_degree _).trans hdeg.symm
-    · simp only [normalizedBinomial_degree] at hl
-      have hl' : l = 0 ∨ l = 1 := by omega
-      rcases hl' with rfl | rfl
-      · simp [hy1, ha₀]
-      · simp [hy1, ha₁]
+    change normalizedBinomial (a₁ * a₀⁻¹) = H
+    exact ExchangePolynomial.ext_of_degree_eq_one (normalizedBinomial_degree _) hdeg
+      (by simp [hy1, ha₀]) (by simp [hy1, ha₁])
 
 @[simp]
 theorem normalizedBinomialEquiv_apply (φ : P →* Rˣ) (y : P) :
     (normalizedBinomialEquiv φ y).1 = normalizedBinomial y :=
+  (rfl)
+
+@[simp]
+theorem normalizedBinomialEquiv_symm_apply (φ : P →* Rˣ)
+    (H : {H : ExchangePolynomial (WithZero P) //
+      H.degree = 1 ∧ (normalized φ).IsNormalized H}) :
+    (normalizedBinomialEquiv φ).symm H =
+      WithZero.unitsWithZeroEquiv H.1.isUnit_coeff_degree.unit *
+        (WithZero.unitsWithZeroEquiv H.1.isUnit_coeff_zero.unit)⁻¹ :=
   (rfl)
 
 /-! ### Functoriality and comparison with the trivial semifield -/
@@ -356,40 +319,36 @@ coefficient systems when the scalar maps commute with it. -/
 noncomputable def normalizedHom (f : CoefficientSemifieldHom P Q)
     (φ₁ : P →* Rˣ) (φ₂ : Q →* Rˣ) (hφ : ∀ p, φ₂ (f p) = φ₁ p) :
     (normalized φ₁).Hom (normalized φ₂) where
-  toMonoidWithZeroHom := WithZero.map' f.toMonoidHom
+  toMonoidWithZeroHom := f.withZeroMap.toMonoidWithZeroHom
   toScalar_comp := by
     ext p
-    exact congrArg Units.val (hφ p)
+    simpa [CoefficientSemifieldHom.withZeroMap_coe] using congrArg Units.val (hφ p)
   map_normalizer H := by
     apply Units.ext
-    have hmap : ∀ x : WithZero P,
-        WithZero.map' f.toMonoidHom x = WithZero.mapAddHom f.toAddHom x := by
-      intro x
-      cases x <;> rfl
-    have hsum :
-        ∑ l ∈ Finset.range (H.degree + 1), WithZero.map' f.toMonoidHom (H.coeff l) =
-          WithZero.map' f.toMonoidHom (∑ l ∈ Finset.range (H.degree + 1), H.coeff l) := by
-      simp_rw [hmap]
-      exact (map_sum (WithZero.mapAddHom f.toAddHom)
-        (fun l ↦ H.coeff l) (Finset.range (H.degree + 1))).symm
     simp only [val_normalized_normalizer, ExchangePolynomial.map_degree,
-      ExchangePolynomial.map_coeff, Units.coe_map, hsum]
-    exact (map_inv₀ (WithZero.map' f.toMonoidHom) _).symm
+      ExchangePolynomial.map_coeff, Units.coe_map, RingHom.coe_toMonoidWithZeroHom,
+      ← map_sum f.withZeroMap]
+    exact (map_inv₀ f.withZeroMap _).symm
+
+@[simp]
+theorem normalizedHom_toMonoidWithZeroHom (f : CoefficientSemifieldHom P Q)
+    (φ₁ : P →* Rˣ) (φ₂ : Q →* Rˣ) (hφ : ∀ p, φ₂ (f p) = φ₁ p) :
+    (normalizedHom f φ₁ φ₂ hφ).toMonoidWithZeroHom =
+      (f.withZeroMap : WithZero P →*₀ WithZero Q) :=
+  (rfl)
 
 @[simp]
 theorem normalizedHom_apply_coe (f : CoefficientSemifieldHom P Q) (φ₁ : P →* Rˣ) (φ₂ : Q →* Rˣ)
     (hφ : ∀ p, φ₂ (f p) = φ₁ p) (p : P) :
     normalizedHom f φ₁ φ₂ hφ (p : WithZero P) = (f p : WithZero Q) :=
-  (rfl)
+  f.withZeroMap_coe p
 
 @[simp]
 theorem normalizedHom_id (φ : P →* Rˣ) :
     normalizedHom (CoefficientSemifieldHom.id P) φ φ (fun _ ↦ by simp) =
       Hom.id (normalized φ) := by
   ext x
-  cases x with
-  | zero => simp
-  | coe p => simp
+  induction x using WithZero.recZeroCoe <;> simp
 
 theorem normalizedHom_comp (g : CoefficientSemifieldHom Q P') (f : CoefficientSemifieldHom P Q)
     (φ₁ : P →* Rˣ) (φ₂ : Q →* Rˣ) (φ₃ : P' →* Rˣ)
@@ -397,27 +356,17 @@ theorem normalizedHom_comp (g : CoefficientSemifieldHom Q P') (f : CoefficientSe
     normalizedHom (g.comp f) φ₁ φ₃ (fun p ↦ by simp [h₂₃, h₁₂]) =
       (normalizedHom g φ₂ φ₃ h₂₃).comp (normalizedHom f φ₁ φ₂ h₁₂) := by
   ext x
-  cases x with
-  | zero => simp
-  | coe p => simp
+  induction x using WithZero.recZeroCoe <;> simp
 
 /-- Pushing forward a normalized binomial along a homomorphism of coefficient semifields applies
 the homomorphism to its parameter. -/
 @[simp]
 theorem map_normalizedBinomial (f : CoefficientSemifieldHom P Q) (y : P) :
-    (normalizedBinomial y).map (WithZero.map' f.toMonoidHom) = normalizedBinomial (f y) := by
-  ext l hl
-  · exact (ExchangePolynomial.map_degree _ _).trans
-      ((normalizedBinomial_degree y).trans (normalizedBinomial_degree (f y)).symm)
-  · simp only [ExchangePolynomial.map_degree, normalizedBinomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl
-    · rw [ExchangePolynomial.map_coeff, normalizedBinomial_coeff_zero,
-        normalizedBinomial_coeff_zero, WithZero.map'_coe]
-      simp [map_inv, map_add]
-    · rw [ExchangePolynomial.map_coeff, normalizedBinomial_coeff_one,
-        normalizedBinomial_coeff_one, WithZero.map'_coe]
-      simp [map_mul, map_inv, map_add]
+    (normalizedBinomial y).map (f.withZeroMap : WithZero P →*₀ WithZero Q) =
+      normalizedBinomial (f y) := by
+  refine ExchangePolynomial.ext_of_degree_eq_one (by simp) (by simp) ?_ ?_
+  · simp [map_add]
+  · simp [map_mul, map_add]
 
 /-- The canonical coefficient-system homomorphism from the normalized system of the one-element
 coefficient semifield `PUnit` to the scalar system `CoefficientSystem.trivial R`. -/
@@ -438,14 +387,9 @@ binomial maps to the binary polynomial `1 + T`. -/
 @[simp]
 theorem map_normalizedBinomial_punit (R : Type*) [CommSemiring R] :
     (normalizedBinomial PUnit.unit).map (normalizedPUnitToTrivial R).toMonoidWithZeroHom =
-      ExchangePolynomial.binary := by
-  ext l hl
-  · exact (ExchangePolynomial.map_degree _ _).trans
-      ((normalizedBinomial_degree _).trans ExchangePolynomial.binary_degree.symm)
-  · simp only [ExchangePolynomial.map_degree, normalizedBinomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;>
-      simp [normalizedBinomial_coeff_zero, normalizedBinomial_coeff_one, normalizedPUnitToTrivial]
+      ExchangePolynomial.binary :=
+  ExchangePolynomial.ext_of_degree_eq_one (by simp) ExchangePolynomial.binary_degree
+    (by simp [normalizedPUnitToTrivial]) (by simp [normalizedPUnitToTrivial])
 
 /-! ### Non-examples of normalizers -/
 

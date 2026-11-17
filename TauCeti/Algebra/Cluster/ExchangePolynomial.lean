@@ -74,7 +74,7 @@ structure ExchangePolynomial (𝕂 : Type*) [CommMonoidWithZero 𝕂] where
   /-- The coefficient sequence, supported in `0, …, degree`. -/
   coeff : ℕ → 𝕂
   /-- Coefficients above the specified degree vanish. -/
-  coeff_of_gt : ∀ l, degree < l → coeff l = 0
+  coeff_eq_zero_of_degree_lt : ∀ l, degree < l → coeff l = 0
   /-- The constant coefficient `h₀` is a unit. -/
   isUnit_coeff_zero : IsUnit (coeff 0)
   /-- The leading coefficient `hᵣ` is a unit. -/
@@ -100,6 +100,18 @@ theorem ext {H₁ H₂ : ExchangePolynomial 𝕂} (hdeg : H₁.degree = H₂.deg
   · exact hcoeff l hl
   · rw [hgt₁ l (Nat.lt_of_not_ge hl), hgt₂ l (Nat.lt_of_not_ge hl)]
 
+/-- Two degree-one exchange polynomials are equal if they agree on their constant and linear
+coefficients. -/
+theorem ext_of_degree_eq_one {H₁ H₂ : ExchangePolynomial 𝕂}
+    (h₁ : H₁.degree = 1) (h₂ : H₂.degree = 1)
+    (h0 : H₁.coeff 0 = H₂.coeff 0) (h1 : H₁.coeff 1 = H₂.coeff 1) : H₁ = H₂ := by
+  ext l hl
+  · exact h₁.trans h₂.symm
+  · rw [h₁] at hl
+    obtain rfl | rfl : l = 0 ∨ l = 1 := by omega
+    · exact h0
+    · exact h1
+
 /-! ### Reversal, dilation, and scaling -/
 
 /-- The reversal `Tʳ H(T⁻¹)` of an exchange polynomial `H` of degree `r`. -/
@@ -107,7 +119,7 @@ def reverse (H : ExchangePolynomial 𝕂) : ExchangePolynomial 𝕂 where
   degree := H.degree
   degree_pos := H.degree_pos
   coeff l := if l ≤ H.degree then H.coeff (H.degree - l) else 0
-  coeff_of_gt l hl := by simp [Nat.not_le_of_gt hl]
+  coeff_eq_zero_of_degree_lt l hl := by simp [Nat.not_le_of_gt hl]
   isUnit_coeff_zero := by simpa using H.isUnit_coeff_degree
   isUnit_coeff_degree := by simpa using H.isUnit_coeff_zero
 
@@ -150,7 +162,7 @@ def dilate (H : ExchangePolynomial 𝕂) (κ : 𝕂ˣ) : ExchangePolynomial 𝕂
   degree := H.degree
   degree_pos := H.degree_pos
   coeff l := H.coeff l * (κ : 𝕂) ^ l
-  coeff_of_gt l hl := by simp [H.coeff_of_gt l hl]
+  coeff_eq_zero_of_degree_lt l hl := by simp [H.coeff_eq_zero_of_degree_lt l hl]
   isUnit_coeff_zero := by simpa using H.isUnit_coeff_zero
   isUnit_coeff_degree := H.isUnit_coeff_degree.mul (κ.isUnit.pow _)
 
@@ -193,7 +205,7 @@ def scale (H : ExchangePolynomial 𝕂) (e : 𝕂ˣ) : ExchangePolynomial 𝕂 w
   degree := H.degree
   degree_pos := H.degree_pos
   coeff l := (e : 𝕂) * H.coeff l
-  coeff_of_gt l hl := by simp [H.coeff_of_gt l hl]
+  coeff_eq_zero_of_degree_lt l hl := by simp [H.coeff_eq_zero_of_degree_lt l hl]
   isUnit_coeff_zero := e.isUnit.mul H.isUnit_coeff_zero
   isUnit_coeff_degree := e.isUnit.mul H.isUnit_coeff_degree
 
@@ -366,7 +378,7 @@ def binary : ExchangePolynomial 𝕂 where
   degree := 1
   degree_pos := Nat.one_pos
   coeff l := if l ≤ 1 then 1 else 0
-  coeff_of_gt l hl := by simp [Nat.not_le_of_gt hl]
+  coeff_eq_zero_of_degree_lt l hl := by simp [Nat.not_le_of_gt hl]
   isUnit_coeff_zero := by simp
   isUnit_coeff_degree := by simp
 
@@ -390,12 +402,8 @@ theorem isEndpointOne_binary : (binary (𝕂 := 𝕂)).IsEndpointOne :=
   ⟨rfl, rfl⟩
 
 @[simp]
-theorem reverse_binary : (binary (𝕂 := 𝕂)).reverse = binary := by
-  ext l hl
-  · rfl
-  · have hl' : l ≤ 1 := hl
-    rw [reverse_coeff_of_le _ hl']
-    simp [binary_coeff, hl']
+theorem reverse_binary : (binary (𝕂 := 𝕂)).reverse = binary :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 @[simp]
 theorem dilationFactor_binary (b : ℤ) : (binary (𝕂 := 𝕂)).dilationFactor b = 1 :=
@@ -409,7 +417,7 @@ def binomial (h₀ h₁ : 𝕂ˣ) : ExchangePolynomial 𝕂 where
     | 0 => (h₀ : 𝕂)
     | 1 => (h₁ : 𝕂)
     | _ + 2 => 0
-  coeff_of_gt l hl := by
+  coeff_eq_zero_of_degree_lt l hl := by
     obtain _ | _ | l := l
     · omega
     · omega
@@ -430,38 +438,22 @@ theorem binomial_coeff_one (h₀ h₁ : 𝕂ˣ) : (binomial h₀ h₁).coeff 1 =
   (rfl)
 
 @[simp]
-theorem binomial_one_one : binomial (1 : 𝕂ˣ) 1 = binary := by
-  ext l hl
-  · rfl
-  · simp only [binomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> rfl
+theorem binomial_one_one : binomial (1 : 𝕂ˣ) 1 = binary :=
+  ext_of_degree_eq_one rfl rfl rfl rfl
 
 @[simp]
-theorem reverse_binomial (h₀ h₁ : 𝕂ˣ) : (binomial h₀ h₁).reverse = binomial h₁ h₀ := by
-  ext l hl
-  · rfl
-  · simp only [reverse_degree, binomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> simp
+theorem reverse_binomial (h₀ h₁ : 𝕂ˣ) : (binomial h₀ h₁).reverse = binomial h₁ h₀ :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 @[simp]
 theorem scale_binomial (h₀ h₁ e : 𝕂ˣ) :
-    (binomial h₀ h₁).scale e = binomial (e * h₀) (e * h₁) := by
-  ext l hl
-  · rfl
-  · simp only [scale_degree, binomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> simp
+    (binomial h₀ h₁).scale e = binomial (e * h₀) (e * h₁) :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 @[simp]
 theorem dilate_binomial (h₀ h₁ κ : 𝕂ˣ) :
-    (binomial h₀ h₁).dilate κ = binomial h₀ (h₁ * κ) := by
-  ext l hl
-  · rfl
-  · simp only [dilate_degree, binomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> simp
+    (binomial h₀ h₁).dilate κ = binomial h₀ (h₁ * κ) :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 @[simp]
 theorem dilationFactor_binomial (h₀ h₁ : 𝕂ˣ) (b : ℤ) :
@@ -470,13 +462,8 @@ theorem dilationFactor_binomial (h₀ h₁ : 𝕂ˣ) (b : ℤ) :
 
 /-- Every degree-one exchange polynomial is a binomial built from its endpoint units. -/
 theorem eq_binomial_of_degree_eq_one {H : ExchangePolynomial 𝕂} (hdeg : H.degree = 1) :
-    H = binomial H.isUnit_coeff_zero.unit H.isUnit_coeff_degree.unit := by
-  ext l hl
-  · exact hdeg
-  · have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl
-    · simp
-    · rw [binomial_coeff_one, IsUnit.unit_spec, hdeg]
+    H = binomial H.isUnit_coeff_zero.unit H.isUnit_coeff_degree.unit :=
+  ext_of_degree_eq_one hdeg rfl (by simp) (by simp [hdeg])
 
 /-! ### Coefficientwise pushforward -/
 
@@ -485,7 +472,7 @@ def map (f : 𝕂 →*₀ 𝕂') (H : ExchangePolynomial 𝕂) : ExchangePolynom
   degree := H.degree
   degree_pos := H.degree_pos
   coeff l := f (H.coeff l)
-  coeff_of_gt l hl := by simp [H.coeff_of_gt l hl]
+  coeff_eq_zero_of_degree_lt l hl := by simp [H.coeff_eq_zero_of_degree_lt l hl]
   isUnit_coeff_zero := H.isUnit_coeff_zero.map f
   isUnit_coeff_degree := H.isUnit_coeff_degree.map f
 
@@ -541,22 +528,14 @@ theorem map_dilationFactor (f : 𝕂 →*₀ 𝕂') (H : ExchangePolynomial 𝕂
   simp [dilationFactor]
 
 @[simp]
-theorem map_binary (f : 𝕂 →*₀ 𝕂') : (binary (𝕂 := 𝕂)).map f = binary := by
-  ext l hl
-  · rfl
-  · simp only [map_degree, binary_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> simp
+theorem map_binary (f : 𝕂 →*₀ 𝕂') : (binary (𝕂 := 𝕂)).map f = binary :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 @[simp]
 theorem map_binomial (f : 𝕂 →*₀ 𝕂') (h₀ h₁ : 𝕂ˣ) :
     (binomial h₀ h₁).map f =
-      binomial (Units.map f.toMonoidHom h₀) (Units.map f.toMonoidHom h₁) := by
-  ext l hl
-  · rfl
-  · simp only [map_degree, binomial_degree] at hl
-    have hl' : l = 0 ∨ l = 1 := by omega
-    rcases hl' with rfl | rfl <;> simp
+      binomial (Units.map f.toMonoidHom h₀) (Units.map f.toMonoidHom h₁) :=
+  ext_of_degree_eq_one rfl rfl (by simp) (by simp)
 
 theorem IsEndpointOne.map {H : ExchangePolynomial 𝕂} (h : H.IsEndpointOne) (f : 𝕂 →*₀ 𝕂') :
     (H.map f).IsEndpointOne :=
