@@ -49,6 +49,8 @@ compatible with: the total-degree grading of the underlying tensor product of gr
   their restrictions to the two factors.
 * `TauCeti.gradedTensor_tmul_one_mul_one_tmul_comm`: the images of homogeneous elements of the two
   factors supercommute.
+* `TauCeti.gradedTensor_mul_comm_of_mul_comm`: the Koszul-signed tensor product of two
+  graded-commutative algebras is graded-commutative.
 
 The grading of the underlying module is `TauCeti.InternalGrading.tensorProduct` and the Koszul
 multiplication is Mathlib's `GradedTensorProduct`; only their compatibility is proved here.
@@ -290,6 +292,49 @@ theorem gradedTensor_tmul_one_mul_one_tmul_comm {p q : ℤ} {a : A} {b : B}
     GradedTensorProduct.tmul_coe_mul_coe_tmul 𝒜 ℬ (1 : A) ⟨b, hb⟩ ⟨a, ha⟩ (1 : B),
     one_mul, mul_one, ← Units.smul_def, smul_smul, mul_comm q p, ← Int.negOnePow_def,
     Int.units_mul_self, one_smul]
+
+/-- The Koszul-signed tensor product of two graded-commutative algebras is graded-commutative. -/
+theorem gradedTensor_mul_comm_of_mul_comm
+    (hA : ∀ {p q : ℤ} {a₁ a₂ : A}, a₁ ∈ 𝒜 p → a₂ ∈ 𝒜 q → a₁ * a₂ = (p * q).negOnePow • (a₂ * a₁))
+    (hB : ∀ {p q : ℤ} {b₁ b₂ : B}, b₁ ∈ ℬ p → b₂ ∈ ℬ q → b₁ * b₂ = (p * q).negOnePow • (b₂ * b₁))
+    {m n : ℤ} {x y : 𝒜 ᵍ⊗[R] ℬ}
+    (hx : x ∈ gradedTensorGrading 𝒜 ℬ m) (hy : y ∈ gradedTensorGrading 𝒜 ℬ n) :
+    x * y = (m * n).negOnePow • (y * x) := by
+  have htmul : ∀ {p₁ q₁ p₂ q₂ : ℤ} {a₁ a₂ : A} {b₁ b₂ : B},
+      a₁ ∈ 𝒜 p₁ → b₁ ∈ ℬ q₁ → a₂ ∈ 𝒜 p₂ → b₂ ∈ ℬ q₂ →
+      (a₁ ᵍ⊗ₜ[R] b₁ : 𝒜 ᵍ⊗[R] ℬ) * (a₂ ᵍ⊗ₜ[R] b₂) =
+        ((p₁ + q₁) * (p₂ + q₂)).negOnePow • ((a₂ ᵍ⊗ₜ[R] b₂ : 𝒜 ᵍ⊗[R] ℬ) * (a₁ ᵍ⊗ₜ[R] b₁)) := by
+    intro p₁ q₁ p₂ q₂ a₁ a₂ b₁ b₂ ha₁ hb₁ ha₂ hb₂
+    rw [GradedTensorProduct.tmul_coe_mul_coe_tmul 𝒜 ℬ a₁ ⟨b₁, hb₁⟩ ⟨a₂, ha₂⟩ b₂,
+      GradedTensorProduct.tmul_coe_mul_coe_tmul 𝒜 ℬ a₂ ⟨b₂, hb₂⟩ ⟨a₁, ha₁⟩ b₁,
+      hA ha₁ ha₂, hB hb₁ hb₂]
+    simp only [← Int.negOnePow_def, Units.smul_def, ← Int.cast_smul_eq_zsmul R,
+      gradedTensor_smul_tmul, gradedTensor_tmul_smul, smul_smul]
+    congr 1
+    rw [← Int.cast_mul, ← Int.cast_mul, ← Int.cast_mul, ← Units.val_mul, ← Units.val_mul,
+      ← Units.val_mul, ← Int.negOnePow_add, ← Int.negOnePow_add, ← Int.negOnePow_add]
+    congr 2
+    rw [Int.negOnePow_eq_iff]
+    exact ⟨-(q₂ * p₁), by ring⟩
+  refine gradedTensorGrading_le 𝒜 ℬ (C := Submodule.comap
+      ((GradedTensorProduct.mulHom 𝒜 ℬ).flip y -
+        (((m * n).negOnePow : ℤ) • GradedTensorProduct.mulHom 𝒜 ℬ y)) ⊥)
+    (fun p₁ a₁ ha₁ b₁ hb₁ => ?_) hx |> fun h => by
+      simpa only [Submodule.mem_comap, Submodule.mem_bot, LinearMap.sub_apply,
+        LinearMap.flip_apply, LinearMap.smul_apply, ← GradedTensorProduct.mul_def,
+        sub_eq_zero, Units.smul_def] using h
+  refine gradedTensorGrading_le 𝒜 ℬ (C := Submodule.comap
+      (GradedTensorProduct.mulHom 𝒜 ℬ (a₁ ᵍ⊗ₜ[R] b₁) -
+        (((m * n).negOnePow : ℤ) • (GradedTensorProduct.mulHom 𝒜 ℬ).flip (a₁ ᵍ⊗ₜ[R] b₁))) ⊥)
+    (fun p₂ a₂ ha₂ b₂ hb₂ => ?_) hy |> fun h => by
+      simpa only [Submodule.mem_comap, Submodule.mem_bot, LinearMap.sub_apply,
+        LinearMap.flip_apply, LinearMap.smul_apply, ← GradedTensorProduct.mul_def,
+        sub_eq_zero, Units.smul_def] using h
+  simp only [Submodule.mem_comap, Submodule.mem_bot, LinearMap.sub_apply, LinearMap.flip_apply,
+    LinearMap.smul_apply, ← GradedTensorProduct.mul_def, sub_eq_zero, ← Units.smul_def]
+  have hm : p₁ + (m - p₁) = m := add_sub_cancel p₁ m
+  have hn : p₂ + (n - p₂) = n := add_sub_cancel p₂ n
+  simpa only [hm, hn] using htmul ha₁ hb₁ ha₂ hb₂
 
 /-! ### The tensor product of two homomorphisms into degree zero -/
 
