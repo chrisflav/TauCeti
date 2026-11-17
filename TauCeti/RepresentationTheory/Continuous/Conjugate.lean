@@ -29,9 +29,11 @@ downstream, which only need one conjugate to exist.
 
 ## Main statements
 
-* `OrthonormalBasis.continuous_conjugate` and
+* `OrthonormalBasis.continuous_conjugate`, `OrthonormalBasis.continuous_conjugate_apply_iff`,
+  `OrthonormalBasis.forall_continuous_conjugate_apply_iff`, and
   `OrthonormalBasis.isUnitary_conjugate`: the conjugate of a continuous representation is
-  continuous, and of a unitary one is unitary.
+  continuous, orbit and strong continuity are preserved, and the conjugate of a unitary
+  representation is unitary.
 * `OrthonormalBasis.conjugate_conjugate`: conjugating twice returns the original
   representation.
 * `OrthonormalBasis.star_matrixCoeff_eq_matrixCoeff_conjugate`: the conjugate of a matrix
@@ -77,6 +79,21 @@ theorem conjugate_conjugate : conjugate e (conjugate e π) = π :=
 /-- The conjugate of a continuous representation has a continuous operator-valued action. -/
 theorem continuous_conjugate (hπ : Continuous π) : Continuous (conjugate e π) :=
   e.conjCLM.continuous.comp hπ
+
+/-- Conjugating preserves continuity of each individual orbit: `g ↦ conjugate e π g v` is
+continuous if and only if `g ↦ π g (e.conjugation v)` is continuous. -/
+theorem continuous_conjugate_apply_iff (v : V) :
+    (Continuous fun g ↦ conjugate e π g v) ↔ Continuous fun g ↦ π g (e.conjugation v) := by
+  simp only [conjugate_apply, conjCLM_apply]
+  exact e.conjugation.toHomeomorph.comp_continuous_iff
+
+/-- Conjugating preserves strong continuity: `conjugate e π` is strongly continuous if and only if
+`π` is strongly continuous. -/
+theorem forall_continuous_conjugate_apply_iff :
+    (∀ v, Continuous fun g ↦ conjugate e π g v) ↔ ∀ v, Continuous fun g ↦ π g v :=
+  ⟨fun h v ↦ by
+    simpa using (continuous_conjugate_apply_iff e π (e.conjugation v)).mp (h (e.conjugation v)),
+    fun h v ↦ (continuous_conjugate_apply_iff e π v).mpr (h (e.conjugation v))⟩
 
 omit [TopologicalSpace G] in
 /-- The conjugate of a unitary representation is unitary. -/

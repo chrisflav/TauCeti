@@ -8,6 +8,7 @@ module
 public import Mathlib.RepresentationTheory.Continuous.TopRep
 public import Mathlib.CategoryTheory.Limits.Shapes.Products
 public import Mathlib.CategoryTheory.Action.Limits
+public import TauCeti.RepresentationTheory.Continuous.Prod.Basic
 
 /-!
 # Products of topological representations
@@ -38,19 +39,7 @@ variable {G : Type v} [Monoid G]
 
 /-- The pointwise product representation, with the product topology on its underlying module. -/
 @[expose] def pi {ι : Type w} (X : ι → TopRep R G) : TopRep R G :=
-  let ρ : ContRepresentation R G (∀ i, (X i).V) := {
-    toMonoidHom := {
-      toFun g := ContinuousLinearMap.pi fun i =>
-        (X i).ρ g ∘L ContinuousLinearMap.proj i
-      map_one' := by
-        ext x i
-        simp
-      map_mul' g h := by
-        ext x i
-        simp
-    }
-  }
-  TopRep.of ρ
+  TopRep.of (ContRepresentation.pi fun i => (X i).ρ)
 
 /-- The underlying module of a pointwise product is the pointwise product of the underlying
 modules. -/
@@ -61,7 +50,7 @@ theorem pi_V {ι : Type w} (X : ι → TopRep R G) :
 @[simp]
 theorem pi_ρ_apply {ι : Type w} (X : ι → TopRep R G) (g : G) (x : (pi X).V) (i : ι) :
     (pi X).ρ g x i = (X i).ρ g (x i) :=
-  rfl
+  ContRepresentation.pi_apply_apply (fun j => (X j).ρ) g x i
 
 /-- The stabilizer of a point in a pointwise product is the intersection of its coordinate
 stabilizers. -/
@@ -70,8 +59,7 @@ theorem pi_stabilizer_eq_iInter {ι : Type w} (X : ι → TopRep R G)
     {g : G | (pi X).ρ g x = x} = ⋂ i, {g : G | (X i).ρ g (x i) = x i} := by
   ext g
   simp only [Set.mem_ofPred_eq, Set.mem_iInter]
-  -- Equality in `pi X` is coordinatewise, and `pi_ρ_apply` holds by `rfl`.
-  exact funext_iff
+  exact funext_iff.trans (forall_congr' fun i ↦ by rw [pi_ρ_apply])
 
 /-- The product representation has a discrete underlying topology when the index type is finite
 and each factor has a discrete underlying topology. -/
@@ -81,46 +69,40 @@ instance pi_discreteTopology {ι : Type w} [Finite ι] (X : ι → TopRep R G)
 
 /-- The projection from a product representation to one of its factors. -/
 def piπ {ι : Type w} (X : ι → TopRep R G) (i : ι) : pi X ⟶ X i :=
-  TopRep.ofHom {
-    toContinuousLinearMap := ContinuousLinearMap.proj i
-    isIntertwining' g := by
-      ext x
-      exact pi_ρ_apply X g x i
-  }
+  TopRep.ofHom (ContIntertwiningMap.proj (fun j => (X j).ρ) i)
 
 /-- Evaluation of a product projection. -/
 @[simp] theorem piπ_hom_apply {ι : Type w} (X : ι → TopRep R G) (i : ι)
-    (x : (pi X).V) : (piπ X i).hom x = x i := by rfl
+    (x : (pi X).V) : (piπ X i).hom x = x i :=
+  ContIntertwiningMap.proj_apply (fun j => (X j).ρ) i x
 
 /-- The morphism into a product representation whose components are a given family of
 equivariant continuous linear maps. -/
 def piLift {ι : Type w} {A : TopRep R G} (X : ι → TopRep R G)
     (f : ∀ i, A ⟶ X i) : A ⟶ pi X :=
-  TopRep.ofHom {
-    toContinuousLinearMap := ContinuousLinearMap.pi fun i => (f i).hom.toContinuousLinearMap
-    isIntertwining' g := by
-      ext x i
-      exact (f i).hom.isIntertwining g x
-  }
+  TopRep.ofHom (ContIntertwiningMap.pi fun i => (f i).hom)
 
 /-- Evaluation of a map into a product. -/
 @[simp] theorem piLift_hom_apply {ι : Type w} {A : TopRep R G}
     (X : ι → TopRep R G) (f : ∀ i, A ⟶ X i) (a : A.V) (i : ι) :
-    (piLift X f).hom a i = (f i).hom a := by rfl
+    (piLift X f).hom a i = (f i).hom a :=
+  ContIntertwiningMap.pi_apply (fun j => (f j).hom) a i
 
 /-- The component of `piLift` at any factor is the specified map. -/
 @[reassoc (attr := simp)]
 theorem piLift_piπ {ι : Type w} {A : TopRep R G} (X : ι → TopRep R G)
     (f : ∀ i, A ⟶ X i) (i : ι) : piLift X f ≫ piπ X i = f i := by
   ext x
-  rfl
+  exact (piπ_hom_apply X i ((piLift X f).hom x)).trans (piLift_hom_apply X f x i)
 
 /-- Morphisms into a product are determined by their components. -/
 @[ext] theorem pi_hom_ext {ι : Type w} {A : TopRep R G} (X : ι → TopRep R G)
     {f g : A ⟶ pi X} (h : ∀ i, f ≫ piπ X i = g ≫ piπ X i) : f = g := by
   ext x
   funext i
-  exact congrArg (fun q : A ⟶ X i => q.hom x) (h i)
+  have hi : (piπ X i).hom (f.hom x) = (piπ X i).hom (g.hom x) :=
+    congrArg (fun q : A ⟶ X i => q.hom x) (h i)
+  rwa [piπ_hom_apply, piπ_hom_apply] at hi
 
 /-- The fan of projections from the pointwise product. -/
 abbrev piFan {ι : Type w} (X : ι → TopRep R G) : Fan X :=

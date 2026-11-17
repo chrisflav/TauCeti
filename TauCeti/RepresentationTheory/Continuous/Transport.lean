@@ -33,9 +33,11 @@ so nothing is lost by pinning a model.
 ## Main statements
 
 * `ContinuousLinearEquiv.continuous_congr`,
+  `ContinuousLinearEquiv.continuous_congr_apply_iff`,
+  `ContinuousLinearEquiv.forall_continuous_congr_apply_iff`,
   `ContinuousLinearEquiv.isIrreducible_congr` and
-  `ContRepresentation.IsUnitary.congr`: the transport preserves continuity,
-  irreducibility, and unitarity.
+  `ContRepresentation.IsUnitary.congr`: the transport preserves continuity, orbit and strong
+  continuity, irreducibility, and unitarity.
 * `ContRepresentation.congr_refl` and `ContinuousLinearEquiv.congr_congr`: the
   transport is functorial, so "transportable onto" is an equivalence relation on representations
   (symmetry is `simp` from these two).
@@ -89,6 +91,19 @@ continuous algebra equivalence `ContinuousLinearEquiv.conjContinuousAlgEquiv`. -
 theorem continuous_congr (e : V ≃L[𝕜] W) {π : ContRepresentation 𝕜 G V} (hπ : Continuous π) :
     Continuous (congr e π) :=
   (map_continuous e.conjContinuousAlgEquiv).comp hπ
+
+/-- Transport preserves continuity of each individual orbit: `g ↦ congr e π g w` is continuous if
+and only if `g ↦ π g (e.symm w)` is continuous. -/
+theorem continuous_congr_apply_iff (e : V ≃L[𝕜] W) (π : ContRepresentation 𝕜 G V) (w : W) :
+    (Continuous fun g ↦ congr e π g w) ↔ Continuous fun g ↦ π g (e.symm w) :=
+  e.toHomeomorph.comp_continuous_iff
+
+/-- Transport preserves strong continuity: `congr e π` is strongly continuous if and only if `π`
+is strongly continuous. -/
+theorem forall_continuous_congr_apply_iff (e : V ≃L[𝕜] W) (π : ContRepresentation 𝕜 G V) :
+    (∀ w, Continuous fun g ↦ congr e π g w) ↔ ∀ v, Continuous fun g ↦ π g v :=
+  ⟨fun h v ↦ by simpa using (continuous_congr_apply_iff e π (e v)).mp (h (e v)),
+    fun h w ↦ (continuous_congr_apply_iff e π w).mpr (h (e.symm w))⟩
 
 omit [TopologicalSpace G] in
 /-- Transport preserves irreducibility: `e` is an equivariant linear equivalence from `π` to its
