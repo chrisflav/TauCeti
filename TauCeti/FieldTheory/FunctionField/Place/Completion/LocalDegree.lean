@@ -5,7 +5,9 @@ Authors: The Tau Ceti contributors
 -/
 module
 
+public import Mathlib.FieldTheory.Separable
 public import TauCeti.FieldTheory.FunctionField.Place.Completion.Extension
+import Mathlib.FieldTheory.SeparableClosure
 import TauCeti.RingTheory.AdicCompletion.Pi
 
 /-!
@@ -53,6 +55,10 @@ completed extension.
   `e(P' ∣ P) f(P' ∣ P)`.
 * `TauCeti.Place.finiteDimensional_completion` and `TauCeti.Place.finrank_completion`: **the
   local degree** `[F̂'_{P'} : F̂_P] = e(P' ∣ P) f(P' ∣ P)`.
+* `TauCeti.Place.isIntegralClosure_completionIntegers`: `𝒪̂_{P'}` is the integral closure of
+  `𝒪̂_P` in `F̂'_{P'}`.
+* `TauCeti.Place.isSeparable_completion`: separability of `F' / F` survives completion, with no
+  characteristic or residue-separability assumptions.
 
 ## References
 
@@ -481,6 +487,52 @@ theorem finrank_completion :
   letI := P.completionExtensionAlgebra P' hP
   (Module.finrank_eq_card_basis (nonempty_basis_completion P P' hP).some).trans
     (by simp [mul_comm])
+
+/-- **The completed valuation ring is the integral closure of the base completed valuation ring**:
+`𝒪̂_{P'}` is the integral closure of `𝒪̂_P` in `F̂'_{P'}`. -/
+theorem isIntegralClosure_completionIntegers :
+    letI := P.completionExtensionAlgebra P' hP
+    letI := P.completionIntegersExtensionAlgebra P' hP
+    IsIntegralClosure P'.completionPlace.integers P.completionPlace.integers P'.Completion := by
+  let _ := P.completionExtensionAlgebra P' hP
+  let _ := P.completionIntegersExtensionAlgebra P' hP
+  have := P.moduleFinite_completionIntegers P' hP
+  have := Algebra.IsIntegral.of_finite P.completionPlace.integers P'.completionPlace.integers
+  refine ⟨FaithfulSMul.algebraMap_injective _ _, fun {x} ↦ ⟨fun hx ↦ ?_, fun ⟨y, hy⟩ ↦ ?_⟩⟩
+  · refine ⟨⟨x, P'.completionPlace.mem_integers_of_isIntegral (fun a ↦ ?_) hx⟩, rfl⟩
+    rw [IsScalarTower.algebraMap_apply P.completionPlace.integers P'.completionPlace.integers]
+    exact (algebraMap P.completionPlace.integers P'.completionPlace.integers a).2
+  · subst hy
+    exact (Algebra.IsIntegral.isIntegral (R := P.completionPlace.integers) y).map
+      (IsScalarTower.toAlgHom P.completionPlace.integers P'.completionPlace.integers P'.Completion)
+
+/-- **Separability survives completion**: if `F' / F` is separable, then the completed extension
+`F̂'_{P'} / F̂_P` is separable, in any characteristic and with no separability hypothesis on the
+residue extension. -/
+theorem isSeparable_completion [Algebra.IsSeparable F F'] :
+    letI := P.completionExtensionAlgebra P' hP
+    Algebra.IsSeparable P.Completion P'.Completion := by
+  let _ := P.completionExtensionAlgebra P' hP
+  have hmem (y : F') : P'.completionEmbedding y ∈ separableClosure P.Completion P'.Completion := by
+    rw [mem_separableClosure_iff]
+    have hsep : ((minpoly F y).map (P.completionEmbedding : F →+* P.Completion)).Separable :=
+      Polynomial.Separable.map (Algebra.IsSeparable.isSeparable F y)
+    refine hsep.of_dvd (minpoly.dvd P.Completion (P'.completionEmbedding y) ?_)
+    rw [Polynomial.aeval_def, Polynomial.eval₂_map, P.algebraMap_completionExtensionAlgebra P' hP]
+    have hcomp : (P.completionExtension P' hP).comp (P.completionEmbedding : F →+* P.Completion) =
+        (P'.completionEmbedding : F' →+* P'.Completion).comp (algebraMap F F') :=
+      RingHom.ext fun x ↦ P.completionExtension_completionEmbedding P' hP x
+    rw [hcomp, ← AlgHom.coe_toRingHom (P'.completionEmbedding), ← Polynomial.hom_eval₂,
+      ← Polynomial.aeval_def, minpoly.aeval, map_zero]
+  rw [← separableClosure.eq_top_iff]
+  obtain ⟨u, t, -, hsp, ht⟩ := exists_residue_basis (k := k) (F := F) P'
+  refine eq_top_iff.mpr fun x _ ↦ ?_
+  have hle : Submodule.span P.Completion
+      (Set.range fun p : Fin (relativeDegree k F P') × Fin (ramificationIdx F P') ↦
+        P'.completionEmbedding ((u p.1 : F') * (t : F') ^ (p.2 : ℕ))) ≤
+      (separableClosure P.Completion P'.Completion).toSubmodule :=
+    Submodule.span_le.mpr (Set.range_subset_iff.mpr fun p ↦ hmem _)
+  exact hle ((span_completion_eq_top P P' hP u hsp ht).symm ▸ Submodule.mem_top)
 
 end Degree
 

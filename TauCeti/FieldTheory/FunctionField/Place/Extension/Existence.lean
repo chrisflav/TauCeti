@@ -10,6 +10,7 @@ public import TauCeti.FieldTheory.FunctionField.Place.Extension.Basic
 
 import Mathlib.RingTheory.Valuation.LocalSubring
 import TauCeti.FieldTheory.FunctionField.ConstantField
+import TauCeti.FieldTheory.FunctionField.Place.Adic
 import TauCeti.FieldTheory.FunctionField.Place.OfValuationSubring
 
 /-!
@@ -39,9 +40,12 @@ place whose restriction is the original place.
   algebraic extension of function fields is positive, since some place lies above it; the
   constants may grow by an integral extension.
 * `TauCeti.Place.isIntegral_integers_algebraMap`: constants are integral over `𝒪_P`.
-* `TauCeti.Place.isIntegral_iff_forall_restrict_eq_mem_integers`: the integral closure of the
-  valuation ring `𝒪_P` in the larger field is the intersection of the valuation rings of the
-  places above `P` (Stichtenoth, Section III.2).
+* `TauCeti.Place.isIntegral_iff_forall_restrict_eq_mem_integers` and
+  `TauCeti.Place.isIntegral_iff_forall_restrict_eq_mem_integers_of_isSeparable`: the integral
+  closure of the valuation ring `𝒪_P` in the larger field is the intersection of the valuation
+  rings of the places above `P` (Stichtenoth, Section III.2), proved both for an arbitrary integral
+  extension of function fields and for any finite separable extension without function-field
+  hypotheses.
 
 ## References
 
@@ -143,7 +147,10 @@ theorem isIntegral_integers_algebraMap (P : Place k F) (c : k') :
 
 An element outside the integral closure is separated from it by a valuation subring of `F'`; that
 subring contains the base field `k'`, whose elements are integral over `k`, and it contains
-`𝒪_P`, so it is the valuation ring of a place lying over `P`. -/
+`𝒪_P`, so it is the valuation ring of a place lying over `P`.
+
+For a finite separable extension `F' / F`, the function-field hypothesis `hF'` is not needed;
+that is `TauCeti.Place.isIntegral_iff_forall_restrict_eq_mem_integers_of_isSeparable`. -/
 theorem isIntegral_iff_forall_restrict_eq_mem_integers (hF' : IsFunctionField k' F')
     (P : Place k F) {x : F'} :
     IsIntegral P.integers x ↔ ∀ P' : Place k' F', P'.restrict k F = P → x ∈ P'.integers := by
@@ -160,7 +167,40 @@ theorem isIntegral_iff_forall_restrict_eq_mem_integers (hF' : IsFunctionField k'
     rw [integers_ofValuationSubring]
     exact hBV (isIntegral_algebraMap (x := (⟨f, hf⟩ : P.integers)))
   exact hxV (integers_ofValuationSubring hF' hk'V hV ▸ h _ hP')
+
 end Integral
+
+section Separable
+
+attribute [local instance 10] algebraIntegersExtension isScalarTowerIntegersExtension
+
+/-- **The integral closure of `𝒪_P` is the intersection of the valuation rings above `P`** for a
+finite separable extension `F' / F` whose constant field extension `k' / k` is integral, with no
+function-field hypothesis on `F' / k'`.
+
+The integral closure `S` of `𝒪_P` in `F'` is a Dedekind domain with fraction field `F'` containing
+`k'`, so every height-one prime of `S` defines a place of `F' / k'` lying over `P`; an element
+regular at every such place lies in `S`. For an arbitrary integral extension of function fields,
+see `TauCeti.Place.isIntegral_iff_forall_restrict_eq_mem_integers`. -/
+theorem isIntegral_iff_forall_restrict_eq_mem_integers_of_isSeparable
+    [Algebra.IsIntegral k k'] [FiniteDimensional F F'] [Algebra.IsSeparable F F']
+    (P : Place k F) {x : F'} :
+    IsIntegral P.integers x ↔ ∀ P' : Place k' F', P'.restrict k F = P → x ∈ P'.integers := by
+  refine ⟨fun hx P' hP' ↦ P'.mem_integers_of_isIntegral (fun a ↦ ?_) hx, fun h ↦ ?_⟩
+  · subst hP'
+    exact (mem_integers_restrict_iff k F P' (a : F)).mp a.2
+  let _ : Algebra k' (integralClosure P.integers F') :=
+    ((algebraMap k' F').codRestrict (integralClosure P.integers F')
+      (isIntegral_integers_algebraMap P)).toAlgebra
+  have : IsScalarTower k' (integralClosure P.integers F') F' := .of_algebraMap_eq fun _ ↦ rfl
+  obtain ⟨y, rfl⟩ := IsDedekindDomain.HeightOneSpectrum.mem_integers_of_valuation_le_one
+    (R := integralClosure P.integers F') F' x fun q ↦ by
+      rw [← valuation_ofPrime k' F' q, ← mem_integers_iff]
+      refine h (ofPrime k' F' q) ((restrict_eq_iff_integers_le k F _ P).mpr fun a ha ↦ ?_)
+      exact algebraMap_mem_integers_ofPrime k' F' q (algebraMap P.integers _ ⟨a, ha⟩)
+  exact y.2
+
+end Separable
 
 /-- **Existence of extensions of places for an extension of function fields** (Stichtenoth,
 Proposition 3.1.7): every place of `F / k` is the restriction of a place of `F' / k'`.
