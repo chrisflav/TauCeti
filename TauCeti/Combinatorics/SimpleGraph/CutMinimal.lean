@@ -8,6 +8,7 @@ module
 public import Mathlib.Combinatorics.SimpleGraph.Finite
 public import TauCeti.Combinatorics.SimpleGraph.Bipartite
 public import TauCeti.Data.Finset.Basic
+import Mathlib.Combinatorics.SimpleGraph.DegreeSum
 
 /-!
 # Cut-minimal graphs
@@ -30,6 +31,13 @@ or coefficient group.
   vertex counts, `2 * (G.between S Sᶜ).edgeFinset.card ≤ S.toFinset.card * Sᶜ.toFinset.card`.
 * `SimpleGraph.isCutMinimal_iff_card_le_card_symmDiff`: switching any cut does not decrease the
   edge count.
+* `SimpleGraph.IsCutMinimal.two_mul_degree_le`: every vertex of a finite cut-minimal graph has
+  `2 * G.degree v ≤ Fintype.card V - 1`.
+* `SimpleGraph.IsCutMinimal.two_mul_card_edgeFinset_le_choose_two`: a finite cut-minimal graph has
+  at most half of all vertex pairs as edges, `2 * #G.edgeFinset ≤ (Fintype.card V).choose 2`.
+* `SimpleGraph.IsCutMinimal.two_mul_card_edgeFinset_lt_choose_two`: on at least two vertices, a
+  cut-minimal graph uses strictly fewer than half of all vertex pairs,
+  `2 * #G.edgeFinset < (Fintype.card V).choose 2`.
 -/
 
 public section
@@ -161,6 +169,82 @@ theorem isCutMinimal_iff_two_mul_sum_card_le (G : SimpleGraph V) [DecidableRel G
   · intro h S _
     obtain ⟨s, rfl⟩ : ∃ s : Finset V, (s : Set V) = S := ⟨S.toFinset, by simp⟩
     exact (key s).mpr (h s)
+
+omit [DecidableEq V] in
+/-- In a cut-minimal finite graph, every vertex satisfies `2 * G.degree v ≤ Fintype.card V - 1`. -/
+theorem IsCutMinimal.two_mul_degree_le {G : SimpleGraph V} [DecidableRel G.Adj]
+    (hG : G.IsCutMinimal) (v : V) :
+    2 * G.degree v ≤ Fintype.card V - 1 := by
+  classical
+  have hcut := (isCutMinimal_iff_two_mul_sum_card_le G).mp hG {v}
+  have hnb : {w ∈ ({v} : Finset V)ᶜ | G.Adj v w} = G.neighborFinset v := by
+    ext w
+    simp only [Finset.mem_filter, Finset.mem_compl, Finset.mem_singleton, mem_neighborFinset,
+      and_iff_right_iff_imp]
+    exact fun h => (G.ne_of_adj h).symm
+  rw [Finset.sum_singleton, hnb, card_neighborFinset_eq_degree, Finset.card_singleton, one_mul,
+    Finset.card_compl, Finset.card_singleton] at hcut
+  exact hcut
+
+omit [DecidableEq V] in
+/-- In a cut-minimal finite graph, at most half of the vertex pairs are edges:
+`2 * #G.edgeFinset ≤ (Fintype.card V).choose 2`. -/
+theorem IsCutMinimal.two_mul_card_edgeFinset_le_choose_two {G : SimpleGraph V} [DecidableRel G.Adj]
+    (hG : G.IsCutMinimal) :
+    2 * #G.edgeFinset ≤ (Fintype.card V).choose 2 := by
+  have hsum : 2 * ∑ v : V, G.degree v ≤ Fintype.card V * (Fintype.card V - 1) := by
+    calc 2 * ∑ v : V, G.degree v
+        = ∑ v : V, 2 * G.degree v := Finset.mul_sum _ _ _
+      _ ≤ ∑ _v : V, (Fintype.card V - 1) := Finset.sum_le_sum fun v _ => hG.two_mul_degree_le v
+      _ = Fintype.card V * (Fintype.card V - 1) := by simp
+  rw [G.sum_degrees_eq_twice_card_edges] at hsum
+  obtain ⟨k, hk⟩ := Nat.even_mul_pred_self (Fintype.card V)
+  rw [Nat.choose_two_right, hk]
+  omega
+
+omit [DecidableEq V] in
+/-- On at least two vertices, a cut-minimal finite graph uses strictly fewer than half of all
+vertex pairs: `2 * #G.edgeFinset < (Fintype.card V).choose 2`. -/
+theorem IsCutMinimal.two_mul_card_edgeFinset_lt_choose_two {G : SimpleGraph V} [DecidableRel G.Adj]
+    (hG : G.IsCutMinimal) (hV : 2 ≤ Fintype.card V) :
+    2 * #G.edgeFinset < (Fintype.card V).choose 2 := by
+  classical
+  -- Equality forces every vertex to have degree `(card V - 1) / 2`, violating cut-minimality on
+  -- any non-adjacent pair `{u, v}`.
+  refine lt_of_le_of_ne hG.two_mul_card_edgeFinset_le_choose_two fun heq => ?_
+  have hch : 2 * (Fintype.card V).choose 2 = Fintype.card V * (Fintype.card V - 1) := by
+    obtain ⟨k, hk⟩ := Nat.even_mul_pred_self (Fintype.card V)
+    rw [Nat.choose_two_right, hk]
+    omega
+  have hsum_eq : ∑ v : V, 2 * G.degree v = ∑ _v : V, (Fintype.card V - 1) := by
+    rw [← Finset.mul_sum, G.sum_degrees_eq_twice_card_edges]
+    simp only [Finset.sum_const, Finset.card_univ, smul_eq_mul]
+    omega
+  have hreg : ∀ v : V, 2 * G.degree v = Fintype.card V - 1 := fun v =>
+    (Finset.sum_eq_sum_iff_of_le fun w _ => hG.two_mul_degree_le w).mp hsum_eq v (Finset.mem_univ v)
+  obtain ⟨u⟩ : Nonempty V := Fintype.card_pos_iff.mp (by omega)
+  have hdu := hreg u
+  have hlt : #(G.neighborFinset u) < #(({u} : Finset V)ᶜ) := by
+    rw [card_neighborFinset_eq_degree, Finset.card_compl, Finset.card_singleton]
+    omega
+  obtain ⟨v, hv_compl, hv_not⟩ := Finset.exists_mem_notMem_of_card_lt_card hlt
+  have huv : u ≠ v := by simpa [eq_comm] using Finset.mem_compl.mp hv_compl
+  have hnot_adj : ¬ G.Adj u v := by simpa [mem_neighborFinset] using hv_not
+  have hcut := (isCutMinimal_iff_two_mul_sum_card_le G).mp hG {u, v}
+  have hnb (x y : V) (hxy : ¬ G.Adj x y) :
+      {w ∈ ({x, y} : Finset V)ᶜ | G.Adj x w} = G.neighborFinset x := by
+    ext w
+    simp only [Finset.mem_filter, Finset.mem_compl, Finset.mem_insert, Finset.mem_singleton,
+      not_or, mem_neighborFinset, and_iff_right_iff_imp]
+    intro h; exact ⟨(G.ne_of_adj h).symm, fun h' => hxy (h' ▸ h)⟩
+  have hnu := hnb u v hnot_adj
+  have hnv : {w ∈ ({u, v} : Finset V)ᶜ | G.Adj v w} = G.neighborFinset v := by
+    rw [Finset.pair_comm]
+    exact hnb v u fun h => hnot_adj h.symm
+  rw [Finset.sum_pair huv, hnu, hnv, card_neighborFinset_eq_degree, card_neighborFinset_eq_degree,
+    Finset.card_compl, Finset.card_pair huv] at hcut
+  have hdv := hreg v
+  omega
 
 end Finite
 

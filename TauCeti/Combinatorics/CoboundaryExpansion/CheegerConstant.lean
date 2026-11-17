@@ -121,6 +121,13 @@ theorem h1_eq_zero_of_forall_gaugeDist_eq_zero {X : TwoComplex V} {ℓ : GroupNo
     h1 X ℓ = 0 :=
   h1_eq_zero_of_forall_gaugeDist_eq_zero fun α => by simp [Subsingleton.elim α 1]
 
+/-- On a finite two-complex with at most two vertices, every cochain is a coboundary, so
+`h1 X ℓ = 0`. -/
+theorem h1_eq_zero_of_card_le_two (X : TwoComplex V) (ℓ : GroupNorm G)
+    (hV : Fintype.card V ≤ 2) : h1 X ℓ = 0 :=
+  h1_eq_zero_of_forall_gaugeDist_eq_zero fun α =>
+    (α.isCoboundary_of_card_le_two hV).gaugeDist_eq_zero ℓ
+
 /-- When `G` is finite and some cochain has positive gauge distance, the infimum defining `h1 X ℓ`
 is attained by a cochain. -/
 theorem exists_div_eq_h1 [Finite G] {X : TwoComplex V} {ℓ : GroupNorm G}
@@ -280,6 +287,12 @@ theorem h1Sym_lt_iff [Fintype V] [LinearOrder V] (X : TwoComplex V) {c : ℝ} :
 theorem h1_movedNorm_fin_one [Fintype V] [LinearOrder V] (X : TwoComplex V) :
     h1 X (Equiv.Perm.movedNorm (Fin 1)) = 0 :=
   h1_subsingleton X _
+
+/-- On a finite two-complex with at most two vertices, every cochain is a coboundary, so
+`h1Sym X = 0`. -/
+theorem h1Sym_eq_zero_of_card_le_two [Fintype V] [LinearOrder V] (X : TwoComplex V)
+    (hV : Fintype.card V ≤ 2) : h1Sym X = 0 := by
+  simp [h1Sym_def, h1_eq_zero_of_card_le_two X _ hV]
 
 theorem h1Sym_congr_linearOrder [Fintype V] (l₁ l₂ : LinearOrder V) (X : TwoComplex V) :
     @h1Sym V _ l₁ X = @h1Sym V _ l₂ X := by

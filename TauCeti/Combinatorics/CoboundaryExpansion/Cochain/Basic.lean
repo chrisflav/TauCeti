@@ -304,6 +304,25 @@ theorem isCoboundary_complete [Fintype V] (α : Cochain (complete V) G) :
   · simp
   · exact h u v ((adj_complete u v).mpr huv)
 
+/-- On a finite two-complex with at most two vertices, every 1-cochain is a coboundary. -/
+theorem isCoboundary_of_card_le_two [Fintype V] (α : Cochain X G)
+    (hV : Fintype.card V ≤ 2) : α.IsCoboundary := by
+  rcases isEmpty_or_nonempty V with hV0 | hne
+  · exact ⟨isEmptyElim, fun u => isEmptyElim u⟩
+  · obtain ⟨v₀⟩ := hne
+    refine ⟨fun u => α u v₀, fun u v huv => ?_⟩
+    rcases eq_or_ne u v₀ with rfl | hu
+    · simp [α.apply_swap u v]
+    · rcases eq_or_ne v v₀ with rfl | hv
+      · simp
+      · exfalso
+        classical
+        have h3 : 3 ≤ Fintype.card V :=
+          calc 3 = ({u, v, v₀} : Finset V).card :=
+              (card_eq_three.mpr ⟨u, v, v₀, huv.ne, hu, hv, rfl⟩).symm
+            _ ≤ Fintype.card V := card_le_univ _
+        omega
+
 /-- A cochain is a coboundary if and only if some gauge moves it to the trivial cochain `1`. -/
 theorem isCoboundary_iff_exists_smul_eq_one (α : Cochain X G) :
     α.IsCoboundary ↔ ∃ β : V → G, β • α = 1 := by
