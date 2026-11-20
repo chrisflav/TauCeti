@@ -7,8 +7,9 @@ module
 
 public import TauCeti.Algebra.Coalgebra.Comodule.Unitarization
 public import TauCeti.Algebra.Coalgebra.Subcomodule.Basic
+public import TauCeti.Algebra.HopfAlgebra.Integral.Haar
 import Mathlib.Analysis.Complex.Polynomial.Basic
-import TauCeti.Algebra.Coalgebra.Comodule.MatrixCoefficient.Simple
+import TauCeti.Algebra.Coalgebra.Comodule.Schur
 import TauCeti.Algebra.Coalgebra.Subcomodule.Dual
 import TauCeti.LinearAlgebra.Matrix.Nonsingular.Inverse
 import TauCeti.LinearAlgebra.Matrix.PosDef.Basic
@@ -302,7 +303,7 @@ private theorem exists_eq_smul_unitarizingMatrix [Module.Finite ℂ M]
       w * (Ft⁻¹ * F).map f = w * (Ft⁻¹.map f * (wᴴ * F.map f * w)) := by rw [hinv, Matrix.map_mul]
       _ = (w * Ft⁻¹.map f * wᴴ) * F.map f * w := by simp only [Matrix.mul_assoc]
       _ = (Ft⁻¹ * F).map f * w := by rw [hwFt, ← Matrix.map_mul]
-  obtain ⟨c, hFtF⟩ := exists_eq_smul_one_of_coefficientMatrix_mul_eq b.dualBasis hinter
+  obtain ⟨c, hFtF⟩ := b.dualBasis.exists_eq_smul_one_of_commute_coefficientMatrix _ hinter
   refine ⟨c, ?_⟩
   calc
     F = Ft * (Ft⁻¹ * F) := by rw [← Matrix.mul_assoc, mul_nonsing_inv Ft hFtdet, Matrix.one_mul]

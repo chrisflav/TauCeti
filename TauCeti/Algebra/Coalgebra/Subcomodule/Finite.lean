@@ -42,10 +42,12 @@ No flatness or noetherian hypothesis is needed.
   the finite subcomodules have supremum `⊤`.
 * `TauCeti.Subcomodule.exists_finite_le_of_mem`: every element of a subcomodule belongs to a
   finite subcomodule contained in it.
-* `TauCeti.Subcomodule.finite_of_isAtom` and `TauCeti.Subcomodule.finite_of_isSimpleOrder`: for a
-  projective coefficient coalgebra, simple subcomodules and simple comodules are finite.
+* `TauCeti.Subcomodule.finite_of_isAtom`: for a projective coefficient coalgebra, simple
+  subcomodules are finite.
 * `TauCeti.Subcomodule.instIsAtomic`: over a field every nonzero subcomodule contains a simple
   subcomodule.
+* `TauCeti.Comodule.finite_of_isSimpleOrder`: for a projective coefficient coalgebra, every simple
+  comodule is finitely generated.
 
 ## References
 
@@ -185,7 +187,7 @@ theorem directedOn_finiteSubcomodules :
 @[simp]
 theorem coe_sSup_finiteSubcomodules : ((sSup (finiteSubcomodules (R := R) (C := C) (M := M)) :
         Subcomodule R C M) : Set M) =
-      ⋃ N : finiteSubcomodules (R := R) (C := C) (M := M), (N.1 : Set M) :=
+      ⋃ N : finiteSubcomodules (R := R) (C := C) (M := M), (N.val : Set M) :=
   coe_sSup_of_directedOn nonempty_finiteSubcomodules directedOn_finiteSubcomodules
 
 /-- Membership in the supremum of all finite subcomodules means membership in one finite
@@ -242,7 +244,7 @@ theorem sSup_finiteSubcomodules_eq_top_of_exists_mem
 the whole carrier. -/
 theorem iUnion_finiteSubcomodules_eq_univ_of_exists_mem
     (hM : ∀ m : M, ∃ N : Subcomodule R C M, Module.Finite R N.toSubmodule ∧ m ∈ N) :
-    (⋃ N : finiteSubcomodules (R := R) (C := C) (M := M), (N.1 : Set M)) =
+    (⋃ N : finiteSubcomodules (R := R) (C := C) (M := M), (N.val : Set M)) =
       Set.univ := by
   rw [← coe_sSup_finiteSubcomodules, sSup_finiteSubcomodules_eq_top_of_exists_mem hM]
   rfl
@@ -291,14 +293,6 @@ theorem finite_of_isAtom [Module.Projective R C] {S : Subcomodule R C M} (hS : I
   rw [← (hS.le_iff.mp hFS).resolve_left (ne_bot_iff.mpr ⟨v, hvF, hv0⟩)]
   exact hF
 
-/-- If the coefficient coalgebra is projective, a simple comodule is finitely generated as an
-`R`-module. -/
-theorem finite_of_isSimpleOrder [Module.Projective R C] [IsSimpleOrder (Subcomodule R C M)] :
-    Module.Finite R M := by
-  have hfin : Module.Finite R (⊤ : Subcomodule R C M).toSubmodule := finite_of_isAtom isAtom_top
-  rw [top_toSubmodule] at hfin
-  exact Module.Finite.equiv (Submodule.topEquiv (R := R) (M := M))
-
 end General
 
 section Field
@@ -324,5 +318,20 @@ instance instIsAtomic : IsAtomic (Subcomodule k C M) := by
 end Field
 
 end Subcomodule
+
+namespace Comodule
+
+/-- If the coefficient coalgebra is projective over `R`, every simple right comodule is finitely
+generated over `R`. -/
+theorem finite_of_isSimpleOrder {R : Type u} {C : Type v} {M : Type w} [CommSemiring R]
+    [AddCommMonoid C] [Module R C] [Coalgebra R C] [Module.Projective R C]
+    [AddCommMonoid M] [Module R M] [Comodule R C M] [IsSimpleOrder (Subcomodule R C M)] :
+    Module.Finite R M := by
+  have hfin : Module.Finite R (⊤ : Subcomodule R C M).toSubmodule :=
+    Subcomodule.finite_of_isAtom (R := R) (C := C) isAtom_top
+  rw [Subcomodule.top_toSubmodule] at hfin
+  exact Module.Finite.equiv (Submodule.topEquiv (R := R) (M := M))
+
+end Comodule
 
 end TauCeti

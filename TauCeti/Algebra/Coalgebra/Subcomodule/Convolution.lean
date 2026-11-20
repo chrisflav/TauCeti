@@ -43,7 +43,7 @@ variable {k C M : Type*} [Field k]
 theorem isIrreducible_convolutionAction [IsSimpleOrder (Subcomodule k C M)] :
     Representation.IsIrreducible
       (convolutionAction (R := k) (C := C) (M := M)).toMonoidHom := by
-  have : Nontrivial M := (Subcomodule.nontrivial_iff (R := k) (C := C)).mp inferInstance
+  have := nontrivial_of_isSimpleOrder k C M
   refine ⟨fun S ↦ ?_⟩
   let W : Subcomodule k C M := Subcomodule.ofSubmodule S.toSubmodule
     (fun _ hm ↦ S.toSubmodule.coact_mem_range_of_forall_coactComponent_mem
@@ -68,7 +68,7 @@ theorem isIrreducible_convolutionAction [IsSimpleOrder (Subcomodule k C M)] :
 on a simple comodule, which is automatically finite dimensional. -/
 theorem convolutionAction_surjective [IsAlgClosed k] [IsSimpleOrder (Subcomodule k C M)] :
     Function.Surjective (convolutionAction (R := k) (C := C) (M := M)) := by
-  have : Module.Finite k M := Subcomodule.finite_of_isSimpleOrder (C := C)
+  have : Module.Finite k M := finite_of_isSimpleOrder (C := C)
   let ρ : Representation k (WithConv (Module.Dual k C)) M :=
     (convolutionAction (R := k) (C := C) (M := M)).toMonoidHom
   intro T
