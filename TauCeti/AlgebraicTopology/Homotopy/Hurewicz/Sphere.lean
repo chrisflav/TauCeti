@@ -145,7 +145,8 @@ private lemma isOpenEmbedding_diskToDiskBoundary_domRestrict :
           (diskToDiskBoundary.{w} n).hom.continuous.isClosedMap _)).isEmbedding,
     ?_⟩
   · exact fun z w h ↦
-      Subtype.ext ((bijOn_diskToDiskBoundary n).injOn z.2 w.2 (congrArg Subtype.val h))
+      Subtype.ext ((bijOn_diskToDiskBoundary n).injOn z.property w.property
+        (congrArg Subtype.val h))
   · rw [range_domRestrict, (bijOn_diskToDiskBoundary n).image_eq]
     exact isOpen_compl_singleton
 
@@ -227,7 +228,7 @@ private lemma isIso_singularHomologyMap_diskToDiskBoundaryPairMap (k : ℕ) :
         (diskToDiskBoundaryChart.{w} n).toHomeomorphSourceTarget
         (B := Subtype.val ⁻¹' {diskCenter.{w} (n + 1)}ᶜ)
         (B' := Subtype.val ⁻¹' {diskToDiskBoundaryChart.{w} n (diskCenter.{w} (n + 1))}ᶜ)
-        fun z ↦ ((diskToDiskBoundaryChart.{w} n).injOn.eq_iff z.2 hx).not.symm).hom ≫
+        fun z ↦ ((diskToDiskBoundaryChart.{w} n).injOn.eq_iff z.property hx).not.symm).hom ≫
       TopPair.excisionMap (X := TopCat.of (TopCat.diskBoundary.{w} (n + 2)))
         (diskToDiskBoundaryChart.{w} n).target
         {diskToDiskBoundaryChart.{w} n (diskCenter.{w} (n + 1))}ᶜ := by

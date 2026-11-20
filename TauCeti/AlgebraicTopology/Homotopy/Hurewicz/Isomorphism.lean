@@ -297,9 +297,9 @@ private theorem cubicalHurewiczHom_injective (e : R ≃+* ℤ)
     | _ p =>
       let p' : Ω^ (Fin (n + 2)) X x := p
       rw [cubicalHurewiczHom_ofMul_mk] at ha
-      have hp : SingularCube.IsBased (n + 2) x p'.1 :=
-        SingularCube.isBased_iff_mem_genLoop.2 p'.2
-      let g := NormalizedCubicalChain.ofCube X R p'.1
+      have hp : SingularCube.IsBased (n + 2) x p'.val :=
+        SingularCube.isBased_iff_mem_genLoop.2 p'.property
+      let g := NormalizedCubicalChain.ofCube X R p'.val
       have hg : g ∈ Submodule.span R
           (NormalizedCubicalChain.ofCube X R '' {c | c.IsBased (n + 2) x}) :=
         Submodule.subset_span ⟨p', hp, rfl⟩
