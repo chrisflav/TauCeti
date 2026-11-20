@@ -54,6 +54,8 @@ and field-range transport for intermediate fields and their algebra equivalences
   `E` of `L / K` and a semiring `k` acting compatibly on `K` and `L`.
 * `IntermediateField.le_of_isScalarTower`: an intermediate field `E` lies in an intermediate
   field `E'` as soon as some algebra structure of `E'` over `E` is compatible with `L`.
+* `IntermediateField.pow_eq_algebraMap_iff`: an element `x` of `E` satisfies
+  `x ^ n = algebraMap R E r` if and only if `(x : L) ^ n = algebraMap R L r`.
 * `IntermediateField.nonempty_extendScalars_algEquiv_iff`: `extendScalars h₁` and
   `extendScalars h₂` are `U`-isomorphic precisely when some `L₁ ≃ₐ[K] L₂` fixes `U` pointwise.
 * `IntermediateField.extendScalarsAlgEquivHom_injective` and
@@ -84,11 +86,20 @@ instance instIsScalarTower {k K L : Type*} [Semiring k] [Field K] [Field L]
     (E : IntermediateField K L) : IsScalarTower k E L :=
   IsScalarTower.to₁₃₄ k K E L
 
+/-- An element `x` of an intermediate field `E` of `L / K` has `n`-th power `algebraMap R E r` in
+`E` if and only if `(x : L)` has `n`-th power `algebraMap R L r` in `L`. -/
+theorem pow_eq_algebraMap_iff {R K L : Type*} [CommSemiring R] [Field K] [Field L]
+    [Algebra R K] [Algebra R L] [Algebra K L] [IsScalarTower R K L]
+    {E : IntermediateField K L} {x : E} {n : ℕ} {r : R} :
+    x ^ n = algebraMap R E r ↔ (x : L) ^ n = algebraMap R L r := by
+  rw [← (algebraMap E L).injective.eq_iff, map_pow, algebraMap_apply,
+    ← IsScalarTower.algebraMap_apply R E L]
+
 /-- If `E'` is an algebra over `E` compatibly with their inclusions in `L`, then `E ≤ E'`: every
 `x ∈ E` is the image in `L` of `algebraMap E E' x ∈ E'`. -/
 theorem le_of_isScalarTower {K L : Type*} [Field K] [Field L] [Algebra K L]
     {E E' : IntermediateField K L} [Algebra E E'] [IsScalarTower E E' L] : E ≤ E' := fun x hx ↦ by
-  have h := (algebraMap E E' ⟨x, hx⟩).2
+  have h := (algebraMap E E' ⟨x, hx⟩).property
   rwa [← algebraMap_apply, ← IsScalarTower.algebraMap_apply] at h
 
 section RestrictScalars
@@ -101,8 +112,8 @@ have the same carrier; this is the resulting `K`-algebra equivalence between the
 `K`-algebra through `L'`. It lets a statement about `E` over `K` be read on the intermediate field
 `E.restrictScalars K` of `L / K`, and conversely. -/
 def restrictScalarsAlgEquiv (E : IntermediateField L' L) : E.restrictScalars K ≃ₐ[K] E where
-  toFun x := ⟨x, x.2⟩
-  invFun x := ⟨x, x.2⟩
+  toFun x := ⟨x, x.property⟩
+  invFun x := ⟨x, x.property⟩
   left_inv _ := rfl
   right_inv _ := rfl
   map_mul' _ _ := rfl
@@ -126,7 +137,7 @@ def restrictScalarsOrderIso :
     IntermediateField L' L ≃o
       {E : IntermediateField K L // ∀ x : L', algebraMap L' L x ∈ E} where
   toFun E := ⟨E.restrictScalars K, E.algebraMap_mem⟩
-  invFun E := E.1.toSubfield.toIntermediateField E.2
+  invFun E := E.val.toSubfield.toIntermediateField E.property
   left_inv E := by
     ext x
     simp [← SetLike.mem_coe]
@@ -148,14 +159,14 @@ theorem coe_restrictScalarsOrderIso_apply (E : IntermediateField L' L) :
 @[simp]
 theorem restrictScalars_restrictScalarsOrderIso_symm
     (E : {E : IntermediateField K L // ∀ x : L', algebraMap L' L x ∈ E}) :
-    ((restrictScalarsOrderIso K).symm E).restrictScalars K = E.1 := by
+    ((restrictScalarsOrderIso K).symm E).restrictScalars K = E.val := by
   rw [← coe_restrictScalarsOrderIso_apply K ((restrictScalarsOrderIso K).symm E),
     OrderIso.apply_symm_apply]
 
 @[simp]
 theorem mem_restrictScalarsOrderIso_symm
     (E : {E : IntermediateField K L // ∀ x : L', algebraMap L' L x ∈ E}) {x : L} :
-    x ∈ (restrictScalarsOrderIso K).symm E ↔ x ∈ E.1 := by
+    x ∈ (restrictScalarsOrderIso K).symm E ↔ x ∈ E.val := by
   rw [← mem_restrictScalars K, restrictScalars_restrictScalarsOrderIso_symm]
 
 /-- In a tower `K → L' → L` of fields, `L'`-algebra equivalences `E₁ ≃ₐ[L'] E₂` between intermediate
@@ -171,15 +182,15 @@ def restrictScalarsAlgEquivEquiv (E₁ E₂ : IntermediateField L' L) :
      fun x ↦ congrArg Subtype.val (f.commutes x)⟩
   invFun e := AlgEquiv.ofRingEquiv
     (f := ((restrictScalarsAlgEquiv K E₁).symm.trans
-      (e.1.trans (restrictScalarsAlgEquiv K E₂))).toRingEquiv)
-    fun x ↦ Subtype.ext (e.2 x)
+      (e.val.trans (restrictScalarsAlgEquiv K E₂))).toRingEquiv)
+    fun x ↦ Subtype.ext (e.property x)
   left_inv f := AlgEquiv.ext fun z ↦ Subtype.ext (by simp)
   right_inv e := Subtype.ext <| AlgEquiv.ext fun z ↦ Subtype.ext (by simp)
 
 @[simp]
 theorem coe_restrictScalarsAlgEquivEquiv_apply (E₁ E₂ : IntermediateField L' L)
     (f : E₁ ≃ₐ[L'] E₂) (x : E₁.restrictScalars K) :
-    ((restrictScalarsAlgEquivEquiv K E₁ E₂ f).1 x : L) = f ⟨x.1, x.2⟩ := by
+    ((restrictScalarsAlgEquivEquiv K E₁ E₂ f).val x : L) = f ⟨x.val, x.property⟩ := by
   simp only [restrictScalarsAlgEquivEquiv, Equiv.coe_fn_mk, AlgEquiv.trans_apply,
     AlgEquiv.restrictScalars_apply, coe_restrictScalarsAlgEquiv_symm_apply]
   exact congrArg (fun z : E₁ ↦ (f z : L))
@@ -190,10 +201,10 @@ theorem coe_restrictScalarsAlgEquivEquiv_symm_apply (E₁ E₂ : IntermediateFie
     (e : {e : E₁.restrictScalars K ≃ₐ[K] E₂.restrictScalars K //
       ∀ x : L', (e ⟨algebraMap L' L x, E₁.algebraMap_mem x⟩ : L) = algebraMap L' L x})
     (x : E₁) :
-    ((restrictScalarsAlgEquivEquiv K E₁ E₂).symm e x : L) = e.1 ⟨x.1, x.2⟩ := by
+    ((restrictScalarsAlgEquivEquiv K E₁ E₂).symm e x : L) = e.val ⟨x.val, x.property⟩ := by
   simp only [restrictScalarsAlgEquivEquiv, Equiv.coe_fn_symm_mk, AlgEquiv.ofRingEquiv_apply,
     AlgEquiv.coe_toRingEquiv, AlgEquiv.trans_apply, coe_restrictScalarsAlgEquiv_apply]
-  exact congrArg (fun z : E₁.restrictScalars K ↦ (e.1 z : L))
+  exact congrArg (fun z : E₁.restrictScalars K ↦ (e.val z : L))
     (Subtype.ext (coe_restrictScalarsAlgEquiv_symm_apply K E₁ x))
 
 end RestrictScalars
@@ -206,7 +217,7 @@ variable {K Ω : Type*} [Field K] [Field Ω] [Algebra K Ω] {U L L₁ L₂ : Int
 `U` is the same data as a `K`-algebra equivalence `L₁ ≃ₐ[K] L₂` fixing `U` pointwise. -/
 def extendScalarsAlgEquivEquiv (h₁ : U ≤ L₁) (h₂ : U ≤ L₂) :
     (extendScalars h₁ ≃ₐ[U] extendScalars h₂) ≃
-      {e : L₁ ≃ₐ[K] L₂ // ∀ x : U, (e ⟨x.1, h₁ x.2⟩ : Ω) = x} :=
+      {e : L₁ ≃ₐ[K] L₂ // ∀ x : U, (e ⟨x.val, h₁ x.property⟩ : Ω) = x} :=
   (restrictScalarsAlgEquivEquiv K (extendScalars h₁) (extendScalars h₂)).trans <|
     Equiv.subtypeEquiv
       ((equivOfEq (extendScalars_restrictScalars h₁)).equivCongr
@@ -216,16 +227,18 @@ def extendScalarsAlgEquivEquiv (h₁ : U ≤ L₁) (h₂ : U ≤ L₂) :
 @[simp]
 theorem coe_extendScalarsAlgEquivEquiv_apply (h₁ : U ≤ L₁) (h₂ : U ≤ L₂)
     (f : extendScalars h₁ ≃ₐ[U] extendScalars h₂) (x : L₁) :
-    ((extendScalarsAlgEquivEquiv h₁ h₂ f).1 x : Ω) = f ⟨x.1, x.2⟩ := by
+    ((extendScalarsAlgEquivEquiv h₁ h₂ f).val x : Ω) = f ⟨x.val, x.property⟩ := by
   rw [extendScalarsAlgEquivEquiv, Equiv.trans_apply, Equiv.subtypeEquiv_apply]
   simp only [AlgEquiv.equivCongr, Equiv.coe_fn_mk, AlgEquiv.trans_apply, equivOfEq_symm,
     equivOfEq_apply]
-  exact coe_restrictScalarsAlgEquivEquiv_apply K (extendScalars h₁) (extendScalars h₂) f ⟨x.1, x.2⟩
+  exact coe_restrictScalarsAlgEquivEquiv_apply K
+    (extendScalars h₁) (extendScalars h₂) f ⟨x.val, x.property⟩
 
 @[simp]
 theorem coe_extendScalarsAlgEquivEquiv_symm_apply (h₁ : U ≤ L₁) (h₂ : U ≤ L₂)
-    (e : {e : L₁ ≃ₐ[K] L₂ // ∀ x : U, (e ⟨x.1, h₁ x.2⟩ : Ω) = x}) (x : extendScalars h₁) :
-    ((extendScalarsAlgEquivEquiv h₁ h₂).symm e x : Ω) = e.1 ⟨x.1, x.2⟩ := by
+    (e : {e : L₁ ≃ₐ[K] L₂ // ∀ x : U, (e ⟨x.val, h₁ x.property⟩ : Ω) = x})
+    (x : extendScalars h₁) :
+    ((extendScalarsAlgEquivEquiv h₁ h₂).symm e x : Ω) = e.val ⟨x.val, x.property⟩ := by
   rw [extendScalarsAlgEquivEquiv, Equiv.symm_trans_apply, Equiv.subtypeEquiv_symm,
     coe_restrictScalarsAlgEquivEquiv_symm_apply, Equiv.subtypeEquiv_apply]
   simp [AlgEquiv.equivCongr, -extendScalars_restrictScalars]
@@ -234,13 +247,13 @@ theorem coe_extendScalarsAlgEquivEquiv_symm_apply (h₁ : U ≤ L₁) (h₂ : U 
 there is a `K`-isomorphism `L₁ ≃ₐ[K] L₂` fixing `U` pointwise. -/
 theorem nonempty_extendScalars_algEquiv_iff (h₁ : U ≤ L₁) (h₂ : U ≤ L₂) :
     Nonempty (extendScalars h₁ ≃ₐ[U] extendScalars h₂) ↔
-      ∃ e : L₁ ≃ₐ[K] L₂, ∀ x : U, (e ⟨x.1, h₁ x.2⟩ : Ω) = x :=
+      ∃ e : L₁ ≃ₐ[K] L₂, ∀ x : U, (e ⟨x.val, h₁ x.property⟩ : Ω) = x :=
   (extendScalarsAlgEquivEquiv h₁ h₂).nonempty_congr.trans nonempty_subtype
 
 /-- Viewing a `U`-automorphism of `extendScalars h` as a `K`-automorphism of `L`. -/
 def extendScalarsAlgEquivHom (h : U ≤ L) :
     (extendScalars h ≃ₐ[U] extendScalars h) →* (L ≃ₐ[K] L) where
-  toFun f := (extendScalarsAlgEquivEquiv h h f).1
+  toFun f := (extendScalarsAlgEquivEquiv h h f).val
   map_one' := by
     ext x
     simp
@@ -251,13 +264,13 @@ def extendScalarsAlgEquivHom (h : U ≤ L) :
 @[simp]
 theorem coe_extendScalarsAlgEquivHom_apply (h : U ≤ L)
     (f : extendScalars h ≃ₐ[U] extendScalars h) (x : L) :
-    (extendScalarsAlgEquivHom h f x : Ω) = f ⟨x.1, x.2⟩ := by
+    (extendScalarsAlgEquivHom h f x : Ω) = f ⟨x.val, x.property⟩ := by
   simp [extendScalarsAlgEquivHom]
 
 @[simp]
 theorem extendScalarsAlgEquivHom_extendScalarsAlgEquivEquiv_symm (h : U ≤ L)
-    (e : {e : L ≃ₐ[K] L // ∀ x : U, (e ⟨x.1, h x.2⟩ : Ω) = x}) :
-    extendScalarsAlgEquivHom h ((extendScalarsAlgEquivEquiv h h).symm e) = e.1 :=
+    (e : {e : L ≃ₐ[K] L // ∀ x : U, (e ⟨x.val, h x.property⟩ : Ω) = x}) :
+    extendScalarsAlgEquivHom h ((extendScalarsAlgEquivEquiv h h).symm e) = e.val :=
   congrArg Subtype.val ((extendScalarsAlgEquivEquiv h h).apply_symm_apply e)
 
 /-- Forgetting the `U`-algebra structure on automorphisms of `extendScalars h` is injective. -/
@@ -265,13 +278,13 @@ theorem extendScalarsAlgEquivHom_injective (h : U ≤ L) :
     Function.Injective (extendScalarsAlgEquivHom h) := by
   intro f g hfg
   ext x
-  simpa using congrArg (fun σ : L ≃ₐ[K] L ↦ (σ ⟨x.1, x.2⟩ : Ω)) hfg
+  simpa using congrArg (fun σ : L ≃ₐ[K] L ↦ (σ ⟨x.val, x.property⟩ : Ω)) hfg
 
 /-- A `K`-automorphism of `L` comes from a `U`-automorphism of `extendScalars h` precisely when it
 fixes `U` pointwise. -/
 theorem mem_range_extendScalarsAlgEquivHom_iff (h : U ≤ L) {σ : L ≃ₐ[K] L} :
-    σ ∈ (extendScalarsAlgEquivHom h).range ↔ ∀ x : U, (σ ⟨x.1, h x.2⟩ : Ω) = x :=
-  ⟨fun ⟨f, hf⟩ ↦ hf ▸ (extendScalarsAlgEquivEquiv h h f).2,
+    σ ∈ (extendScalarsAlgEquivHom h).range ↔ ∀ x : U, (σ ⟨x.val, h x.property⟩ : Ω) = x :=
+  ⟨fun ⟨f, hf⟩ ↦ hf ▸ (extendScalarsAlgEquivEquiv h h f).property,
    fun hσ ↦ ⟨(extendScalarsAlgEquivEquiv h h).symm ⟨σ, hσ⟩,
      extendScalarsAlgEquivHom_extendScalarsAlgEquivEquiv_symm h ⟨σ, hσ⟩⟩⟩
 
@@ -301,8 +314,8 @@ def orderIsoOfFieldRangeEq {U : IntermediateField K Ω}
     rw [← hU]
     exact ⟨by rintro h _ ⟨x, rfl⟩; exact h x, fun h x ↦ h ⟨x, rfl⟩⟩
   (restrictScalarsOrderIso K).trans <|
-    ({ toFun := fun L ↦ ⟨L.1, (hmem L.1).1 L.2⟩
-       invFun := fun L ↦ ⟨L.1, (hmem L.1).2 L.2⟩
+    ({ toFun := fun L ↦ ⟨L.val, (hmem L.val).1 L.property⟩
+       invFun := fun L ↦ ⟨L.val, (hmem L.val).2 L.property⟩
        left_inv := fun _ ↦ rfl
        right_inv := fun _ ↦ rfl
        map_rel_iff' := Iff.rfl } : _ ≃o {L : IntermediateField K Ω // U ≤ L}).trans
@@ -360,10 +373,10 @@ def algEquivEquivOfFieldRangeEq {U : IntermediateField K Ω}
   let h₂ := le_restrictScalars_of_fieldRange_eq hU E₂
   have hfix (e : E₁.restrictScalars K ≃ₐ[K] E₂.restrictScalars K) :
       (∀ x : F, (e ⟨algebraMap F Ω x, E₁.algebraMap_mem x⟩ : Ω) = algebraMap F Ω x) ↔
-        ∀ y : U, (e ⟨y.1, h₁ y.2⟩ : Ω) = y := by
+        ∀ y : U, (e ⟨y.val, h₁ y.property⟩ : Ω) = y := by
     refine ⟨fun h y ↦ ?_, fun h x ↦ h ⟨algebraMap F Ω x, hU ▸ ⟨x, rfl⟩⟩⟩
-    obtain ⟨x, hx⟩ : y.1 ∈ (IsScalarTower.toAlgHom K F Ω).fieldRange := hU ▸ y.2
-    have hy : (⟨y.1, h₁ y.2⟩ : E₁.restrictScalars K) =
+    obtain ⟨x, hx⟩ : y.val ∈ (IsScalarTower.toAlgHom K F Ω).fieldRange := hU ▸ y.property
+    have hy : (⟨y.val, h₁ y.property⟩ : E₁.restrictScalars K) =
         ⟨algebraMap F Ω x, E₁.algebraMap_mem x⟩ := Subtype.ext hx.symm
     exact (congrArg (fun z ↦ (e z : Ω)) hy).trans ((h x).trans hx)
   (restrictScalarsAlgEquivEquiv K E₁ E₂).trans <|
@@ -377,7 +390,7 @@ theorem coe_algEquivEquivOfFieldRangeEq_apply {U : IntermediateField K Ω}
     (hU : (IsScalarTower.toAlgHom K F Ω).fieldRange = U) (E₁ E₂ : IntermediateField F Ω)
     (f : E₁ ≃ₐ[F] E₂) (x : orderIsoOfFieldRangeEq hU E₁) :
     (algEquivEquivOfFieldRangeEq hU E₁ E₂ f x : Ω) =
-      f ⟨x.1, (mem_orderIsoOfFieldRangeEq hU E₁).1 x.2⟩ := by
+      f ⟨x.val, (mem_orderIsoOfFieldRangeEq hU E₁).1 x.property⟩ := by
   simp [algEquivEquivOfFieldRangeEq, AlgEquiv.equivCongr]
 
 @[simp]
@@ -386,7 +399,7 @@ theorem coe_algEquivEquivOfFieldRangeEq_symm_apply {U : IntermediateField K Ω}
     (g : orderIsoOfFieldRangeEq hU E₁ ≃ₐ[U] orderIsoOfFieldRangeEq hU E₂)
     (x : E₁) :
     ((algEquivEquivOfFieldRangeEq hU E₁ E₂).symm g x : Ω) =
-      g ⟨x.1, (mem_orderIsoOfFieldRangeEq hU E₁).2 x.2⟩ := by
+      g ⟨x.val, (mem_orderIsoOfFieldRangeEq hU E₁).2 x.property⟩ := by
   simp [algEquivEquivOfFieldRangeEq, AlgEquiv.equivCongr]
 
 end FieldRangeBridge

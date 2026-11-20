@@ -90,9 +90,9 @@ theorem mul_tsum_div_natCard_algEquiv_eq_of_inertiaDegree_eq {f : ℕ} (hf : f �
         ∃! F, F ∈ R_U ∧ Nonempty (E ≃ₐ[unramifiedExtension K (SeparableClosure K) f] F))
     (w : IntermediateField K (SeparableClosure K) → ℝ≥0∞)
     (hw : ∀ {L M : IntermediateField K (SeparableClosure K)}, L ∈ S → (L ≃ₐ[K] M) → w L = w M) :
-    (f : ℝ≥0∞) * ∑' M : R_K, w M.1 / Nat.card (M.1 ≃ₐ[K] M.1) =
-      ∑' E : R_U, w (E.1.restrictScalars K) /
-        Nat.card (E.1 ≃ₐ[unramifiedExtension K (SeparableClosure K) f] E.1) := by
+    (f : ℝ≥0∞) * ∑' M : R_K, w M.val / Nat.card (M.val ≃ₐ[K] M.val) =
+      ∑' E : R_U, w (E.val.restrictScalars K) /
+        Nat.card (E.val ≃ₐ[unramifiedExtension K (SeparableClosure K) f] E.val) := by
   let U := unramifiedExtension K (SeparableClosure K) f
   have hRK_le : ∀ M ∈ R_K, U ≤ M := by
     intro M hM
@@ -121,9 +121,9 @@ theorem tsum_div_natCard_algEquiv_eq_inv_mul_of_inertiaDegree_eq {f : ℕ} (hf :
         ∃! F, F ∈ R_U ∧ Nonempty (E ≃ₐ[unramifiedExtension K (SeparableClosure K) f] F))
     (w : IntermediateField K (SeparableClosure K) → ℝ≥0∞)
     (hw : ∀ {L M : IntermediateField K (SeparableClosure K)}, L ∈ S → (L ≃ₐ[K] M) → w L = w M) :
-    ∑' M : R_K, w M.1 / Nat.card (M.1 ≃ₐ[K] M.1) =
-      (f : ℝ≥0∞)⁻¹ * ∑' E : R_U, w (E.1.restrictScalars K) /
-        Nat.card (E.1 ≃ₐ[unramifiedExtension K (SeparableClosure K) f] E.1) := by
+    ∑' M : R_K, w M.val / Nat.card (M.val ≃ₐ[K] M.val) =
+      (f : ℝ≥0∞)⁻¹ * ∑' E : R_U, w (E.val.restrictScalars K) /
+        Nat.card (E.val ≃ₐ[unramifiedExtension K (SeparableClosure K) f] E.val) := by
   rw [← mul_tsum_div_natCard_algEquiv_eq_of_inertiaDegree_eq hf hS_iso hS_deg hRK_sub hRK
       hRU_sub hRU w hw,
     ← mul_assoc, ENNReal.inv_mul_cancel (by exact_mod_cast hf) (ENNReal.natCast_ne_top _),
@@ -273,9 +273,9 @@ theorem tsum_div_natCard_algEquiv_eq_inv_mul_tsum_isRepresentativeSet {e : ℕ}
       Module.finrank K L = TauCeti.inertiaDegree K F * e ∧
         L.inertiaDegree = TauCeti.inertiaDegree K F →
         (L ≃ₐ[K] M) → w L = w M) :
-    ∑' M : R_K, w M.1 / Nat.card (M.1 ≃ₐ[K] M.1) =
+    ∑' M : R_K, w M.val / Nat.card (M.val ≃ₐ[K] M.val) =
       (TauCeti.inertiaDegree K F : ℝ≥0∞)⁻¹ * ∑' E : R,
-        w ((E.1.map Φ.toAlgHom).restrictScalars K) / Nat.card (E.1 ≃ₐ[F] E.1) := by
+        w ((E.val.map Φ.toAlgHom).restrictScalars K) / Nat.card (E.val ≃ₐ[F] E.val) := by
   have hf : TauCeti.inertiaDegree K F ≠ 0 := TauCeti.inertiaDegree_pos.ne'
   let S : Set (IntermediateField K (SeparableClosure K)) :=
     {L | Module.finrank K L = TauCeti.inertiaDegree K F * e ∧
@@ -293,10 +293,10 @@ theorem tsum_div_natCard_algEquiv_eq_inv_mul_tsum_isRepresentativeSet {e : ℕ}
   rw [← OrderIso.coe_toEquiv θ, ← (Equiv.Set.image θ.toEquiv R θ.injective).tsum_eq]
   refine tsum_congr fun E ↦ ?_
   have hcard :
-      Nat.card (θ E.1 ≃ₐ[
-          unramifiedExtension K (SeparableClosure K) (TauCeti.inertiaDegree K F)] θ E.1) =
-        Nat.card (E.1 ≃ₐ[F] E.1) :=
-    Nat.card_congr (unramifiedTransportAlgEquivEquiv F Φ E.1 E.1).symm
+      Nat.card (θ E.val ≃ₐ[
+          unramifiedExtension K (SeparableClosure K) (TauCeti.inertiaDegree K F)] θ E.val) =
+        Nat.card (E.val ≃ₐ[F] E.val) :=
+    Nat.card_congr (unramifiedTransportAlgEquivEquiv F Φ E.val E.val).symm
   rw [Equiv.Set.image_apply, OrderIso.coe_toEquiv, Subtype.coe_mk, hcard,
     restrictScalars_unramifiedTransportOrderIso]
 
@@ -316,9 +316,9 @@ theorem tsum_one_div_natCard_algEquiv_eq_inv_mul_tsum_isRepresentativeSet {e : �
         ∃! M, M ∈ R_K ∧ Nonempty (L ≃ₐ[K] M))
     {R : Set (IntermediateField F (SeparableClosure F))}
     (hR : IsRepresentativeSet e R) :
-    ∑' M : R_K, 1 / (Nat.card (M.1 ≃ₐ[K] M.1) : ℝ≥0∞) =
+    ∑' M : R_K, 1 / (Nat.card (M.val ≃ₐ[K] M.val) : ℝ≥0∞) =
       (TauCeti.inertiaDegree K F : ℝ≥0∞)⁻¹ *
-        ∑' E : R, 1 / (Nat.card (E.1 ≃ₐ[F] E.1) : ℝ≥0∞) := by
+        ∑' E : R, 1 / (Nat.card (E.val ≃ₐ[F] E.val) : ℝ≥0∞) := by
   have : IsGalois K F := IsUnramified.isGalois K F
   let ι : F →ₐ[K] SeparableClosure K := IsSepClosed.lift
   let _ := ι.toAlgebra
@@ -338,8 +338,8 @@ private theorem tsum_one_div_natCard_algEquiv_mul_natCard_residueField_pow_discr
       Module.finrank K L = TauCeti.inertiaDegree K F * e ∧
         L.inertiaDegree = TauCeti.inertiaDegree K F →
         ∃! M, M ∈ R_K ∧ Nonempty (L ≃ₐ[K] M)) :
-    ∑' M : R_K, 1 / ((Nat.card (M.1 ≃ₐ[K] M.1) : ℝ≥0∞) *
-        (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.1.discriminantExponent) =
+    ∑' M : R_K, 1 / ((Nat.card (M.val ≃ₐ[K] M.val) : ℝ≥0∞) *
+        (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.val.discriminantExponent) =
       1 / ((TauCeti.inertiaDegree K F : ℝ≥0∞) *
         (Nat.card 𝓀[K] : ℝ≥0∞) ^ (TauCeti.inertiaDegree K F * (e - 1))) := by
   have : IsGalois K F := IsUnramified.isGalois K F
@@ -353,23 +353,25 @@ private theorem tsum_one_div_natCard_algEquiv_mul_natCard_residueField_pow_discr
     (fun L ↦ 1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ L.discriminantExponent)
     (fun _ e₀ ↦ by rw [IntermediateField.discriminantExponent_eq_of_algEquiv e₀])
   have hLHS (M : R_K) :
-      1 / ((Nat.card (M.1 ≃ₐ[K] M.1) : ℝ≥0∞) *
-          (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.1.discriminantExponent) =
-        (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.1.discriminantExponent) /
-          Nat.card (M.1 ≃ₐ[K] M.1) := by
+      1 / ((Nat.card (M.val ≃ₐ[K] M.val) : ℝ≥0∞) *
+          (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.val.discriminantExponent) =
+        (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.val.discriminantExponent) /
+          Nat.card (M.val ≃ₐ[K] M.val) := by
     rw [one_div, one_div, div_eq_mul_inv,
       ENNReal.mul_inv (.inr (ENNReal.pow_ne_top (ENNReal.natCast_ne_top _)))
         (.inl (ENNReal.natCast_ne_top _)), mul_comm]
   have hRHS (E : R) :
-      (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ ((E.1.map Φ.toAlgHom).restrictScalars K).discriminantExponent) /
-          Nat.card (E.1 ≃ₐ[F] E.1) =
-        1 / ((Nat.card (E.1 ≃ₐ[F] E.1) : ℝ≥0∞) * (Nat.card 𝓀[F] : ℝ≥0∞) ^ E.1.wildExponent) *
+      (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^
+          ((E.val.map Φ.toAlgHom).restrictScalars K).discriminantExponent) /
+          Nat.card (E.val ≃ₐ[F] E.val) =
+        1 / ((Nat.card (E.val ≃ₐ[F] E.val) : ℝ≥0∞) *
+            (Nat.card 𝓀[F] : ℝ≥0∞) ^ E.val.wildExponent) *
           (1 / (Nat.card 𝓀[K] : ℝ≥0∞) ^ (TauCeti.inertiaDegree K F * (e - 1))) := by
-    have hmem : (E.1.map Φ.toAlgHom).map Φ.symm.toAlgHom ∈ totallyRamifiedOfDegree F e := by
+    have hmem : (E.val.map Φ.toAlgHom).map Φ.symm.toAlgHom ∈ totallyRamifiedOfDegree F e := by
       rw [map_map_symm]
-      exact hR.subset E.2
+      exact hR.subset E.property
     have hdisc := one_div_natCard_residueField_pow_discriminantExponent_restrictScalars F Φ
-      (E.1.map Φ.toAlgHom) hmem
+      (E.val.map Φ.toAlgHom) hmem
     rw [map_map_symm] at hdisc
     rw [hdisc, div_eq_mul_inv, one_div, one_div, one_div,
       ENNReal.mul_inv (.inr (ENNReal.pow_ne_top (ENNReal.natCast_ne_top _)))
@@ -395,8 +397,8 @@ theorem tsum_one_div_natCard_algEquiv_mul_natCard_residueField_pow_discriminantE
     (hRK_sub : R_K ⊆ {L | Module.finrank K L = f * e ∧ L.inertiaDegree = f})
     (hRK : ∀ L : IntermediateField K (SeparableClosure K),
       Module.finrank K L = f * e ∧ L.inertiaDegree = f → ∃! M, M ∈ R_K ∧ Nonempty (L ≃ₐ[K] M)) :
-    ∑' M : R_K, 1 / ((Nat.card (M.1 ≃ₐ[K] M.1) : ℝ≥0∞) *
-        (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.1.discriminantExponent) =
+    ∑' M : R_K, 1 / ((Nat.card (M.val ≃ₐ[K] M.val) : ℝ≥0∞) *
+        (Nat.card 𝓀[K] : ℝ≥0∞) ^ M.val.discriminantExponent) =
       1 / ((f : ℝ≥0∞) * (Nat.card 𝓀[K] : ℝ≥0∞) ^ (f * (e - 1))) := by
   set U := unramifiedExtension K (SeparableClosure K) f
   let _ := finiteIntermediateFieldValuativeRel K (SeparableClosure K) U

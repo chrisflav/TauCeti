@@ -9,6 +9,7 @@ public import TauCeti.FieldTheory.IntermediateField.NormalSubfield.Basic
 public import TauCeti.NumberTheory.LocalField.MassFormula.Basic
 public import TauCeti.NumberTheory.LocalField.Unramified.Factorization
 public import TauCeti.NumberTheory.LocalField.Unramified.Maximal
+import TauCeti.FieldTheory.Galois.FixedField
 
 /-!
 # The unramified part of a finite subextension
@@ -33,7 +34,9 @@ automorphisms of `K_{f(L/K)} / K` that extend to `L`.
 
 ## Main results
 
-* `IntermediateField.inertiaDegree_eq_of_algEquiv`: residue degree is an isomorphism invariant.
+* `IntermediateField.inertiaDegree_eq_of_algEquiv`: residue degree is an isomorphism invariant,
+  with `TauCeti.inertiaDegree_fixedField_stabilizer_smul` and
+  `TauCeti.inertiaDegree_fixedField_stabilizer_out` on Galois orbits.
 * `IntermediateField.isTotallyRamified_iff_inertiaDegree_eq_one`: a subextension is totally
   ramified exactly when its residue degree is one.
 * `IntermediateField.unramifiedExtension_inertiaDegree_le`: `K_{f(L/K)} ≤ L` for finite `L`.
@@ -105,6 +108,20 @@ theorem inertiaDegree_pos (L : IntermediateField K (SeparableClosure K))
   have := finiteIntermediateField_valuativeExtension K (SeparableClosure K) L
   exact TauCeti.inertiaDegree_pos
 
+/-- The residue degree of a subextension divides its degree over `K`, including the infinite case
+where both vanish. -/
+theorem inertiaDegree_dvd_finrank (L : IntermediateField K (SeparableClosure K)) :
+    L.inertiaDegree ∣ Module.finrank K L := by
+  by_cases h : Module.Finite K L
+  · rw [inertiaDegree_eq]
+    let _ := finiteIntermediateFieldValuativeRel K (SeparableClosure K) L
+    let _ := finiteIntermediateFieldTopology K (SeparableClosure K) L
+    have := finiteIntermediateField_isNonarchimedeanLocalField K (SeparableClosure K) L
+    have := finiteIntermediateField_valuativeExtension K (SeparableClosure K) L
+    exact ⟨ramificationIndex K L,
+      (ramificationIndex_mul_inertiaDegree K L).symm.trans (mul_comm _ _)⟩
+  · simp [inertiaDegree_of_not_finite h, Module.finrank_of_not_finite h]
+
 /-- The residue degree vanishes exactly on infinite subextensions. -/
 @[simp]
 theorem inertiaDegree_eq_zero_iff (L : IntermediateField K (SeparableClosure K)) :
@@ -131,6 +148,41 @@ theorem inertiaDegree_eq_of_algEquiv {L M : IntermediateField K (SeparableClosur
     exact TauCeti.inertiaDegree_eq_of_algEquiv K L M e
   · rw [inertiaDegree_of_not_finite hL, inertiaDegree_of_not_finite
       fun h ↦ hL (Module.Finite.equiv e.symm.toLinearEquiv)]
+
+end IntermediateField
+
+namespace TauCeti
+
+/-- Translating a point does not change the residue degree of its stabilizer's fixed field. -/
+@[simp]
+theorem inertiaDegree_fixedField_stabilizer_smul (K : Type*) [Field K] [ValuativeRel K]
+    [TopologicalSpace K] [IsNonarchimedeanLocalField K] {X : Type*}
+    [MulAction Gal(SeparableClosure K/K) X] (σ : Gal(SeparableClosure K/K)) (x : X) :
+    (IntermediateField.fixedField
+      (MulAction.stabilizer Gal(SeparableClosure K/K) (σ • x))).inertiaDegree =
+        (IntermediateField.fixedField
+          (MulAction.stabilizer Gal(SeparableClosure K/K) x)).inertiaDegree :=
+  IntermediateField.inertiaDegree_eq_of_algEquiv (fixedFieldStabilizerSmulEquiv K σ x)
+
+/-- The residue degree of an orbit's representative fixed field can be computed at any point of the
+orbit. -/
+theorem inertiaDegree_fixedField_stabilizer_out (K : Type*) [Field K] [ValuativeRel K]
+    [TopologicalSpace K] [IsNonarchimedeanLocalField K] {X : Type*}
+    [MulAction Gal(SeparableClosure K/K) X]
+    {ω : MulAction.orbitRel.Quotient Gal(SeparableClosure K/K) X} {x : X}
+    (hx : (Quotient.mk'' x : MulAction.orbitRel.Quotient Gal(SeparableClosure K/K) X) = ω) :
+    (IntermediateField.fixedField
+      (MulAction.stabilizer Gal(SeparableClosure K/K) ω.out)).inertiaDegree =
+        (IntermediateField.fixedField
+          (MulAction.stabilizer Gal(SeparableClosure K/K) x)).inertiaDegree :=
+  apply_fixedField_stabilizer_out K IntermediateField.inertiaDegree_eq_of_algEquiv hx
+
+end TauCeti
+
+namespace IntermediateField
+
+variable {K : Type*} [Field K] [ValuativeRel K] [TopologicalSpace K]
+  [IsNonarchimedeanLocalField K]
 
 /-- A subextension is totally ramified exactly when its totalized residue degree is one; no
 finiteness hypothesis is needed, since an infinite subextension has residue degree zero. -/
@@ -172,7 +224,7 @@ theorem unramifiedExtension_inertiaDegree_le (L : IntermediateField K (Separable
   obtain ⟨ζ, hζ⟩ := exists_isPrimitiveRoot_natCard_pow_inertiaDegree_sub_one K L
   rw [unramifiedExtension_eq_adjoin_simple TauCeti.inertiaDegree_pos.ne'
     (hζ.map_of_injective L.val.injective), adjoin_simple_le_iff]
-  exact ζ.2
+  exact ζ.property
 
 /-- The unramified part of a finite subextension is the canonical unramified extension of
 its residue degree. No normality hypothesis on `L/K` is required. -/
@@ -224,7 +276,7 @@ theorem natCard_algEquiv_eq_mul (L : IntermediateField K (SeparableClosure K))
         Nat.card {τ : unramifiedExtension K (SeparableClosure K) L.inertiaDegree ≃ₐ[K]
             unramifiedExtension K (SeparableClosure K) L.inertiaDegree //
           ∃ σ : L ≃ₐ[K] L, ∀ x,
-            (σ ⟨x.1, L.unramifiedExtension_inertiaDegree_le x.2⟩ :
+            (σ ⟨x.val, L.unramifiedExtension_inertiaDegree_le x.property⟩ :
               SeparableClosure K) = τ x} :=
   natCard_algEquiv_eq_mul_of_le L.unramifiedExtension_inertiaDegree_le
 
@@ -258,7 +310,8 @@ theorem natCard_algEquiv_eq_of_isTotallyRamified
   have : Subsingleton (U ≃ₐ[K] U) := (Nat.card_eq_one_iff_unique.1 hUcard).1
   have hsub : Nat.card {τ : U ≃ₐ[K] U //
       ∃ σ : L ≃ₐ[K] L, ∀ x,
-        (σ ⟨x.1, L.unramifiedExtension_inertiaDegree_le x.2⟩ : SeparableClosure K) = τ x} = 1 := by
+        (σ ⟨x.val, L.unramifiedExtension_inertiaDegree_le x.property⟩ :
+          SeparableClosure K) = τ x} = 1 := by
     refine Nat.card_eq_one_iff_exists.2 ⟨⟨1, ⟨.refl, fun _ ↦ rfl⟩⟩, fun ⟨τ, _⟩ ↦ ?_⟩
     exact Subtype.ext (Subsingleton.elim τ 1)
   rw [L.natCard_algEquiv_eq_mul, hsub, mul_one]
@@ -281,7 +334,7 @@ theorem ncard_isomorphic_restrictScalars_mul_natCard_eq_inertiaDegree
         Nat.card {τ : unramifiedExtension K (SeparableClosure K) L.inertiaDegree ≃ₐ[K]
             unramifiedExtension K (SeparableClosure K) L.inertiaDegree //
           ∃ σ : L ≃ₐ[K] L, ∀ x,
-            (σ ⟨x.1, L.unramifiedExtension_inertiaDegree_le x.2⟩ :
+            (σ ⟨x.val, L.unramifiedExtension_inertiaDegree_le x.property⟩ :
               SeparableClosure K) = τ x} =
       L.inertiaDegree := by
   rw [ncard_isomorphic_restrictScalars_mul_natCard_eq L.unramifiedExtension_inertiaDegree_le hR,

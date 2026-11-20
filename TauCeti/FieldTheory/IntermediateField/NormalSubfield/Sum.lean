@@ -59,28 +59,29 @@ theorem tsum_isomorphic_restrictScalars_div_natCard_algEquiv_eq {U M : Intermedi
     (w : IntermediateField K Ω → ℝ≥0∞)
     (hw : ∀ {L : IntermediateField K Ω}, (M ≃ₐ[K] L) → w M = w L) :
     ∑' E : {E ∈ R_U | Nonempty (M ≃ₐ[K] E.restrictScalars K)},
-        w (E.1.restrictScalars K) / Nat.card (E.1 ≃ₐ[U] E.1) =
+        w (E.val.restrictScalars K) / Nat.card (E.val ≃ₐ[U] E.val) =
       (Nat.card (U ≃ₐ[K] U) : ℝ≥0∞) * (w M / Nat.card (M ≃ₐ[K] M)) := by
   let C : Set (IntermediateField U Ω) := {E ∈ R_U | Nonempty (M ≃ₐ[K] E.restrictScalars K)}
   have hU_ne : Nat.card (U ≃ₐ[K] U) ≠ 0 := Nat.card_ne_zero.2 ⟨⟨1⟩, inferInstance⟩
   have horbit : C.ncard * Nat.card {τ : U ≃ₐ[K] U //
-      ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.1, hUM x.2⟩ : Ω) = τ x} = Nat.card (U ≃ₐ[K] U) :=
+      ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.val, hUM x.property⟩ : Ω) = τ x} =
+        Nat.card (U ≃ₐ[K] U) :=
     ncard_isomorphic_restrictScalars_mul_natCard_eq hUM hRU
   have hAutM := natCard_algEquiv_eq_mul_of_le hUM
   have hs_ne : Nat.card {τ : U ≃ₐ[K] U //
-      ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.1, hUM x.2⟩ : Ω) = τ x} ≠ 0 :=
+      ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.val, hUM x.property⟩ : Ω) = τ x} ≠ 0 :=
     Nat.card_ne_zero.2 ⟨⟨⟨1, ⟨.refl, fun _ ↦ rfl⟩⟩⟩, inferInstance⟩
   have hC_fin : C.Finite :=
     Set.finite_of_ncard_ne_zero (left_ne_zero_of_mul (horbit.symm ▸ hU_ne))
   have hconst (E : C) :
-      w (E.1.restrictScalars K) / Nat.card (E.1 ≃ₐ[U] E.1) =
+      w (E.val.restrictScalars K) / Nat.card (E.val ≃ₐ[U] E.val) =
         w M / Nat.card (extendScalars hUM ≃ₐ[U] extendScalars hUM) := by
-    obtain ⟨e⟩ := E.2.2
+    obtain ⟨e⟩ := E.property.2
     rw [(hw e).symm, (natCard_extendScalars_algEquiv_eq_of_algEquiv_restrictScalars hUM e).symm]
   rw [tsum_congr hconst, ENNReal.tsum_set_const, ← hC_fin.cast_ncard_eq]
   set a : ℝ≥0∞ := (Nat.card (extendScalars hUM ≃ₐ[U] extendScalars hUM) : ℝ≥0∞)
   set s : ℝ≥0∞ := (Nat.card {τ : U ≃ₐ[K] U //
-    ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.1, hUM x.2⟩ : Ω) = τ x} : ℝ≥0∞)
+    ∃ σ : M ≃ₐ[K] M, ∀ x : U, (σ ⟨x.val, hUM x.property⟩ : Ω) = τ x} : ℝ≥0∞)
   have ha_top : a ≠ ⊤ := ENNReal.natCast_ne_top _
   have hs_top : s ≠ ⊤ := ENNReal.natCast_ne_top _
   have hs0 : s ≠ 0 := Nat.cast_ne_zero.2 hs_ne
@@ -117,8 +118,8 @@ theorem mul_tsum_div_natCard_algEquiv_eq_of_le {U : IntermediateField K Ω} [Nor
       ∃! F, F ∈ R_U ∧ Nonempty (E ≃ₐ[U] F))
     (w : IntermediateField K Ω → ℝ≥0∞)
     (hw : ∀ {L M : IntermediateField K Ω}, L ∈ S → (L ≃ₐ[K] M) → w L = w M) :
-    (Nat.card (U ≃ₐ[K] U) : ℝ≥0∞) * ∑' M : R_K, w M.1 / Nat.card (M.1 ≃ₐ[K] M.1) =
-      ∑' E : R_U, w (E.1.restrictScalars K) / Nat.card (E.1 ≃ₐ[U] E.1) := by
+    (Nat.card (U ≃ₐ[K] U) : ℝ≥0∞) * ∑' M : R_K, w M.val / Nat.card (M.val ≃ₐ[K] M.val) =
+      ∑' E : R_U, w (E.val.restrictScalars K) / Nat.card (E.val ≃ₐ[U] E.val) := by
   let g (E : IntermediateField U Ω) : ℝ≥0∞ :=
     w (E.restrictScalars K) / Nat.card (E ≃ₐ[U] E)
   let C (M : IntermediateField K Ω) : Set (IntermediateField U Ω) :=
@@ -135,12 +136,12 @@ theorem mul_tsum_div_natCard_algEquiv_eq_of_le {U : IntermediateField K Ω} [Nor
     rintro E ⟨hE, ⟨e₁⟩⟩ ⟨-, ⟨e₂⟩⟩
     obtain ⟨_, -, huniq⟩ := hRK (E.restrictScalars K) (hRU_sub E hE)
     exact hne ((huniq M₁ ⟨hM₁, ⟨e₁.symm⟩⟩).trans (huniq M₂ ⟨hM₂, ⟨e₂.symm⟩⟩).symm)
-  have hRHS : (∑' E : R_U, w (E.1.restrictScalars K) / Nat.card (E.1 ≃ₐ[U] E.1)) =
+  have hRHS : (∑' E : R_U, w (E.val.restrictScalars K) / Nat.card (E.val ≃ₐ[U] E.val)) =
       ∑' E : R_U, g E := rfl
   rw [hRHS, ← ENNReal.tsum_mul_left, hU_eq, tsum_biUnion hdisj]
   refine tsum_congr fun M ↦ ?_
-  exact (tsum_isomorphic_restrictScalars_div_natCard_algEquiv_eq (hRK_le M.1 M.2)
-    (fun E ⟨e⟩ ↦ hRU E (hS_iso (hRK_sub M.2) e)) w (hw (hRK_sub M.2))).symm
+  exact (tsum_isomorphic_restrictScalars_div_natCard_algEquiv_eq (hRK_le M.val M.property)
+    (fun E ⟨e⟩ ↦ hRU E (hS_iso (hRK_sub M.property) e)) w (hw (hRK_sub M.property))).symm
 
 /-- **Weighted class-sum relation over a normal intermediate field (divided form).** Divided form of
 `TauCeti.mul_tsum_div_natCard_algEquiv_eq_of_le`:
@@ -157,9 +158,9 @@ theorem tsum_div_natCard_algEquiv_eq_inv_mul_of_le {U : IntermediateField K Ω} 
       ∃! F, F ∈ R_U ∧ Nonempty (E ≃ₐ[U] F))
     (w : IntermediateField K Ω → ℝ≥0∞)
     (hw : ∀ {L M : IntermediateField K Ω}, L ∈ S → (L ≃ₐ[K] M) → w L = w M) :
-    ∑' M : R_K, w M.1 / Nat.card (M.1 ≃ₐ[K] M.1) =
+    ∑' M : R_K, w M.val / Nat.card (M.val ≃ₐ[K] M.val) =
       (Nat.card (U ≃ₐ[K] U) : ℝ≥0∞)⁻¹ *
-        ∑' E : R_U, w (E.1.restrictScalars K) / Nat.card (E.1 ≃ₐ[U] E.1) := by
+        ∑' E : R_U, w (E.val.restrictScalars K) / Nat.card (E.val ≃ₐ[U] E.val) := by
   have hU_ne : (Nat.card (U ≃ₐ[K] U) : ℝ≥0∞) ≠ 0 :=
     Nat.cast_ne_zero.2 (Nat.card_ne_zero.2 ⟨⟨1⟩, inferInstance⟩)
   rw [← mul_tsum_div_natCard_algEquiv_eq_of_le hS_iso hRK_le hRK_sub hRK hRU_sub hRU w hw,

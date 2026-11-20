@@ -63,8 +63,6 @@ of `TauCeti.finiteIntermediateFieldValuativeRel`.
   `Ω / K` is `unramifiedExtension K Ω [E : K]`.
 * `AlgHom.fieldRange_eq_unramifiedExtension`: the image of any `K`-embedding `ι : F →ₐ[K] Ω` of an
   unramified extension `F / K` into `Ω` is `unramifiedExtension K Ω (inertiaDegree K F)`.
-* `TauCeti.IsUnramified.isGalois`: every unramified extension `L / K` of nonarchimedean local
-  fields is Galois over `K`.
 * `TauCeti.existsUnique_isUnramified_finrank_eq`: for `f ≥ 1`, there is exactly one unramified
   intermediate field of `Ω / K` of degree `f`.
 
@@ -227,7 +225,7 @@ instance isGalois_unramifiedExtension (f : ℕ) : IsGalois K (unramifiedExtensio
   have hζ : IsPrimitiveRoot ((g : Ωˣ) : Ω) d :=
     IsPrimitiveRoot.coe_units_iff.2 (IsPrimitiveRoot.coe_submonoidClass_iff.2 (hg ▸ .orderOf g))
   have hζn : ((g : Ωˣ) : Ω) ^ n = 1 := by
-    rw [← Units.val_pow_eq_pow_val, (mem_rootsOfUnity n (g : Ωˣ)).1 g.2, Units.val_one]
+    rw [← Units.val_pow_eq_pow_val, (mem_rootsOfUnity n (g : Ωˣ)).1 g.property, Units.val_one]
   have hset : {x : Ω | x ^ n = 1} = {x | ∃ m ∈ ({d} : Set ℕ), m ≠ 0 ∧ x ^ m = 1} := by
     ext x
     simp only [Set.mem_ofPred_eq, Set.mem_singleton_iff, exists_eq_left]
@@ -351,7 +349,7 @@ theorem _root_.IntermediateField.eq_unramifiedExtension_finrank (E : Intermediat
   have hηΩ := hη.map_of_injective (f := E.val) E.val.injective
   refine (eq_of_le_of_finrank_eq ?_ (finrank_unramifiedExtension_of_isPrimitiveRoot hf hηΩ)).symm
   rw [unramifiedExtension_eq_adjoin_simple hf hηΩ, adjoin_simple_le_iff]
-  exact η.2
+  exact η.property
 
 variable {K Ω} in
 /-- **The image of an unramified extension.** For an unramified extension `F / K` of
@@ -370,15 +368,6 @@ theorem _root_.AlgHom.fieldRange_eq_unramifiedExtension {F : Type*} [Field F] [V
   have : IsUnramified K ι.fieldRange := IsUnramified.of_algEquiv ι.equivFieldRange
   rw [ι.fieldRange.eq_unramifiedExtension_finrank,
     ← ι.equivFieldRange.toLinearEquiv.finrank_eq, IsUnramified.inertiaDegree_eq_finrank]
-
-/-- **Unramified extensions are Galois.** Every unramified extension `L / K` of nonarchimedean
-local fields with compatible valuations is Galois over `K`. -/
-theorem IsUnramified.isGalois (L : Type*) [Field L] [ValuativeRel L] [TopologicalSpace L]
-    [IsNonarchimedeanLocalField L] [Algebra K L] [ValuativeExtension K L] [IsUnramified K L] :
-    IsGalois K L :=
-  IsGalois.of_algEquiv
-    ((AlgHom.id K L).equivFieldRange.trans
-      (IntermediateField.equivOfEq (AlgHom.id K L).fieldRange_eq_unramifiedExtension)).symm
 
 section IsSepClosed
 
