@@ -68,7 +68,7 @@ theorem SemialgebraicAt.nhdsWithin_hasBasis_isConnected (hs : SemialgebraicAt s 
     have hn : (Subtype.val : s → (σ → ℝ)) ⁻¹' C ∈ 𝓝 (⟨x, hx⟩ : s) :=
       ho.mem_nhds hxC
     have hCn : C ∈ 𝓝[s] x := by
-      rw [← map_nhds_subtype_val (⟨x, hx⟩ : s)]
+      rw [← map_nhds_subtypeVal (⟨x, hx⟩ : s)]
       exact hn
     exact mem_of_superset hCn hCV
 

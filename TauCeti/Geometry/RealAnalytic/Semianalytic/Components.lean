@@ -166,7 +166,7 @@ theorem SemianalyticAt.nhdsWithin_hasBasis_isConnected {s : Set E} {x : E}
   · obtain ⟨C, hCn, hCV, hc, hsa, ho⟩ := hs.exists_isConnected_mem_nhdsWithin hx hV
     exact ⟨C, ⟨mem_of_mem_nhdsWithin hx hCn, hCV.trans inter_subset_left, hc, hsa, ho⟩,
       hCV.trans inter_subset_right⟩
-  · rw [← map_nhds_subtype_val (⟨x, hx⟩ : s)]
+  · rw [← map_nhds_subtypeVal (⟨x, hx⟩ : s)]
     exact mem_of_superset (ho.mem_nhds hxC) hCV
 
 /-- Every semianalytic subset of a finite-dimensional real normed space is locally connected in its
@@ -320,7 +320,7 @@ theorem MSemianalyticAt.nhdsWithin_hasBasis_isConnected {s : Set M} {x : M}
   · obtain ⟨C, hCn, hCV, hc, ho⟩ := hs.exists_isConnected_mem_nhdsWithin hx hV
     exact ⟨C, ⟨mem_of_mem_nhdsWithin hx hCn, hCV.trans inter_subset_left, hc, ho⟩,
       hCV.trans inter_subset_right⟩
-  · rw [← map_nhds_subtype_val (⟨x, hx⟩ : s)]
+  · rw [← map_nhds_subtypeVal (⟨x, hx⟩ : s)]
     exact mem_of_superset (ho.mem_nhds hxC) hCV
 
 /-- Every semianalytic subset of a boundaryless manifold modelled on a finite-dimensional real

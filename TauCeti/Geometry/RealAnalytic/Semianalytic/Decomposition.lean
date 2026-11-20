@@ -172,7 +172,7 @@ private theorem exists_slab_weierstrass_sign [Finite ι₁]
   cases nonempty_fintype ι₁
   set z₀ := Fin.tail y₀
   set t₀ := y₀ 0 with ht₀
-  let e : (Fin n → ℝ) × ℝ → Fin (n + 1) → ℝ := fun p ↦ Fin.cons p.2 p.1
+  let e : (Fin n → ℝ) × ℝ → Fin (n + 1) → ℝ := fun p ↦ Fin.cons p.snd p.fst
   have he₀ : e (z₀, t₀) = y₀ := Fin.cons_self_tail y₀
   have he_an (p : (Fin n → ℝ) × ℝ) : AnalyticAt ℝ e p :=
     AnalyticAt.pi fun m ↦ Fin.cases analyticAt_snd
@@ -187,7 +187,7 @@ private theorem exists_slab_weierstrass_sign [Finite ι₁]
       ((isOpen_discrete _).mem_nhds (mem_singleton _))
   have hprod : ∀ᶠ p in 𝓝 (z₀, t₀), e p ∈ V₂ ∧ ∀ j,
       SignType.sign (g j (e p)) =
-        SignType.sign ((TauCeti.Polynomial.monicOfCoeff (fun k ↦ c j k p.1)).eval (p.2 - t₀)) *
+        SignType.sign ((TauCeti.Polynomial.monicOfCoeff (fun k ↦ c j k p.fst)).eval (p.snd - t₀)) *
           SignType.sign (u j (z₀, t₀)) := by
     have heV : e ⁻¹' V₂ ∈ 𝓝 (z₀, t₀) := (he_an _).continuousAt.preimage_mem_nhds (he₀ ▸ hV₂)
     filter_upwards [heV, eventually_all.2 hfac, eventually_all.2 hunit] with p hpV hpf hpu
@@ -220,7 +220,7 @@ private theorem lift_slab_partition [Finite ι₁] {B₀ U' : Set (Fin n → ℝ
     (hc : ∀ j k, AnalyticOnNhd ℝ (c j k) B₀) (h𝒟fin : 𝒟.Finite) (h𝒟disj : 𝒟.PairwiseDisjoint id)
     (h𝒟cov : ⋃₀ 𝒟 = U') (hclos : ∀ S ∈ 𝒟, closure S ⊆ B₀)
     (h𝒟cell : ∀ S ∈ 𝒟, IsConnected S ∧ IsSemianalytic S ∧ ∃ e ≤ n, IsAnalyticSubmanifold e S)
-    (D : ∀ S : 𝒟, Delineation fun a (x : S.1) ↦ slabPoly c t₀ ε a x) :
+    (D : ∀ S : 𝒟, Delineation fun a (x : S.val) ↦ slabPoly c t₀ ε a x) :
     let H : Set (Fin (n + 1) → ℝ) := {y | y 0 ∈ Ioo (t₀ - ε) (t₀ + ε)}
     ∃ 𝒞₀ : Set (Set (Fin (n + 1) → ℝ)),
       𝒞₀.Finite ∧ 𝒞₀.PairwiseDisjoint id ∧ ⋃₀ 𝒞₀ = (Fin.tail ⁻¹' U') ∩ H ∧
@@ -229,8 +229,8 @@ private theorem lift_slab_partition [Finite ι₁] {B₀ U' : Set (Fin n → ℝ
   intro H
   have := h𝒟fin.to_subtype
   let 𝒞₀ : Set (Set (Fin (n + 1) → ℝ)) :=
-    ⋃ S : 𝒟, {E ∈ stackCells S.1 (D S).root | E ⊆ H}
-  refine ⟨𝒞₀, finite_iUnion fun S ↦ (finite_stackCells S.1 _).subset (sep_subset _ _),
+    ⋃ S : 𝒟, {E ∈ stackCells S.val (D S).root | E ⊆ H}
+  refine ⟨𝒞₀, finite_iUnion fun S ↦ (finite_stackCells S.val _).subset (sep_subset _ _),
     ?_, ?_, ?_⟩
   · -- Cells over the same base cell are disjoint in the stack; cells over distinct bases have
     -- disjoint `Fin.tail` projections.
@@ -245,21 +245,21 @@ private theorem lift_slab_partition [Finite ι₁] {B₀ U' : Set (Fin n → ℝ
           ((D S₁).strictMono_root x).monotone).subset)
         (subset_sUnion_of_mem hE₂S |>.trans (sUnion_stackCells fun x ↦
           ((D S₂).strictMono_root x).monotone).subset)
-        ((h𝒟disj S₁.2 S₂.2 (Subtype.coe_ne_coe.2 hSne)).preimage Fin.tail)
+        ((h𝒟disj S₁.property S₂.property (Subtype.coe_ne_coe.2 hSne)).preimage Fin.tail)
   · -- The kept stack cells cover `(Fin.tail ⁻¹' U') ∩ H`.
     ext y
     simp only [𝒞₀, mem_sUnion, mem_iUnion, mem_sep_iff, mem_inter_iff, mem_preimage]
     constructor
     · rintro ⟨E, ⟨S, hES, hEH⟩, hyE⟩
-      have hyS : Fin.tail y ∈ S.1 :=
+      have hyS : Fin.tail y ∈ S.val :=
         (sUnion_stackCells fun x ↦ ((D S).strictMono_root x).monotone).subset
           (mem_sUnion.2 ⟨E, hES, hyE⟩)
-      exact ⟨h𝒟cov ▸ mem_sUnion.2 ⟨S.1, S.2, hyS⟩, hEH hyE⟩
+      exact ⟨h𝒟cov ▸ mem_sUnion.2 ⟨S.val, S.property, hyS⟩, hEH hyE⟩
     · rintro ⟨hyU', hyH⟩
       obtain ⟨S, hS𝒟, hyS⟩ := mem_sUnion.1 (h𝒟cov.symm ▸ hyU')
       let S' : 𝒟 := ⟨S, hS𝒟⟩
       obtain ⟨E, hES, hyE⟩ := mem_sUnion.1 <|
-        (sUnion_stackCells (C := S'.1) (fun x ↦ ((D S').strictMono_root x).monotone)).symm ▸
+        (sUnion_stackCells (C := S'.val) (fun x ↦ ((D S').strictMono_root x).monotone)).symm ▸
           mem_preimage.2 hyS
       have hEH : E ⊆ H := (subset_or_disjoint_slab_of_mem_stackCells (D S') hES).resolve_right
         fun hd ↦ disjoint_left.1 hd hyE hyH
@@ -267,14 +267,14 @@ private theorem lift_slab_partition [Finite ι₁] {B₀ U' : Set (Fin n → ℝ
   · -- Each kept stack cell is connected, semianalytic, an analytic submanifold, and sign-invariant.
     intro E hE
     obtain ⟨S, hES, -⟩ := mem_iUnion.1 hE
-    obtain ⟨hSc, hSsa, e, hen, hSsub⟩ := h𝒟cell S.1 S.2
-    have hSB₀ : S.1 ⊆ B₀ := subset_closure.trans (hclos S.1 S.2)
+    obtain ⟨hSc, hSsa, e, hen, hSsub⟩ := h𝒟cell S.val S.property
+    have hSB₀ : S.val ⊆ B₀ := subset_closure.trans (hclos S.val S.property)
     have hEconn : IsConnected E :=
       isConnected_of_mem_stackCells hSc (D S).continuous_root (D S).strictMono_root hES
     have hEsa : IsSemianalytic E :=
       (D S).isSemianalytic_of_mem_stackCells hSsa
         (fun x hx ↦ ⟨Sum.elim d (fun _ ↦ 1),
-          fun a m _ ↦ analyticOnNhd_coeff_slabPoly hc t₀ ε a m x (hclos S.1 S.2 hx),
+          fun a m _ ↦ analyticOnNhd_coeff_slabPoly hc t₀ ε a m x (hclos S.val S.property hx),
           fun a ↦ .of_forall (natDegree_slabPoly_le c t₀ ε a)⟩) hES
     obtain ⟨d', hd'e, hEsub⟩ := (D S).exists_isAnalyticSubmanifold_of_mem_stackCells hSsub
       (fun a m ↦ ((analyticOnNhd_coeff_slabPoly hc t₀ ε a m).mono hSB₀).analyticOnSubmanifold hSsub)
@@ -319,7 +319,7 @@ private theorem signInvariant_image_of_slab {n : ℕ} {ι : Type*}
     {p : {i : ι // ¬ f i =ᶠ[𝓝 x₀] 0} → (Fin (n + 1) → ℝ) → ℝ}
     {u₀ : {i : ι // ¬ f i =ᶠ[𝓝 x₀] 0} → SignType}
     (hEV₁ : ∀ y ∈ E, L y ∈ V₁)
-    (hsign : ∀ y ∈ E, ∀ j, SignType.sign (f j.1 (L y)) = SignType.sign (p j y) * u₀ j)
+    (hsign : ∀ y ∈ E, ∀ j, SignType.sign (f j.val (L y)) = SignType.sign (p j y) * u₀ j)
     (hEsign : ∀ j, SignInvariant (p j) E) (i : ι) :
     SignInvariant (f i) (L '' E) := by
   by_cases hi : f i =ᶠ[𝓝 x₀] 0
@@ -366,10 +366,10 @@ theorem exists_isAnalyticSubmanifold_partition_signInvariant.{u} {n : ℕ} {ι :
     let ι₁ := {i : ι // ¬ f i =ᶠ[𝓝 x₀] 0}
     -- Stage 2: Put non-locally-zero germs in Weierstrass general position and prepare on a slab.
     obtain ⟨L, hord⟩ := exists_continuousLinearEquiv_finSucc_forall_analyticOrderAt_ne_top
-      (f := fun j : ι₁ ↦ f j.1) (fun j ↦ hf j.1) (fun j ↦ j.2)
+      (f := fun j : ι₁ ↦ f j.val) (fun j ↦ hf j.val) (fun j ↦ j.property)
     set y₀ := L.symm x₀
     obtain ⟨d, c, u₀, B₀, ε, hB₀o, hz₀B₀, hε, hc, hslab⟩ := exists_slab_weierstrass_sign
-      (g := fun j : ι₁ ↦ f j.1 ∘ L) (fun j ↦ (hf j.1).comp_of_eq (L.analyticAt y₀)
+      (g := fun j : ι₁ ↦ f j.val ∘ L) (fun j ↦ (hf j.val).comp_of_eq (L.analyticAt y₀)
         (L.apply_symm_apply x₀)) hord
       ((hV₁o.preimage L.continuous).mem_nhds (by simpa [y₀] using hx₀V₁))
     -- Stage 3: Project the augmented slab polynomial family onto `B₀` and decompose inside a ball.
@@ -379,18 +379,19 @@ theorem exists_isAnalyticSubmanifold_partition_signInvariant.{u} {n : ℕ} {ι :
       (fun a z _ ↦ natDegree_slabPoly_le c (y₀ 0) ε a z)
     obtain ⟨r₀, hr₀, hball₀⟩ := Metric.isOpen_iff.1 hB₀o (Fin.tail y₀) hz₀B₀
     obtain ⟨U', 𝒟, hU'o, hz₀U', hU'ball, _, h𝒟fin, h𝒟disj, h𝒟cov, h𝒟cell⟩ :=
-      ih (f := fun a : ULift.{u} g ↦ a.down.1) (fun a ↦ hg_an a.down.1 a.down.2 _ hz₀B₀)
+      ih (f := fun a : ULift.{u} g ↦ a.down.val) (fun a ↦ hg_an a.down.val a.down.property _ hz₀B₀)
         (Metric.ball_mem_nhds (Fin.tail y₀) (half_pos hr₀))
     -- Stage 4: Delineate `slabPoly` over each base cell and lift to a partition of the slab `W`.
     have hclos (S : Set (Fin n → ℝ)) (hS : S ∈ 𝒟) : closure S ⊆ B₀ :=
       (closure_mono ((subset_sUnion_of_mem hS).trans (h𝒟cov ▸ hU'ball))).trans <|
         Metric.closure_ball_subset_closedBall.trans <|
           (Metric.closedBall_subset_ball (half_lt_self hr₀)).trans hball₀
-    have hdelin (S : 𝒟) : Nonempty (Delineation fun a (x : S.1) ↦ slabPoly c (y₀ 0) ε a x) :=
-      hg_delin S.1 (subset_closure.trans (hclos S.1 S.2)) (h𝒟cell S.1 S.2).1.isPreconnected
+    have hdelin (S : 𝒟) : Nonempty (Delineation fun a (x : S.val) ↦ slabPoly c (y₀ 0) ε a x) :=
+      hg_delin S.val (subset_closure.trans (hclos S.val S.property))
+        (h𝒟cell S.val S.property).1.isPreconnected
         fun a ha x hx y hy ↦ by
           rw [← sign_eq_zero_iff (a := a x), ← sign_eq_zero_iff (a := a y),
-            signInvariant_def.1 ((h𝒟cell S.1 S.2).2.2.2 (ULift.up ⟨a, ha⟩)) x hx y hy]
+            signInvariant_def.1 ((h𝒟cell S.val S.property).2.2.2 (ULift.up ⟨a, ha⟩)) x hx y hy]
     let D (S : 𝒟) := Classical.choice (hdelin S)
     obtain ⟨𝒞₀, h𝒞₀fin, h𝒞₀disj, h𝒞₀cov, h𝒞₀cell⟩ := lift_slab_partition hc h𝒟fin h𝒟disj h𝒟cov
       hclos (fun S hS ↦ ⟨(h𝒟cell S hS).1, (h𝒟cell S hS).2.1, (h𝒟cell S hS).2.2.1⟩) D
@@ -428,11 +429,11 @@ theorem exists_isAnalyticSubmanifold_partition_subset_or_disjoint {n : ℕ} {ι 
   cases nonempty_fintype ι
   choose W hW t ht hst using fun i ↦ semianalyticAt_def.1 (hs i)
   choose m f hf Φ ht_eq using fun i ↦ (ht i).exists_eq_setOf_sign
-  have hfx (p : Σ i, Fin (m i)) : AnalyticAt ℝ (f p.1 p.2) x₀ :=
-    hf p.1 p.2 x₀ (mem_of_mem_nhds (hW p.1))
+  have hfx (p : Σ i, Fin (m i)) : AnalyticAt ℝ (f p.fst p.snd) x₀ :=
+    hf p.fst p.snd x₀ (mem_of_mem_nhds (hW p.fst))
   obtain ⟨U, 𝒞, hUo, hx₀U, hUW, hUsa, h𝒞fin, h𝒞disj, h𝒞cov, h𝒞cell⟩ :=
-    exists_isAnalyticSubmanifold_partition_signInvariant (f := fun p : Σ i, Fin (m i) ↦ f p.1 p.2)
-      hfx (inter_mem hV (iInter_mem.2 hW))
+    exists_isAnalyticSubmanifold_partition_signInvariant
+      (f := fun p : Σ i, Fin (m i) ↦ f p.fst p.snd) hfx (inter_mem hV (iInter_mem.2 hW))
   refine ⟨U, 𝒞, hUo, hx₀U, hUW.trans inter_subset_left, hUsa, h𝒞fin, h𝒞disj, h𝒞cov, fun C hC ↦ ?_⟩
   obtain ⟨hCc, hCsa, hCsub, hCsign⟩ := h𝒞cell C hC
   refine ⟨hCc, hCsa, hCsub, fun i ↦ ?_⟩

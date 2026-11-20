@@ -273,15 +273,15 @@ theorem exists_continuousLinearEquiv_forall_analyticOrderAt_ne_top {ι : Type*} 
     {f : ∀ i, E × 𝕜 → G i} {p : E × 𝕜}
     (hf : ∀ i, AnalyticAt 𝕜 (f i) p) (h0 : ∀ i, ¬ f i =ᶠ[𝓝 p] 0) :
     ∃ L : (E × 𝕜) ≃L[𝕜] (E × 𝕜),
-      ∀ i, analyticOrderAt (fun t ↦ f i (L ((L.symm p).1, t))) (L.symm p).2 ≠ ⊤ := by
+      ∀ i, analyticOrderAt (fun t ↦ f i (L ((L.symm p).fst, t))) (L.symm p).snd ≠ ⊤ := by
   -- Choose a common nonsingular direction with nonzero vertical component and normalize it.
-  have hopen : IsOpen {v : E × 𝕜 | v.2 ≠ 0} := isOpen_compl_singleton.preimage continuous_snd
+  have hopen : IsOpen {v : E × 𝕜 | v.snd ≠ 0} := isOpen_compl_singleton.preimage continuous_snd
   obtain ⟨v, hv, hv2⟩ :=
     (dense_setOf_forall_not_eventually_apply_add_smul_eq_zero hf h0).exists_mem_open hopen
       ⟨(0, 1), by simp⟩
-  set u : E := v.2⁻¹ • v.1
+  set u : E := v.snd⁻¹ • v.fst
   have hv' (i : ι) : ¬ ∀ᶠ ξ in 𝓝 (0 : 𝕜), f i (p + ξ • (u, (1 : 𝕜))) = 0 := by
-    have hvu : v.2⁻¹ • v = (u, (1 : 𝕜)) := by
+    have hvu : v.snd⁻¹ • v = (u, (1 : 𝕜)) := by
       ext <;> simp [u, inv_mul_cancel₀ hv2]
     rw [← hvu, eventually_apply_add_smul_smul_eq_zero_iff (inv_ne_zero hv2)]
     exact hv i
@@ -292,10 +292,10 @@ theorem exists_continuousLinearEquiv_forall_analyticOrderAt_ne_top {ι : Type*} 
       ((ContinuousLinearMap.id 𝕜 𝕜).smulRight u)).trans c.symm)
   refine ⟨L, fun i htop ↦ hv' i ?_⟩
   rw [analyticOrderAt_eq_top] at htop
-  have hnhds : map (· + (L.symm p).2) (𝓝 (0 : 𝕜)) = 𝓝 (L.symm p).2 := by simp
+  have hnhds : map (· + (L.symm p).snd) (𝓝 (0 : 𝕜)) = 𝓝 (L.symm p).snd := by simp
   filter_upwards [(eventually_map.1 (hnhds ▸ htop))] with ξ hξ
-  have hline : L ((L.symm p).1, ξ + (L.symm p).2) = p + ξ • (u, (1 : 𝕜)) := by
-    have hpt : ((L.symm p).1, ξ + (L.symm p).2) = L.symm p + ξ • ((0 : E), (1 : 𝕜)) := by
+  have hline : L ((L.symm p).fst, ξ + (L.symm p).snd) = p + ξ • (u, (1 : 𝕜)) := by
+    have hpt : ((L.symm p).fst, ξ + (L.symm p).snd) = L.symm p + ξ • ((0 : E), (1 : 𝕜)) := by
       ext <;> simp [add_comm]
     rw [hpt, map_add, map_smul, L.apply_symm_apply]
     simp [L, c]
@@ -304,11 +304,11 @@ theorem exists_continuousLinearEquiv_forall_analyticOrderAt_ne_top {ι : Type*} 
 /-- **General position in the last variable.** A function analytic at `p` on `E × 𝕜` that does not
 vanish near `p` becomes regular in the last variable after a linear change of coordinates: there
 are a continuous linear automorphism `L` and a point `q` with `L q = p` such that
-`t ↦ f (L (q.1, t))` has finite analytic order at `q.2`. -/
+`t ↦ f (L (q.fst, t))` has finite analytic order at `q.snd`. -/
 theorem _root_.AnalyticAt.exists_continuousLinearEquiv_analyticOrderAt_ne_top {f : E × 𝕜 → F}
     {p : E × 𝕜} (hf : AnalyticAt 𝕜 f p) (hf0 : ¬ f =ᶠ[𝓝 p] 0) :
     ∃ (L : (E × 𝕜) ≃L[𝕜] E × 𝕜) (q : E × 𝕜), L q = p ∧
-      analyticOrderAt (fun t ↦ f (L (q.1, t))) q.2 ≠ ⊤ := by
+      analyticOrderAt (fun t ↦ f (L (q.fst, t))) q.snd ≠ ⊤ := by
   obtain ⟨L, hL⟩ := exists_continuousLinearEquiv_forall_analyticOrderAt_ne_top
     (f := fun _ : Unit ↦ f) (fun _ ↦ hf) (fun _ ↦ hf0)
   exact ⟨L, L.symm p, L.apply_symm_apply p, hL ()⟩
@@ -334,20 +334,20 @@ theorem exists_continuousLinearEquiv_finSucc_forall_analyticOrderAt_ne_top {n : 
     simpa [Function.comp_apply] using hy
   obtain ⟨L₀, hL₀⟩ := exists_continuousLinearEquiv_forall_analyticOrderAt_ne_top hf' h0'
   refine ⟨e.symm.trans (L₀.trans e), fun i ↦ ?_⟩
-  have he (q : (Fin n → 𝕜) × 𝕜) : e q = Fin.cons q.2 q.1 := by
+  have he (q : (Fin n → 𝕜) × 𝕜) : e q = Fin.cons q.snd q.fst := by
     ext j
     simp [e, Fin.consEquivL_apply]
   have hsymm : (e.symm.trans (L₀.trans e)).symm p = e (L₀.symm (e.symm p)) := by
     simp [ContinuousLinearEquiv.symm_trans_apply]
-  have h0_eq : (e.symm.trans (L₀.trans e)).symm p 0 = (L₀.symm (e.symm p)).2 := by
+  have h0_eq : (e.symm.trans (L₀.trans e)).symm p 0 = (L₀.symm (e.symm p)).snd := by
     rw [hsymm, he, Fin.cons_zero]
-  have htail_eq : Fin.tail ((e.symm.trans (L₀.trans e)).symm p) = (L₀.symm (e.symm p)).1 := by
+  have htail_eq : Fin.tail ((e.symm.trans (L₀.trans e)).symm p) = (L₀.symm (e.symm p)).fst := by
     rw [hsymm, he, Fin.tail_cons]
   have hfun : (fun t ↦ f i ((e.symm.trans (L₀.trans e))
       (Fin.cons t (Fin.tail ((e.symm.trans (L₀.trans e)).symm p))))) =
-      fun t ↦ (f i ∘ e) (L₀ ((L₀.symm (e.symm p)).1, t)) := by
+      fun t ↦ (f i ∘ e) (L₀ ((L₀.symm (e.symm p)).fst, t)) := by
     ext t
-    rw [htail_eq, ← he ((L₀.symm (e.symm p)).1, t)]
+    rw [htail_eq, ← he ((L₀.symm (e.symm p)).fst, t)]
     simp
   rw [hfun, h0_eq]
   exact hL₀ i
@@ -363,16 +363,17 @@ variable [CompleteSpace F] {s : Set E}
 /-- The directional derivatives `(x, v) ↦ Dⁿ f (x) (v, …, v)` of a function analytic on a
 neighbourhood of `s` are analytic in the pair `(x, v)` on a neighbourhood of `s ×ˢ univ`. -/
 theorem iteratedFDeriv_apply_diag (hf : AnalyticOnNhd 𝕜 f s) (n : ℕ) :
-    AnalyticOnNhd 𝕜 (fun q : E × E ↦ iteratedFDeriv 𝕜 n f q.1 fun _ ↦ q.2) (s ×ˢ univ) := by
+    AnalyticOnNhd 𝕜 (fun q : E × E ↦ iteratedFDeriv 𝕜 n f q.fst fun _ ↦ q.snd) (s ×ˢ univ) := by
   intro q hq
-  have happly : AnalyticAt 𝕜 (fun r : (E [×n]→L[𝕜] F) × (Fin n → E) ↦ r.1 r.2)
-      (iteratedFDeriv 𝕜 n f q.1, fun _ ↦ q.2) := by
+  have happly : AnalyticAt 𝕜 (fun r : (E [×n]→L[𝕜] F) × (Fin n → E) ↦ r.fst r.snd)
+      (iteratedFDeriv 𝕜 n f q.fst, fun _ ↦ q.snd) := by
     simpa using (ContinuousLinearMap.id 𝕜 (E [×n]→L[𝕜] F)).analyticAt_uncurry_of_multilinear
-      (x := (iteratedFDeriv 𝕜 n f q.1, fun _ ↦ q.2))
-  have hdiag : AnalyticAt 𝕜 (fun q : E × E ↦ fun _ : Fin n ↦ q.2) q :=
+      (x := (iteratedFDeriv 𝕜 n f q.fst, fun _ ↦ q.snd))
+  have hdiag : AnalyticAt 𝕜 (fun q : E × E ↦ fun _ : Fin n ↦ q.snd) q :=
     analyticAt_pi_iff.2 fun _ ↦ analyticAt_snd
-  have hpair : AnalyticAt 𝕜 (fun q : E × E ↦ (iteratedFDeriv 𝕜 n f q.1, fun _ : Fin n ↦ q.2)) q :=
-    (((hf.iteratedFDeriv n) q.1 hq.1).comp analyticAt_fst).prod hdiag
+  have hpair :
+      AnalyticAt 𝕜 (fun q : E × E ↦ (iteratedFDeriv 𝕜 n f q.fst, fun _ : Fin n ↦ q.snd)) q :=
+    (((hf.iteratedFDeriv n) q.fst hq.1).comp analyticAt_fst).prod hdiag
   exact happly.comp_of_eq hpair rfl
 
 variable [CharZero 𝕜]
@@ -382,11 +383,11 @@ pairs `(x, v)` with `x ∈ s` such that `f` vanishes near `x` on the line throug
 `v` are the common zeros in `s ×ˢ univ` of the directional derivatives
 `(x, v) ↦ Dⁿ f (x) (v, …, v)`, which are analytic by `AnalyticOnNhd.iteratedFDeriv_apply_diag`. -/
 theorem setOf_eventually_apply_add_smul_eq_zero (hf : AnalyticOnNhd 𝕜 f s) :
-    {q : E × E | q.1 ∈ s ∧ ∀ᶠ ξ in 𝓝 (0 : 𝕜), f (q.1 + ξ • q.2) = 0} =
-      s ×ˢ univ ∩ ⋂ n, {q | iteratedFDeriv 𝕜 n f q.1 (fun _ ↦ q.2) = 0} := by
+    {q : E × E | q.fst ∈ s ∧ ∀ᶠ ξ in 𝓝 (0 : 𝕜), f (q.fst + ξ • q.snd) = 0} =
+      s ×ˢ univ ∩ ⋂ n, {q | iteratedFDeriv 𝕜 n f q.fst (fun _ ↦ q.snd) = 0} := by
   ext q
   simp only [mem_ofPred_eq, mem_inter_iff, mem_prod, mem_univ, and_true, mem_iInter]
-  exact and_congr_right fun hq ↦ (hf q.1 hq).eventually_apply_add_smul_eq_zero_iff
+  exact and_congr_right fun hq ↦ (hf q.fst hq).eventually_apply_add_smul_eq_zero_iff
 
 end AnalyticOnNhd
 

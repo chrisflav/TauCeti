@@ -91,8 +91,8 @@ theorem locallyConnectedSpace_subtype_iff_nhdsWithin {s : Set X} :
     obtain ⟨U, hU, hUc, hUV⟩ := locallyConnectedSpace_iff_connected_subsets.1 h ⟨x, hx⟩ _ hV'
     refine ⟨(Subtype.val : s → X) '' U, ?_,
       subset_inter (Subtype.coe_image_subset s U) (image_subset_iff.2 hUV),
-      hUc.image Subtype.val continuous_subtype_val.continuousOn⟩
-    rw [← map_nhds_subtype_val (⟨x, hx⟩ : s)]
+      hUc.image Subtype.val continuous_subtypeVal.continuousOn⟩
+    rw [← map_nhds_subtypeVal (⟨x, hx⟩ : s)]
     exact Filter.image_mem_map hU
   · refine locallyConnectedSpace_iff_connected_subsets.2 fun x V hV ↦ ?_
     obtain ⟨W, hW, hWV⟩ := (mem_nhds_subtype s x V).1 hV
@@ -137,6 +137,6 @@ theorem LocallyFinite.locallyConnectedSpace_iUnion {X ι : Type*} [TopologicalSp
     ext ⟨y, hy⟩
     simp [sigmaToiUnion]
   rw [himage]
-  refine IsClosed.preimage continuous_subtype_val <|
+  refine IsClosed.preimage continuous_subtypeVal <|
     (hf.subset fun i => Subtype.coe_image_subset _ _).isClosed_iUnion fun i => ?_
-  exact (hs i).isClosedMap_subtype_val _ (isClosed_sigma_iff.1 hC i)
+  exact (hs i).isClosedMap_subtypeVal _ (isClosed_sigma_iff.1 hC i)

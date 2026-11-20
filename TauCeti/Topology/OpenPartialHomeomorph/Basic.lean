@@ -64,7 +64,7 @@ locally closed in the ambient target space. -/
 theorem isLocallyClosed_image_of_subset_source {s : Set X} (hs : IsLocallyClosed s)
     (hse : s ⊆ e.source) : IsLocallyClosed (e '' s) := by
   rw [← Set.inter_eq_right.2 hse, ← Subtype.image_preimage_val, ← Set.image_comp]
-  exact (hs.preimage continuous_subtype_val).image e.isOpenEmbedding_restrict.isInducing
+  exact (hs.preimage continuous_subtypeVal).image e.isOpenEmbedding_restrict.isInducing
     e.isOpenEmbedding_restrict.isOpen_range.isLocallyClosed
 
 /-- The image under `e.symm` of a locally closed subset of `e.target` is locally closed in the

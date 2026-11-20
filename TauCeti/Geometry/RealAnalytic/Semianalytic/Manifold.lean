@@ -138,13 +138,13 @@ protected theorem iInter {ι : Type*} [Finite ι] {s : ι → Set M}
 protected theorem biUnion {ι : Type*} {J : Set ι} (hJ : J.Finite) {s : ι → Set M}
     (hs : ∀ i ∈ J, MSemianalyticAt I (s i) x) : MSemianalyticAt I (⋃ i ∈ J, s i) x := by
   have := hJ.to_subtype
-  simpa only [biUnion_eq_iUnion] using MSemianalyticAt.iUnion fun i : J ↦ hs i.1 i.2
+  simpa only [biUnion_eq_iUnion] using MSemianalyticAt.iUnion fun i : J ↦ hs i.val i.property
 
 /-- A finite bounded intersection of sets semianalytic at a manifold point is semianalytic there. -/
 protected theorem biInter {ι : Type*} {J : Set ι} (hJ : J.Finite) {s : ι → Set M}
     (hs : ∀ i ∈ J, MSemianalyticAt I (s i) x) : MSemianalyticAt I (⋂ i ∈ J, s i) x := by
   have := hJ.to_subtype
-  simpa only [biInter_eq_iInter] using MSemianalyticAt.iInter fun i : J ↦ hs i.1 i.2
+  simpa only [biInter_eq_iInter] using MSemianalyticAt.iInter fun i : J ↦ hs i.val i.property
 
 end MSemianalyticAt
 
