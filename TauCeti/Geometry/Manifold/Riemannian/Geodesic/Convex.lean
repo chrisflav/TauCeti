@@ -145,7 +145,7 @@ private theorem contMDiffAt_norm_riemannianLog_sq_riemannianExp {p₀ : M} {W₀
       (fun u : ((M × M) × E) × ℝ ↦ riemannianExp I M u.1.1.2 (u.2 • e.symmL ℝ u.1.1.2 u.1.2))
       pt := by
     have hz : (⟨p₀, (0 : ℝ) • e.symmL ℝ p₀ w₀⟩ : TangentBundle I M) ∈
-        {z : TangentBundle I M | z.2 ∈ expDomain I M z.proj} := by
+        {z : TangentBundle I M | z.snd ∈ expDomain I M z.proj} := by
       simp
     exact (contMDiffOn_riemannianExp_tangentBundle.contMDiffAt
       (isOpen_setOfPred_mem_expDomain.mem_nhds hz)).comp pt hsymm
@@ -519,10 +519,11 @@ theorem IsStronglyGeodesicallyConvex.isPathConnected {U : Set M}
     (hU : IsStronglyGeodesicallyConvex I U) (hne : U.Nonempty) : IsPathConnected U := by
   refine ⟨hne.some, hne.some_mem, fun {y} hy ↦ ?_⟩
   obtain ⟨γ, hγ, h0, h1, -, hmaps, -⟩ := isStronglyGeodesicallyConvex_def.1 hU hne.some_mem hy
-  refine ⟨{ toFun := fun t : unitInterval ↦ γ t.1
-            continuous_toFun := hγ.continuousOn.comp_continuous continuous_subtype_val fun t ↦ t.2
+  refine ⟨{ toFun := fun t : unitInterval ↦ γ t.val
+            continuous_toFun :=
+              hγ.continuousOn.comp_continuous continuous_subtypeVal fun t ↦ t.property
             source' := h0
-            target' := h1 }, fun t ↦ hmaps t.2⟩
+            target' := h1 }, fun t ↦ hmaps t.property⟩
 
 /-- Every nonempty strongly geodesically convex set is connected. -/
 theorem IsStronglyGeodesicallyConvex.isConnected {U : Set M}
@@ -561,7 +562,7 @@ theorem IsStronglyGeodesicallyConvex.biInter {ι : Type*} {s : Set ι} {U : ι �
     IsStronglyGeodesicallyConvex I (⋂ i ∈ s, U i) := by
   have : Nonempty s := hs.to_subtype
   rw [biInter_eq_iInter]
-  exact .iInter fun i ↦ hU i.1 i.2
+  exact .iInter fun i ↦ hU i.val i.property
 
 /-- Any two points of a strongly geodesically convex set lie at finite Riemannian distance. -/
 theorem IsStronglyGeodesicallyConvex.edist_ne_top {U : Set M}
@@ -886,15 +887,15 @@ variable (I) in
 def geodesicOpenContract (W : Opens M) (hW : IsStronglyGeodesicallyConvex I (W : Set M))
     {q : M} (hqW : q ∈ W) {r : ℝ} (hq : IsNormalDomain I M q (Metric.ball 0 r))
     (hsub : (W : Set M) ⊆ riemannianExp I M q '' Metric.ball 0 r) (p : ℝ × ↥W) : ↥W :=
-  ⟨radialGeodesicHomotopy I M q (Metric.ball 0 r) (Real.smoothTransition p.1, p.2.1),
+  ⟨radialGeodesicHomotopy I M q (Metric.ball 0 r) (Real.smoothTransition p.1, p.2.val),
     hW.mapsTo_radialGeodesicHomotopy hqW hq hsub
-      ⟨⟨Real.smoothTransition.nonneg p.1, Real.smoothTransition.le_one p.1⟩, p.2.2⟩⟩
+      ⟨⟨Real.smoothTransition.nonneg p.1, Real.smoothTransition.le_one p.1⟩, p.2.property⟩⟩
 
 theorem coe_geodesicOpenContract (W : Opens M) (hW : IsStronglyGeodesicallyConvex I (W : Set M))
     {q : M} (hqW : q ∈ W) {r : ℝ} (hq : IsNormalDomain I M q (Metric.ball 0 r))
     (hsub : (W : Set M) ⊆ riemannianExp I M q '' Metric.ball 0 r) (p : ℝ × ↥W) :
     (geodesicOpenContract I W hW hqW hq hsub p : M) =
-      radialGeodesicHomotopy I M q (Metric.ball 0 r) (Real.smoothTransition p.1, p.2.1) :=
+      radialGeodesicHomotopy I M q (Metric.ball 0 r) (Real.smoothTransition p.1, p.2.val) :=
   (rfl)
 
 /-- The smooth-transition-reparametrized radial geodesic contraction `ℝ × W → W` is `C^∞`. -/
@@ -912,11 +913,11 @@ theorem contMDiff_geodesicOpenContract (W : Opens M)
   have hmem : (Real.smoothTransition p.1, (p.2 : M)) ∈
       radialGeodesicHomotopyDomain I M q (Metric.ball 0 r) :=
     hq.Icc_prod_subset_radialGeodesicHomotopyDomain hsub
-      ⟨⟨Real.smoothTransition.nonneg p.1, Real.smoothTransition.le_one p.1⟩, p.2.2⟩
+      ⟨⟨Real.smoothTransition.nonneg p.1, Real.smoothTransition.le_one p.1⟩, p.2.property⟩
   have hstep : ContMDiffAt ((𝓘(ℝ, ℝ)).prod I) ((𝓘(ℝ, ℝ)).prod I) ∞
       (fun u : ℝ × ↥W ↦ (Real.smoothTransition u.1, (u.2 : M))) p :=
     (Real.smoothTransition.contDiff.contMDiff.contMDiffAt.comp p contMDiffAt_fst).prodMk
-      (contMDiff_subtype_val.contMDiffAt.comp p contMDiffAt_snd)
+      (contMDiff_subtypeVal.contMDiffAt.comp p contMDiffAt_snd)
   exact (hq.contMDiffOn_radialGeodesicHomotopy.contMDiffAt
     (hq.isOpen_radialGeodesicHomotopyDomain.mem_nhds hmem)).comp p hstep
 
@@ -936,7 +937,7 @@ theorem geodesicOpenContract_of_one_le (W : Opens M)
     geodesicOpenContract I W hW hqW hq hsub (t, x) = x := by
   ext
   rw [coe_geodesicOpenContract, Real.smoothTransition.one_of_one_le ht,
-    radialGeodesicHomotopy_one_left (hsub x.2)]
+    radialGeodesicHomotopy_one_left (hsub x.property)]
 
 @[simp]
 theorem geodesicOpenContract_zero_left (W : Opens M)

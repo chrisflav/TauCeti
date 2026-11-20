@@ -181,12 +181,12 @@ domain factor order of `TauCeti.homotopyOperator`. -/
 def cylinderContract (s : Finset C.Index) (hs : s.Nonempty)
     (hW : ((s.inf C.openSet : Opens M) : Set M).Nonempty)
     (p : ↥(s.inf C.openSet) × Icc (0 : ℝ) 1) : ↥(s.inf C.openSet) :=
-  C.contract s hs hW (p.2.1, p.1)
+  C.contract s hs hW (p.2.val, p.1)
 
 theorem cylinderContract_apply (s : Finset C.Index) (hs : s.Nonempty)
     (hW : ((s.inf C.openSet : Opens M) : Set M).Nonempty)
     (p : ↥(s.inf C.openSet) × Icc (0 : ℝ) 1) :
-    C.cylinderContract s hs hW p = C.contract s hs hW (p.2.1, p.1) :=
+    C.cylinderContract s hs hW p = C.contract s hs hW (p.2.val, p.1) :=
   (rfl)
 
 /-- The cylinder-ordered contraction `W × [0, 1] → W` is smooth for `I.prod (𝓡∂ 1)`. -/
@@ -212,16 +212,16 @@ theorem cylinderContract_one (s : Finset C.Index) (hs : s.Nonempty)
 theorem cylinderContract_center (s : Finset C.Index) (hs : s.Nonempty)
     (hW : ((s.inf C.openSet : Opens M) : Set M).Nonempty) (t : Icc (0 : ℝ) 1) :
     C.cylinderContract s hs hW (C.center s hs hW, t) = C.center s hs hW :=
-  C.fixes_center s hs hW t.1
+  C.fixes_center s hs hW t.val
 
 /-- Every nonempty finite intersection of a smooth good cover is a contractible space. -/
 theorem contractibleSpace_inf (s : Finset C.Index) (hs : s.Nonempty)
     (hW : ((s.inf C.openSet : Opens M) : Set M).Nonempty) :
     ContractibleSpace ↥(s.inf C.openSet) := by
   let H : ContinuousMap.Homotopy (.id _) (.const _ (C.center s hs hW)) :=
-    { toFun := fun p : unitInterval × ↥(s.inf C.openSet) ↦ C.contract s hs hW (1 - p.1.1, p.2)
+    { toFun := fun p : unitInterval × ↥(s.inf C.openSet) ↦ C.contract s hs hW (1 - p.1.val, p.2)
       continuous_toFun := (C.smooth s hs hW).continuous.comp
-        ((continuous_const.sub (continuous_subtype_val.comp continuous_fst)).prodMk continuous_snd)
+        ((continuous_const.sub (continuous_subtypeVal.comp continuous_fst)).prodMk continuous_snd)
       map_zero_left := fun x ↦ by simp
       map_one_left := fun x ↦ by simp }
   exact (contractible_iff_id_nullhomotopic _).2 ⟨C.center s hs hW, ⟨H⟩⟩
@@ -403,7 +403,7 @@ theorem exists_finite [CompactSpace M] :
       Finite C'.Index ∧ ∀ a', ∃ a, C'.openSet a' = C.openSet a := by
   obtain ⟨t, ht⟩ := C.isOpenCover.exists_finite_of_compactSpace
   exact ⟨C.comap Subtype.val ht.exists_mem (locallyFinite_of_finite _), inferInstance,
-    fun a' ↦ ⟨(C.comapIndexEquiv Subtype.val ht.exists_mem (locallyFinite_of_finite _) a').1,
+    fun a' ↦ ⟨(C.comapIndexEquiv Subtype.val ht.exists_mem (locallyFinite_of_finite _) a').val,
       C.openSet_comap Subtype.val ht.exists_mem (locallyFinite_of_finite _) a'⟩⟩
 
 end SmoothGoodCover
@@ -524,7 +524,8 @@ theorem coe_contract_ofGeodesicallyConvex {α : Type u} (V : α → Opens M)
     (p : ℝ × ↥(s.inf (ofGeodesicallyConvex I V hcov hlf hconv hnorm).openSet)) :
     (((ofGeodesicallyConvex I V hcov hlf hconv hnorm).contract s hs hW p :
       ↥(s.inf (ofGeodesicallyConvex I V hcov hlf hconv hnorm).openSet)) : M) =
-      radialGeodesicHomotopy I M hW.some (Metric.ball 0 r) (Real.smoothTransition p.1, p.2.1) := by
+      radialGeodesicHomotopy I M hW.some (Metric.ball 0 r)
+        (Real.smoothTransition p.1, p.2.val) := by
   let s' : Finset α := s
   have hs' : s'.Nonempty := hs
   have hWn : IsUniformlyNormal I ((s'.inf V : Opens M) : Set M) := by
@@ -535,7 +536,7 @@ theorem coe_contract_ofGeodesicallyConvex {α : Type u} (V : α → Opens M)
     (hWn.subset_image_riemannianExp_ball hW.some_mem) p).trans <|
     radialGeodesicHomotopy_ball_eq_of_isNormalDomain (Real.smoothTransition p.1)
       (hWn.isNormalDomain_ball hW.some_mem) hq
-      (hWn.subset_image_riemannianExp_ball hW.some_mem p.2.2) (hsub p.2.2)
+      (hWn.subset_image_riemannianExp_ball hW.some_mem p.2.property) (hsub p.2.property)
 
 end OfGeodesicallyConvex
 
