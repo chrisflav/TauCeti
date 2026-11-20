@@ -11,7 +11,6 @@ public import TauCeti.GroupTheory.NoncommPiCoprod
 import Mathlib.GroupTheory.FiniteAbelian.Basic
 
 import Mathlib.Algebra.EuclideanDomain.Int
-import Mathlib.RingTheory.Finiteness.Cardinality
 import Mathlib.RingTheory.Noetherian.Basic
 import Mathlib.RingTheory.PrincipalIdealDomain
 
@@ -19,12 +18,10 @@ import Mathlib.RingTheory.PrincipalIdealDomain
 # Closure properties of finitely generated groups
 
 Mathlib has a substantial theory of finitely generated commutative groups in
-`Mathlib/GroupTheory/FiniteAbelian/Basic.lean` — the structure theorem,
-`finite_of_fg_isMulTorsion`, and
-`Subgroup.finiteIndex_range_powMonoidHom_of_fg`, which is the finiteness of `G ⧸ Gⁿ`. Three
+`Mathlib/GroupTheory/FiniteAbelian/Basic.lean` — the structure theorem, `finite_of_fg_isMulTorsion`,
+and `Subgroup.finiteIndex_range_powMonoidHom_of_fg`, which is the finiteness of `G ⧸ Gⁿ`. Three
 closure properties it does not carry are collected here, together with finiteness of the torsion
-subgroup, a `Fin`-indexed form of finite generation, and surjective presentations of finitely
-generated abelian groups from finite powers of `ℤ`.
+subgroup and a `Fin`-indexed form of finite generation.
 
 ## Main results
 
@@ -34,11 +31,6 @@ generated abelian groups from finite powers of `ℤ`.
 * `TauCeti.CommGroup.exists_finiteIndex_isMulTorsionFree` and
   `TauCeti.AddCommGroup.exists_finiteIndex_isAddTorsionFree`: a finitely generated abelian group
   has a torsion-free subgroup of finite index.
-* `TauCeti.CommGroup.fg_iff_exists_fin_zpowersPiHom_surjective`,
-  `TauCeti.AddCommGroup.fg_iff_exists_fin_zmultiplesPiHom_surjective`,
-  `TauCeti.CommGroup.fg_iff_exists_fin_monoidHom_surjective`, and
-  `TauCeti.AddCommGroup.fg_iff_exists_fin_addMonoidHom_surjective`: a commutative group is finitely
-  generated exactly when it admits a surjective homomorphism from a finite power of `ℤ`.
 
 * `AddSubgroup.fg_of_addCommGroup` and `Subgroup.fg_of_commGroup`: a subgroup of a finitely
   generated commutative group is finitely generated. The argument is Noetherianity of `ℤ`, so the
@@ -240,7 +232,7 @@ theorem CommGroup.exists_finiteIndex_isMulTorsionFree (G : Type*) [CommGroup G] 
   refine ⟨(powMonoidHom n).range, Subgroup.finiteIndex_range_powMonoidHom_of_fg G Nat.card_pos.ne',
     .of_not_isOfFinOrder ?_⟩
   intro x hx hfin
-  obtain ⟨g, hg⟩ := x.2
+  obtain ⟨g, hg⟩ := x.property
   -- `x = g ^ n` has finite order, so `g` is torsion and its `n`-th power is trivial
   have hgn : IsOfFinOrder (g ^ n) := by
     simpa [← hg] using Submonoid.isOfFinOrder_coe.2 hfin
@@ -257,7 +249,7 @@ theorem CommGroup.fg_iff_exists_fin_zpowersPiHom_surjective {G : Type*} [CommGro
       ∃ (n : ℕ) (τ : Fin n → G),
         Function.Surjective (zpowersPiHom τ fun _ _ => .all _ _) := by
   rw [Group.fg_iff_exists_fin_generating_family]
-  exact exists_congr fun n => exists_congr fun τ => zpowersPiHom_surjective_iff.symm
+  exact exists_congr fun n => exists_congr fun τ => (zpowersPiHom_surjective τ _).symm
 
 /-- An additive commutative group is finitely generated if and only if it is the image of
 `zmultiplesPiHom` for some `Fin n`-indexed tuple of generators. -/
@@ -266,7 +258,7 @@ theorem AddCommGroup.fg_iff_exists_fin_zmultiplesPiHom_surjective {A : Type*} [A
       ∃ (n : ℕ) (τ : Fin n → A),
         Function.Surjective (zmultiplesPiHom τ fun _ _ => .all _ _) := by
   rw [AddGroup.fg_iff_exists_fin_generating_family]
-  exact exists_congr fun n => exists_congr fun τ => zmultiplesPiHom_surjective_iff.symm
+  exact exists_congr fun n => exists_congr fun τ => (zmultiplesPiHom_surjective τ _).symm
 
 /-- An additive commutative group is finitely generated if and only if it admits a surjective
 homomorphism from `Fin n → ℤ` for some `n : ℕ`. -/

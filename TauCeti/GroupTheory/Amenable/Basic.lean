@@ -14,9 +14,7 @@ public import TauCeti.Topology.Algebra.Group.UCB.CompRight
 A mean `m` on `TauCeti.UCB G` is *left invariant* when `m (L_g f) = m f` for every `g : G` and
 every `f`, where `(L_g f)(x) = f (g⁻¹ * x)` is the left translation. A topological group is
 *amenable* when `UCB G` carries a left-invariant mean. No separation, local compactness,
-countability or generation hypothesis is part of the definition. The same definitions apply to a
-topological additive group `A` via `TauCeti.AddUCB A`, `TauCeti.AddMean A`, and
-`TauCeti.AddAmenable A`.
+countability or generation hypothesis is part of the definition.
 
 A mean `m` on `UCB G` pushes forward along a continuous homomorphism `φ : G →ₜ* H` to the mean
 `f ↦ m (f ∘ φ)` on `UCB H`. Since `(L_(φ g) f) ∘ φ = L_g (f ∘ φ)`, the pushforward of a
@@ -32,8 +30,7 @@ isomorphisms of topological groups.
   and `f`.
 * `TauCeti.Mean.map φ`, `TauCeti.AddMean.map φ`: the pushforward of means along a continuous
   homomorphism `φ`.
-* `TauCeti.Amenable G`, `TauCeti.AddAmenable A`: `UCB G` (or `AddUCB A`) carries a left-invariant
-  mean.
+* `TauCeti.Amenable G`: `UCB G` carries a left-invariant mean.
 
 ## Main results
 
@@ -41,13 +38,11 @@ isomorphisms of topological groups.
   means form a convex set.
 * `TauCeti.Mean.IsLeftInvariant.map`, `TauCeti.AddMean.IsLeftInvariant.map`: pushforward along a
   continuous homomorphism with dense range preserves left invariance.
-* `TauCeti.Amenable.of_denseRange`, `TauCeti.AddAmenable.of_denseRange`: amenability passes to the
-  target of a continuous homomorphism with dense range, in particular to images under surjective
-  continuous homomorphisms.
-* `TauCeti.Amenable.of_le`, `TauCeti.AddAmenable.of_le`: amenability passes from a finer to a
-  coarser group topology.
-* `ContinuousMulEquiv.amenable_iff`, `ContinuousAddEquiv.addAmenable_iff`: amenability is invariant
-  under isomorphisms of topological groups.
+* `TauCeti.Amenable.of_denseRange`: amenability passes to the target of a continuous homomorphism
+  with dense range, in particular to images under surjective continuous homomorphisms.
+* `TauCeti.Amenable.of_le`: amenability passes from a finer to a coarser group topology.
+* `ContinuousMulEquiv.amenable_iff`: amenability is invariant under isomorphisms of topological
+  groups.
 
 ## References
 
@@ -190,34 +185,19 @@ theorem IsLeftInvariant.map {m : Mean G} (hm : m.IsLeftInvariant) {φ : G →ₜ
 
 end Mean
 
-variable (A) in
-/-- A topological additive group `A` is amenable when `AddUCB A` carries a left-invariant additive
-mean. -/
-class AddAmenable : Prop where
-  /-- An amenable additive group has a left-invariant mean on `AddUCB A`. -/
-  exists_isLeftInvariant : ∃ m : AddMean A, m.IsLeftInvariant
-
 variable (G) in
 /-- A topological group `G` is amenable when `UCB G` carries a left-invariant mean. -/
-@[to_additive existing AddAmenable]
 class Amenable : Prop where
   /-- An amenable group has a left-invariant mean on `UCB G`. -/
   exists_isLeftInvariant : ∃ m : Mean G, m.IsLeftInvariant
 
 variable (G) in
 /-- A topological group is amenable exactly when `UCB G` carries a left-invariant mean. -/
-@[to_additive addAmenable_iff
-  /-- A topological additive group is amenable exactly when `AddUCB G` carries a left-invariant
-  additive mean. -/]
 theorem amenable_iff : Amenable G ↔ ∃ m : Mean G, m.IsLeftInvariant :=
-  ⟨fun h => h.1, fun h => ⟨h⟩⟩
+  ⟨fun h => h.exists_isLeftInvariant, fun h => ⟨h⟩⟩
 
 /-- The target of a continuous homomorphism with dense range from an amenable topological group
 is amenable; in particular, so is the image under a surjective continuous homomorphism. -/
-@[to_additive
-  /-- The target of a continuous additive homomorphism with dense range from an amenable topological
-  additive group is amenable; in particular, so is the image under a surjective continuous additive
-  homomorphism. -/]
 theorem Amenable.of_denseRange [Amenable G] (φ : G →ₜ* H) (hφ : DenseRange φ) :
     Amenable H :=
   have ⟨m, hm⟩ := Amenable.exists_isLeftInvariant (G := G)
@@ -225,9 +205,6 @@ theorem Amenable.of_denseRange [Amenable G] (φ : G →ₜ* H) (hφ : DenseRange
 
 omit [TopologicalSpace G] [IsTopologicalGroup G] in
 /-- Amenability passes from a finer group topology to a coarser group topology. -/
-@[to_additive
-  /-- Amenability passes from a finer additive group topology to a coarser additive group
-  topology. -/]
 theorem Amenable.of_le {t₁ t₂ : TopologicalSpace G}
     [@IsTopologicalGroup G t₁ _] [@IsTopologicalGroup G t₂ _] (h : t₁ ≤ t₂)
     (ha : @Amenable G _ t₁ _) : @Amenable G _ t₂ _ := by
@@ -247,8 +224,6 @@ variable {G H : Type*} [Group G] [TopologicalSpace G] [IsTopologicalGroup G]
   [Group H] [TopologicalSpace H] [IsTopologicalGroup H]
 
 /-- Amenability is invariant under isomorphisms of topological groups. -/
-@[to_additive addAmenable_iff
-  /-- Amenability is invariant under isomorphisms of topological additive groups. -/]
 theorem amenable_iff (e : G ≃ₜ* H) : Amenable G ↔ Amenable H :=
   ⟨fun _ => .of_denseRange (e : G →ₜ* H) e.surjective.denseRange,
     fun _ => .of_denseRange (e.symm : H →ₜ* G) e.symm.surjective.denseRange⟩

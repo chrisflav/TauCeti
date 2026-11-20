@@ -19,11 +19,13 @@ dependent products, and when `T` has a unique element, `Multiplicative (M × T)`
 isomorphic to `Multiplicative M`. These are `MulEquiv.prodMultiplicative`,
 `MulEquiv.piMultiplicative` and `Equiv.prodUnique` between the multiplicative type tags,
 upgraded to `ContinuousMulEquiv`s: the first two transport properties of topological groups, such
-as being pro-`p`, between the two shapes of a product, and the last collapses a product
-decomposition of a topological group whose second factor turns out to be trivial. The universe
-lift `ULift M` of a topological monoid is topologically isomorphic to `M`, which is
-`MulEquiv.ulift` upgraded to a `ContinuousMulEquiv`; it lets a universal property whose target must
-live in a fixed universe be applied to a group in a smaller one.
+as being pro-`p` or amenable, between the two shapes of a product, and the last collapses a
+product decomposition of a topological group whose second factor turns out to be trivial. Likewise,
+`ContinuousMulEquiv.multiplicativeAdditive` upgrades the round-trip equivalence
+`MulEquiv.multiplicativeAdditive` (`Multiplicative (Additive M) ≃ₜ* M`), and the universe lift
+`ULift M` of a topological monoid is topologically isomorphic to `M`, which is `MulEquiv.ulift`
+upgraded to a `ContinuousMulEquiv`; it lets a universal property whose target must live in a fixed
+universe be applied to a group in a smaller one.
 
 ## Main definitions
 
@@ -39,18 +41,18 @@ live in a fixed universe be applied to a group in a smaller one.
 * `ContinuousAddEquiv.toMultiplicative`: a topological isomorphism `M ≃ₜ+ N` of additive groups
   as a topological isomorphism `Multiplicative M ≃ₜ* Multiplicative N`, with its evaluation
   lemmas `toMultiplicative_apply` and `toMultiplicative_symm_apply`.
-* `TauCeti.ContinuousMulEquiv.ulift`: the topological isomorphism `ULift M ≃ₜ* M`, with its
-  evaluation lemmas `ulift_apply` and `ulift_symm_apply`.
-* `TauCeti.ContinuousMulEquiv.multiplicativeAdditive`: the topological isomorphism
+* `TauCeti.ContinuousMulEquiv.multiplicativeAdditive`: the round-trip topological isomorphism
   `Multiplicative (Additive M) ≃ₜ* M`, with its evaluation lemmas `multiplicativeAdditive_apply`
   and `multiplicativeAdditive_symm_apply`.
+* `TauCeti.ContinuousMulEquiv.ulift`: the topological isomorphism `ULift M ≃ₜ* M`, with its
+  evaluation lemmas `ulift_apply` and `ulift_symm_apply`.
 -/
 
 public section
 
 namespace TauCeti
 
-open Multiplicative
+open Additive Multiplicative
 
 section Prod
 
@@ -160,6 +162,32 @@ theorem _root_.ContinuousAddEquiv.toMultiplicative_symm_apply (e : M ≃ₜ+ N)
 
 end ToMultiplicative
 
+section RoundTrip
+
+/-- `Multiplicative (Additive M)` is topologically isomorphic to `M`. This is
+`MulEquiv.multiplicativeAdditive` as a `ContinuousMulEquiv`. -/
+def ContinuousMulEquiv.multiplicativeAdditive (M : Type*) [Mul M] [TopologicalSpace M] :
+    Multiplicative (Additive M) ≃ₜ* M where
+  toMulEquiv := MulEquiv.multiplicativeAdditive M
+  continuous_toFun := continuous_toMul.comp continuous_toAdd
+  continuous_invFun := continuous_ofAdd.comp continuous_ofMul
+
+/-- Forward evaluation of `ContinuousMulEquiv.multiplicativeAdditive`. -/
+@[simp]
+theorem ContinuousMulEquiv.multiplicativeAdditive_apply {M : Type*} [Mul M] [TopologicalSpace M]
+    (x : Multiplicative (Additive M)) :
+    ContinuousMulEquiv.multiplicativeAdditive M x = x.toAdd.toMul :=
+  (rfl)
+
+/-- Inverse evaluation of `ContinuousMulEquiv.multiplicativeAdditive`. -/
+@[simp]
+theorem ContinuousMulEquiv.multiplicativeAdditive_symm_apply {M : Type*} [Mul M]
+    [TopologicalSpace M] (x : M) :
+    (ContinuousMulEquiv.multiplicativeAdditive M).symm x = ofAdd (ofMul x) :=
+  (rfl)
+
+end RoundTrip
+
 section ULift
 
 universe u v
@@ -183,31 +211,5 @@ theorem ContinuousMulEquiv.ulift_symm_apply (x : M) :
   (rfl)
 
 end ULift
-
-section MultiplicativeAdditive
-
-variable (M : Type*) [Mul M] [TopologicalSpace M]
-
-/-- The multiplicative type tag of the additive type tag of a topological magma is topologically
-isomorphic to the original magma. This is `MulEquiv.multiplicativeAdditive` as a
-`ContinuousMulEquiv`. -/
-def ContinuousMulEquiv.multiplicativeAdditive : Multiplicative (Additive M) ≃ₜ* M where
-  toMulEquiv := MulEquiv.multiplicativeAdditive M
-  continuous_toFun := continuous_toMul.comp continuous_toAdd
-  continuous_invFun := continuous_ofAdd.comp continuous_ofMul
-
-variable {M}
-
-@[simp]
-theorem ContinuousMulEquiv.multiplicativeAdditive_apply (x : Multiplicative (Additive M)) :
-    ContinuousMulEquiv.multiplicativeAdditive M x = x.toAdd.toMul :=
-  (rfl)
-
-@[simp]
-theorem ContinuousMulEquiv.multiplicativeAdditive_symm_apply (x : M) :
-    (ContinuousMulEquiv.multiplicativeAdditive M).symm x = ofAdd (Additive.ofMul x) :=
-  (rfl)
-
-end MultiplicativeAdditive
 
 end TauCeti

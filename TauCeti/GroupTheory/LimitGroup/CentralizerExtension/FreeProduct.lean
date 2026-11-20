@@ -102,7 +102,7 @@ private theorem isBlock_of_notMem {x : G} (hx : x ∉ centralizer {u}) :
     IsBlock false false (of x : CentralizerExt u n) := by
   refine of_def (u := u) (n := n) ▸ isBlock_of fun ⟨c, hc⟩ => hx ?_
   rw [← hc, centralizerExtMap_false]
-  exact c.2
+  exact c.property
 
 /-- A nontrivial element `v` of `ℤⁿ`, the letter `(1, v)` of `C_G(u) × ℤⁿ`, is a one-letter
 block. -/
@@ -116,7 +116,7 @@ private theorem isBlock_zpowersPiHom {v : Fin n → Multiplicative ℤ} (hv : v 
 /-- A nonzero power of `tᵢ` is a one-letter block. -/
 private theorem isBlock_t_zpow (i : Fin n) {k : ℤ} (hk : k ≠ 0) :
     IsBlock true true (t i ^ k : CentralizerExt u n) := by
-  rw [← toAdd_ofAdd k, ← zpowersPiHom_mulSingle t commute_t_t i (.ofAdd k)]
+  rw [← zpowersPiHom_mulSingle t commute_t_t i, ← map_zpow]
   exact isBlock_zpowersPiHom (by simpa using hk)
 
 /-- For `x ≠ 1`, the conjugate `(tᵢ g)⁻¹ x (tᵢ g)` is a block of `G`: the single letter `g⁻¹ x g`,

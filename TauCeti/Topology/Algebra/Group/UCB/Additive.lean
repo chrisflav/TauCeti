@@ -113,9 +113,9 @@ namespace AddUCB
 as a unital ℝ-algebra. -/
 def equivMultiplicative : AddUCB A ≃ₐ[ℝ] UCB (Multiplicative A) where
   toFun f := ⟨(f : A →ᵇ ℝ).compContinuous ⟨toAdd, continuous_toAdd⟩,
-    mem_addUcb_iff_compContinuous_mem_ucb.1 f.2⟩
+    mem_addUcb_iff_compContinuous_mem_ucb.1 f.property⟩
   invFun f := ⟨(f : Multiplicative A →ᵇ ℝ).compContinuous ⟨ofAdd, continuous_ofAdd⟩,
-    mem_ucb_multiplicative_iff_compContinuous_mem_addUcb.1 f.2⟩
+    mem_ucb_multiplicative_iff_compContinuous_mem_addUcb.1 f.property⟩
   left_inv _ := ext fun _ => by simp
   right_inv _ := UCB.ext fun _ => by simp
   map_mul' _ _ := UCB.ext fun _ => rfl
