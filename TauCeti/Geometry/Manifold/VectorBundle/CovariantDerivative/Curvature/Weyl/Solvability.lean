@@ -418,7 +418,7 @@ with `φ x₀ = c` and `grad φ x₀ = ξ` solving the conformal flattening equa
 `Hess φ = P + dφ ⊗ dφ - (|dφ|² / 2) g` near `x₀`, where `P` is the Schouten tensor. When `E` has
 dimension at least `3`, this says equivalently that `e^(2φ) g` has vanishing Schouten tensor near
 `x₀`. -/
-theorem exists_eventually_hessian_eq_model_space {x₀ : E}
+private theorem exists_eventually_hessian_eq_model_space {x₀ : E}
     (hW : ∀ᶠ y in 𝓝 x₀, (lc).weylTensor y = 0) (hC : ∀ᶠ y in 𝓝 x₀, (lc).cottonTensor y = 0)
     (c : ℝ) (ξ : TangentSpace 𝓘(ℝ, E) x₀) :
     ∃ φ : E → ℝ, ContMDiff 𝓘(ℝ, E) 𝓘(ℝ) ∞ φ ∧ φ x₀ = c ∧ mgradient 𝓘(ℝ, E) φ x₀ = ξ ∧
@@ -476,7 +476,7 @@ private theorem exists_isLocalRiemannianIsometry_model_space_of_isInteriorPoint 
           contMDiffRiemannianMetricOpen_inner, inner_tangentSpace_open] }
   have hι₀ := IsLocalRiemannianIsometry.subtype_val (I := I) W₀
   refine ⟨W₀, hx₀W₀, Ψ, gE, hΨ_iso, fun z ↦ ?_⟩
-  have hWC := hW₀_sub (Ψ.symm z).2
+  have hWC := hW₀_sub (Ψ.symm z).property
   rw [← Ψ.apply_symm_apply z]
   exact ⟨(hΨ_iso.weylTensor_eq_zero_iff _).2 ((hι₀.weylTensor_eq_zero_iff _).1 hWC.1),
     (hΨ_iso.cottonTensor_eq_zero_iff _).2 ((hι₀.cottonTensor_eq_zero_iff _).1 hWC.2)⟩
@@ -564,13 +564,13 @@ theorem exists_contMDiff_hessian_eq_family_of_isInteriorPoint {x₀ : M} (hx₀ 
       (Eventually.of_forall fun z ↦ (hWE_zero z).1)
       (Eventually.of_forall fun z ↦ (hWE_zero z).2) c₀ (e₀ ξ₀)
   have hW₁_nhds : Subtype.val '' (Ψ ⁻¹' W_E) ∈ 𝓝 x₀ :=
-    (W₀.isOpen.isOpenMap_subtype_val _ (hWE_open.preimage Ψ.continuous)).mem_nhds
+    (W₀.isOpen.isOpenMap_subtypeVal _ (hWE_open.preimage Ψ.continuous)).mem_nhds
       ⟨⟨x₀, hx₀W₀⟩, hz₀WE, rfl⟩
   obtain ⟨β, hβ_sub, -⟩ :=
     (SmoothBumpFunction.nhds_basis_support (I := I) hW₁_nhds).mem_iff.mp hW₁_nhds
   obtain ⟨W, hW_sub, hW_open, hx₀W⟩ := eventually_nhds_iff.1 (β.eventuallyEq_one.and hW₁_nhds)
   let ψM : M → E := Function.extend Subtype.val Ψ 0
-  have hψ (y : W₀) : ψM y.1 = Ψ y := Subtype.val_injective.extend_apply Ψ 0 y
+  have hψ (y : W₀) : ψM y.val = Ψ y := Subtype.val_injective.extend_apply Ψ 0 y
   let Φ (p : M × (ℝ × TangentSpace I x₀)) : ℝ := β p.1 * Φ_E (ψM p.1, eQ p.2)
   have hΦ : ContMDiff (I.prod 𝓘(ℝ, ℝ × TangentSpace I x₀)) 𝓘(ℝ) ∞ Φ := by
     have hψM : ContMDiffOn I 𝓘(ℝ, E) ∞ ψM W₀ :=
@@ -593,9 +593,9 @@ theorem exists_contMDiff_hessian_eq_family_of_isInteriorPoint {x₀ : M} (hx₀ 
     (φE := fun z ↦ Φ_E (z, eQ q)) hW_W₀ hx₀W hΨ_iso
     (hΦ.comp (contMDiff_id.prodMk contMDiff_const))
     (hΦ_E.comp (contMDiff_id.prodMk contMDiff_const))
-    (by ext y; simp [Φ, (hW_sub y.1 y.2).1, hψ (Opens.inclusion hW_W₀ y)])
+    (by ext y; simp [Φ, (hW_sub y.val y.property).1, hψ (Opens.inclusion hW_W₀ y)])
     (fun y ↦ by
-      obtain ⟨y', hy'WE, hy'eq⟩ := (hW_sub y.1 y.2).2
+      obtain ⟨y', hy'WE, hy'eq⟩ := (hW_sub y.val y.property).2
       exact (Subtype.ext hy'eq : y' = Opens.inclusion hW_W₀ y) ▸ hy'WE)
     (by simpa [eQ, e₀] using hgrad_E) hhess_E
 
