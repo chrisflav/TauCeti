@@ -92,6 +92,13 @@ theorem homflyUnknot_def : homflyUnknot K = (T 1 - T (-1)) * C (T (-1)) := (rfl)
 
 variable {K}
 
+/-- Evaluating the HOMFLY unknot polynomial `(a - a⁻¹) z⁻¹` at `z = u` and `a` gives
+`(a - a⁻¹) * u⁻¹`. -/
+@[simp]
+theorem eval₂_homflyUnknot {R : Type*} [CommRing R] (f : K →+* R) (u a : Rˣ) :
+    eval₂ (eval₂ f u) a (homflyUnknot K) = ((a : R) - ↑a⁻¹) * ↑u⁻¹ := by
+  simp [homflyUnknot_def]
+
 /-- The outer variable `a` specializes to `q ^ N`. -/
 private theorem homflySpecialization_T_one (N : ℕ) :
     homflySpecialization K N (T 1) =
@@ -152,13 +159,6 @@ theorem homflyUnknot_ne_zero (K : Type*) [Field K] : homflyUnknot K ≠ 0 := by
   intro h
   have hspec := homflySpecialization_homflyUnknot (K := K) 1
   simp [h, jimboWeight_def] at hspec
-
-/-- Evaluating `homflyUnknot K` at `a` and `z = u` gives `(a - a⁻¹) * u⁻¹`. -/
-@[simp]
-theorem eval₂_homflyUnknot (K : Type*) [Field K] {R : Type*} [CommRing R]
-    (φ : K →+* R) (u a : Rˣ) :
-    eval₂ (eval₂ φ u) a (homflyUnknot K) = ((a : R) - ↑a⁻¹) * ↑u⁻¹ := by
-  simp [homflyUnknot_def]
 
 /-- Whenever `q - q⁻¹` is a unit `u : Rˣ`, evaluating `homflyUnknot K` at `a = q ^ N` and `z = u`
 produces the `N`-colour quantum dimension `∑ a : Fin N, jimboWeight q a`, with no nonvanishing
