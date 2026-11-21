@@ -168,7 +168,7 @@ theorem sum_norm_apply_sq_le {G : Type*} [FunLike G E 𝕜] [LinearMapClass G �
     ∑ q ∈ s, ‖θ (b q)‖ ^ 2 ≤ C ^ 2 := by
   rcases s.eq_empty_or_nonempty with rfl | ⟨q₀, _⟩
   · simpa using sq_nonneg C
-  · have hC : 0 ≤ C := (norm_nonneg _).trans ((hθ (b q₀)).trans_eq (by simp [hb.1 q₀]))
+  · have hC : 0 ≤ C := (norm_nonneg _).trans ((hθ (b q₀)).trans_eq (by simp [hb.norm_eq_one q₀]))
     have hnorm : ∑ q ∈ s, ‖θ (b q)‖ ^ 2 = ‖∑ q ∈ s, θ (b q) • b q‖ ^ 2 := by
       rw [norm_sq_eq_re_inner (𝕜 := 𝕜), hb.inner_sum, map_sum]
       exact Finset.sum_congr rfl fun _ _ ↦ by rw [RCLike.conj_mul]; norm_cast
@@ -193,7 +193,7 @@ theorem sum_norm_apply_mul_norm_apply_le {F G₁ G₂ : Type*}
           mul_le_mul (hu.sum_norm_apply_sq_le s hφ) (hv.sum_norm_apply_sq_le s hψ)
             (Finset.sum_nonneg fun _ _ ↦ sq_nonneg _) (sq_nonneg A)
       _ = (A * B) ^ 2 := by ring
-  exact (sq_le_sq₀ (Finset.sum_nonneg fun _ _ ↦ by positivity) (mul_nonneg hA hB)).1 hsq
+  exact (sq_le_sq₀ (Finset.sum_nonneg fun _ _ ↦ by positivity) (mul_nonneg hA hB)).mp hsq
 
 /-- Cauchy–Schwarz bound on the contraction `∑ q ∈ s, φ (u q) * ψ (v q)` of two bounded linear
 functionals along orthonormal families `u` in `E` and `v` in `F`. -/
@@ -224,16 +224,16 @@ theorem sum_sum_norm_apply_mul_norm_apply_le {F κ : Type*}
   · simp
   rcases t.eq_empty_or_nonempty with rfl | ⟨j₀, _⟩
   · simp
-  have hA : 0 ≤ A :=
-    (norm_nonneg _).trans ((hΦ (u i₀) (v j₀)).trans_eq (by simp [hu.1 i₀, hv.1 j₀]))
-  have hB : 0 ≤ B :=
-    (norm_nonneg _).trans ((hΨ (u i₀) (v j₀)).trans_eq (by simp [hu.1 i₀, hv.1 j₀]))
+  have hA : 0 ≤ A := (norm_nonneg _).trans
+    ((hΦ (u i₀) (v j₀)).trans_eq (by simp [hu.norm_eq_one i₀, hv.norm_eq_one j₀]))
+  have hB : 0 ≤ B := (norm_nonneg _).trans
+    ((hΨ (u i₀) (v j₀)).trans_eq (by simp [hu.norm_eq_one i₀, hv.norm_eq_one j₀]))
   have hleft : ∑ i ∈ s, ∑ j ∈ t, ‖Φ (u i) (v j)‖ * ‖Ψ (u i) (v j)‖ ≤ s.card * (A * B) := by
     calc ∑ i ∈ s, ∑ j ∈ t, ‖Φ (u i) (v j)‖ * ‖Ψ (u i) (v j)‖
         ≤ ∑ _i ∈ s, A * B := Finset.sum_le_sum fun i _ ↦
             hv.sum_norm_apply_mul_norm_apply_le hv t hA hB
-              (fun z ↦ by simpa only [hu.1 i, mul_one] using hΦ (u i) z)
-              (fun z ↦ by simpa only [hu.1 i, mul_one] using hΨ (u i) z)
+              (fun z ↦ by simpa only [hu.norm_eq_one i, mul_one] using hΦ (u i) z)
+              (fun z ↦ by simpa only [hu.norm_eq_one i, mul_one] using hΨ (u i) z)
       _ = s.card * (A * B) := by simp
   have hright : ∑ i ∈ s, ∑ j ∈ t, ‖Φ (u i) (v j)‖ * ‖Ψ (u i) (v j)‖ ≤ t.card * (A * B) := by
     rw [Finset.sum_comm]
@@ -242,8 +242,10 @@ theorem sum_sum_norm_apply_mul_norm_apply_le {F κ : Type*}
             simpa only [LinearMap.flip_apply] using
               hu.sum_norm_apply_mul_norm_apply_le hu s hA hB
                 (φ := Φ.flip (v j)) (ψ := Ψ.flip (v j))
-                (fun z ↦ by simpa only [LinearMap.flip_apply, hv.1 j, mul_one] using hΦ z (v j))
-                (fun z ↦ by simpa only [LinearMap.flip_apply, hv.1 j, mul_one] using hΨ z (v j))
+                (fun z ↦ by
+                  simpa only [LinearMap.flip_apply, hv.norm_eq_one j, mul_one] using hΦ z (v j))
+                (fun z ↦ by
+                  simpa only [LinearMap.flip_apply, hv.norm_eq_one j, mul_one] using hΨ z (v j))
       _ = t.card * (A * B) := by simp
   rw [Nat.cast_min, min_mul_of_nonneg _ _ (mul_nonneg hA hB)]
   exact le_min hleft hright
