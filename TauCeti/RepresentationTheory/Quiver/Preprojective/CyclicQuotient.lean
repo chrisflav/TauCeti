@@ -23,12 +23,13 @@ This file collects the steps of a vanishing argument for the cyclic quotient in 
 which do not depend on the graph: once every path of positive length is known to be a sum of
 commutators, the same holds for the graded pieces of positive degree, the commutator submodule is
 the kernel of the augmentation, so that the cyclic quotient is the module of vertex coefficients,
-and, for a two-coloured graph, the vanishing transfers to the additive preprojective algebra of
-every orientation. Vanishing of a graded piece of the additive cyclic quotient also transfers along
-any coefficient ring homomorphism via `RingHom.preprojectiveBaseChange`, and vanishing of a graded
-piece of the signless cyclic quotient descends along any induced-subgraph embedding `f : G ↪g H`.
-Conversely, any closed path in a quiver or in one of its reorientations yields a homogeneous element
-of the same path degree in `Π_k(Q)` outside `[Π_k(Q), Π_k(Q)]`, via the retraction
+and, for a two-coloured graph, the vanishing, as well as a homogeneous class outside the
+commutators, transfers to the additive preprojective algebra of every orientation. Vanishing of a
+graded piece of the additive cyclic quotient also transfers along any coefficient ring homomorphism
+via `RingHom.preprojectiveBaseChange`, and vanishing of a graded piece of the signless cyclic
+quotient descends along any induced-subgraph embedding `f : G ↪g H`. Conversely, any closed path
+in a quiver or in one of its reorientations yields a homogeneous element of the same path degree in
+`Π_k(Q)` outside `[Π_k(Q), Π_k(Q)]`, via the retraction
 `TauCeti.preprojectiveToPathAlgebra`. The only paths which need a graph-specific argument are the
 closed ones: a path between distinct vertices is a commutator with its target idempotent.
 
@@ -62,6 +63,9 @@ closed ones: a path between distinct vertices is a commutator with its target id
 * `SimpleGraph.Coloring.preprojectiveMk_ofPath_mem_commutatorSubmodule`: for a two-coloured graph,
   the vanishing for paths of positive length transfers from the signless algebra to the additive
   preprojective algebra of every orientation.
+* `SimpleGraph.Coloring.exists_mem_preprojectiveGrade_notMem_commutatorSubmodule`: for a
+  two-coloured graph, a homogeneous signless class outside the commutators gives one of the same
+  degree for every orientation.
 * `SimpleGraph.Coloring.preprojectiveGrade_le_commutatorSubmodule_iff` and
   `SimpleGraph.IsBipartite.preprojectiveGrade_le_commutatorSubmodule_iff`: for a two-coloured or
   bipartite graph, vanishing of a graded piece agrees between the signless algebra and every
@@ -357,6 +361,23 @@ theorem preprojectiveMk_ofPath_mem_commutatorSubmodule (C : G.Coloring Bool) (o 
     exact Submodule.smul_mem _ _ (h _ (by rwa [Prefunctor.length_mapTotalPath]))
   have hmap := map_mem_commutatorSubmodule e hsymm
   rwa [AlgEquiv.apply_symm_apply] at hmap
+
+/-- **Nonzero cyclic classes transfer to every orientation.** A homogeneous element of degree `d`
+of the signless algebra of a two-coloured graph which is not a sum of commutators gives one of the
+same degree in the additive preprojective algebra of each of its orientations: the bipartite sign
+rescaling identifies the two algebras and preserves the grading. -/
+theorem exists_mem_preprojectiveGrade_notMem_commutatorSubmodule (C : G.Coloring Bool)
+    (o : Orientation G) {d : ℕ}
+    (h : ∃ z : signlessPreprojectiveAlgebra k (DoubledQuiver G),
+      z ∈ signlessPreprojectiveGrade k (DoubledQuiver G) d ∧
+        z ∉ commutatorSubmodule k (signlessPreprojectiveAlgebra k (DoubledQuiver G))) :
+    ∃ z : preprojectiveAlgebra k (OrientedQuiver G o),
+      z ∈ preprojectiveGrade k (OrientedQuiver G o) d ∧
+        z ∉ commutatorSubmodule k (preprojectiveAlgebra k (OrientedQuiver G o)) := by
+  obtain ⟨z, hz, hz0⟩ := h
+  let e := C.signlessPreprojectiveAlgebraEquiv k o
+  refine ⟨e z, C.signlessPreprojectiveAlgebraEquiv_mem_preprojectiveGrade k o hz, fun he => hz0 ?_⟩
+  simpa only [AlgEquiv.symm_apply_apply] using map_mem_commutatorSubmodule e.symm he
 
 end Paths
 
