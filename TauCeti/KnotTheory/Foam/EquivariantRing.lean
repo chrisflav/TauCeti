@@ -8,6 +8,7 @@ module
 public import Mathlib.RingTheory.MvPolynomial.WeightedHomogeneous
 public import TauCeti.Algebra.Category.GradedModuleCat.Retract
 import Mathlib.Algebra.EuclideanDomain.Int
+import Mathlib.Algebra.MvPolynomial.Nilpotent
 import Mathlib.LinearAlgebra.Dimension.StrongRankCondition
 import Mathlib.LinearAlgebra.FreeModule.StrongRankCondition
 import Mathlib.Tactic.FinCases
@@ -79,19 +80,10 @@ theorem mem_grading_iff {N : ℕ} {d : ℤ} {p : EquivariantRing N} :
     p ∈ grading N d ↔ p.IsWeightedHomogeneous (weight N) d :=
   Iff.rfl
 
-/-- The grading `grading N` is closed under `1` and multiplication. -/
-instance gradedMonoid (N : ℕ) : SetLike.GradedMonoid (grading N) where
-  one_mem := mem_grading_iff.mpr (MvPolynomial.isWeightedHomogeneous_one ℤ (weight N))
-  mul_mem _ _ _ _ hp hq :=
-    mem_grading_iff.mpr ((mem_grading_iff.mp hp).mul (mem_grading_iff.mp hq))
-
-/-- `EquivariantRing N` is the internal direct sum of the graded pieces `grading N`. -/
-theorem isInternal_grading (N : ℕ) : DirectSum.IsInternal (grading N) :=
-  (MvPolynomial.weightedDecomposition ℤ (weight N)).isInternal
-
 /-- The weighted `ℤ`-grading makes `EquivariantRing N` a graded `ℤ`-algebra. -/
 instance gradedAlgebra (N : ℕ) : GradedAlgebra (grading N) :=
-  (isInternal_grading N).gradedAlgebra
+  (by rfl : MvPolynomial.weightedHomogeneousSubmodule ℤ (weight N) = grading N) ▸
+    MvPolynomial.weightedGradedAlgebra ℤ (weight N)
 
 /-- Every generator weight `2(i + 1)` is strictly positive. -/
 theorem weight_pos {N : ℕ} (i : Fin N) : 0 < weight N i := by
@@ -120,24 +112,9 @@ theorem even_finsupp_weight {N : ℕ} (m : Fin N →₀ ℕ) :
 @[simp]
 theorem finsupp_weight_eq_zero_iff {N : ℕ} (m : Fin N →₀ ℕ) :
     Finsupp.weight (weight N) m = 0 ↔ m = 0 := by
-  constructor
-  · intro h
-    rw [Finsupp.weight_apply, Finsupp.sum] at h
-    have hall : ∀ i ∈ m.support, (m i : ℤ) * weight N i = 0 := by
-      have h' := (Finset.sum_eq_zero_iff_of_nonneg fun i _ => ?_).mp h
-      · intro i hi
-        simpa [nsmul_eq_mul] using h' i hi
-      · rw [nsmul_eq_mul]
-        exact mul_nonneg (Nat.cast_nonneg _) (le_of_lt (weight_pos i))
-    ext i
-    by_contra hi
-    have hmem : i ∈ m.support := Finsupp.mem_support_iff.mpr hi
-    have hmul := hall i hmem
-    have hmi : (m i : ℤ) ≠ 0 := Int.natCast_ne_zero.mpr hi
-    have hw : weight N i ≠ 0 := ne_of_gt (weight_pos i)
-    exact mul_ne_zero hmi hw hmul
-  · rintro rfl
-    simp
+  refine ⟨fun h => Finsupp.ext fun i => by_contra fun hi => ?_, by rintro rfl; simp⟩
+  have hle := Finsupp.le_weight_of_ne_zero (fun j => (weight_pos j).le) hi
+  exact absurd (lt_of_lt_of_le (weight_pos i) (h ▸ hle)) (lt_irrefl 0)
 
 /-- `EquivariantRing N` is nonnegatively graded: all negative-degree pieces vanish. -/
 theorem grading_eq_bot_of_neg (N : ℕ) {d : ℤ} (hd : d < 0) : grading N d = ⊥ := by
@@ -183,18 +160,8 @@ theorem intCast_mem_grading_zero (N : ℕ) (c : ℤ) :
 /-- Every homogeneous unit of `EquivariantRing N` has degree zero. -/
 theorem eq_zero_of_isUnit_mem_grading {N : ℕ} {d : ℤ} {p : EquivariantRing N}
     (hp : IsUnit p) (hd : p ∈ grading N d) : d = 0 := by
-  obtain ⟨u, rfl⟩ := hp
-  have heval : MvPolynomial.eval (0 : Fin N → ℤ) (u : EquivariantRing N) *
-      MvPolynomial.eval (0 : Fin N → ℤ) (↑u⁻¹ : EquivariantRing N) = 1 := by
-    rw [← map_mul, Units.mul_inv, map_one]
-  have hne : (u : EquivariantRing N).coeff 0 ≠ 0 := by
-    intro h0
-    have hev0 : MvPolynomial.eval (0 : Fin N → ℤ) (u : EquivariantRing N) = 0 := by
-      rw [MvPolynomial.eval_zero, MvPolynomial.constantCoeff_eq, h0]
-    rw [hev0, zero_mul] at heval
-    exact zero_ne_one heval
-  have hwt := mem_grading_iff.mp hd hne
-  simpa using hwt.symm
+  have hne : p.coeff 0 ≠ 0 := (MvPolynomial.isUnit_iff.mp hp).1.ne_zero
+  simpa using (mem_grading_iff.mp hd hne).symm
 
 end EquivariantRing
 
@@ -308,12 +275,8 @@ example (N : ℕ) :
   let e : EquivariantRing N ≃ₗ[EquivariantRing N]
       LinearMap.range (LinearMap.id : (Fin 1 → EquivariantRing N) →ₗ[EquivariantRing N]
         (Fin 1 → EquivariantRing N)) :=
-    { toFun := fun r => ⟨fun _ => r, ⟨fun _ => r, rfl⟩⟩
-      invFun := fun v => v.val 0
-      left_inv := fun _ => rfl
-      right_inv := fun v => Subtype.ext (funext fun j => by fin_cases j; rfl)
-      map_add' := fun _ _ => rfl
-      map_smul' := fun _ _ => rfl }
+    (LinearEquiv.funUnique (Fin 1) (EquivariantRing N) (EquivariantRing N)).symm.trans
+      (LinearEquiv.ofTop _ LinearMap.range_id).symm
   obtain ⟨hn, hd⟩ := rank_one_and_deg_of_range_equiv e 0 rfl b d hb
   exact ⟨n, b, d, hn, hd, hb⟩
 

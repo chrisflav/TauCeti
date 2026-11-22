@@ -104,14 +104,13 @@ variable (𝒜) (d)
 `freeGenerator i`. -/
 def freeBasis : Module.Basis I A (free 𝒜 d) := by
   classical
-  exact Module.Basis.ofRepr (finsuppLequivDFinsupp A).symm
+  exact Finsupp.basisSingleOne.map (finsuppLequivDFinsupp A)
 
 /-- The `i`-th coordinate of `x : free 𝒜 d` in the standard basis is `x i`. -/
 @[simp]
 theorem freeBasis_repr_apply (x : free 𝒜 d) (i : I) :
     (freeBasis 𝒜 d).repr x i = x i := by
   classical
-  unfold freeBasis
   rfl
 
 /-- The `i`-th element of the standard basis of `free 𝒜 d` is `freeGenerator i`. -/
@@ -120,8 +119,10 @@ theorem freeBasis_apply (i : I) :
     freeBasis 𝒜 d i = freeGenerator (𝒜 := 𝒜) (d := d) i := by
   classical
   ext j
-  rw [← freeBasis_repr_apply 𝒜 d (freeBasis 𝒜 d i) j, Module.Basis.repr_self,
-    Finsupp.single_apply, freeGenerator_apply]
+  rw [freeBasis, Module.Basis.map_apply, Finsupp.coe_basisSingleOne,
+    finsuppLequivDFinsupp_apply_apply, Finsupp.toDFinsupp_single, DFinsupp.single_apply,
+    freeGenerator_apply]
+  split_ifs <;> simp
 
 /-- The `i`-th standard basis vector of `free 𝒜 d` lies in degree `d i`. -/
 theorem freeBasis_mem_piece (i : I) :
@@ -134,16 +135,14 @@ variable {𝒜 d}
 /-- Transport the standard homogeneous `A`-basis of `free 𝒜 d` along a graded isomorphism. -/
 def freeBasisOfIso {M : GradedModuleCat.{max uA uI} 𝒜}
     (e : free 𝒜 d ≅ M) : Module.Basis I A M :=
-  (freeBasis 𝒜 d).map <|
-    LinearEquiv.ofLinearMap e.hom.hom e.inv.hom
-      (congrArg Hom.hom e.inv_hom_id) (congrArg Hom.hom e.hom_inv_id)
+  (freeBasis 𝒜 d).map (toModuleCat.mapIso e).toLinearEquiv
 
 /-- The `i`-th basis vector obtained from `e : free 𝒜 d ≅ M` is the image of `freeGenerator i`. -/
 @[simp]
 theorem freeBasisOfIso_apply {M : GradedModuleCat.{max uA uI} 𝒜}
     (e : free 𝒜 d ≅ M) (i : I) :
     freeBasisOfIso e i = e.hom.hom (freeGenerator (𝒜 := 𝒜) (d := d) i) := by
-  rw [freeBasisOfIso, Module.Basis.map_apply, freeBasis_apply]
+  rw [← freeBasis_apply (𝒜 := 𝒜) (d := d) i]
   rfl
 
 /-- The `i`-th basis vector obtained from `e : free 𝒜 d ≅ M` has degree `d i`. -/

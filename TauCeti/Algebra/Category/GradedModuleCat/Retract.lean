@@ -11,6 +11,7 @@ public import Mathlib.RingTheory.PrincipalIdealDomain
 public import TauCeti.Algebra.Category.GradedModuleCat.Free
 import Mathlib.Algebra.Module.Torsion.Pi
 import Mathlib.LinearAlgebra.FreeModule.PID
+import Mathlib.LinearAlgebra.Projection
 import TauCeti.Algebra.Module.GradedModule.Nakayama
 
 /-!
@@ -90,11 +91,10 @@ def retractRangeObj (p : M ⟶ M) (hp : p ≫ p = p) : Retract (rangeObj p) M wh
   i := rangeι p
   r := rangeRestrict p
   retract := by
-    apply hom_ext
-    ext ⟨y, x, hx⟩
-    have hp_apply : p.hom (p.hom x) = p.hom x :=
-      LinearMap.congr_fun (congrArg Hom.hom hp) x
-    simp [← hx, hp_apply]
+    refine hom_ext <| LinearMap.ext fun y => Subtype.ext ?_
+    simp only [hom_comp, LinearMap.comp_apply, hom_rangeι, hom_rangeRestrict, hom_id,
+      LinearMap.id_apply, Submodule.coe_subtype]
+    exact (LinearMap.IsIdempotentElem.isProj_range p.hom (congrArg Hom.hom hp)).map_id y.1 y.2
 
 /-- The inclusion map of `retractRangeObj p hp` is `rangeι p`. -/
 @[simp]
@@ -242,39 +242,21 @@ private theorem minShift_le {I : Type} [Fintype I] (s : I → ℤ) (j : I) :
   simp only [minShift, hS, ↓reduceDIte]
   exact Finset.min'_le _ (s j) hmem
 
-/-- Subtracting the degree-`p` shifted summands from a degree-`p` element `z` of `free 𝒜 d` leaves
-an element of `A₊ (free 𝒜 d)`. -/
-private theorem sub_sum_freeGenerator_mem_positive_smul_top
-    (hneg : ∀ i < 0, 𝒜 i = ⊥) {N : ℕ} {d : Fin N → ℤ} {p : ℤ}
-    {J₀ : Type} [Fintype J₀] (idx : J₀ → Fin N)
-    (hidx_inj : Function.Injective idx)
-    (hidx_deg : ∀ r, d (idx r) = p)
-    (hidx_surj : ∀ t, d t = p → ∃ r, idx r = t)
-    {z : free 𝒜 d} (hz : z ∈ (free 𝒜 d).grading.piece p) :
-    z - ∑ r : J₀, z (idx r) • freeGenerator (𝒜 := 𝒜) (d := d) (idx r) ∈
-      (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k (free 𝒜 d)) := by
-  classical
-  let : SetLike.GradedSMul 𝒜 (free 𝒜 d).grading.piece := (free 𝒜 d).gradedSMul
-  have hz₀_mem : ∑ r : J₀, z (idx r) • freeGenerator (𝒜 := 𝒜) (d := d) (idx r) ∈
-      (free 𝒜 d).grading.piece p := by
-    refine (free 𝒜 d).grading.piece p |>.sum_mem fun r _ => ?_
-    have hcoeff : z (idx r) ∈ 𝒜 0 := by
-      have := (mem_free_piece_iff 𝒜 d p z).mp hz (idx r)
-      simpa [hidx_deg r] using this
-    have hgen : freeGenerator (𝒜 := 𝒜) (d := d) (idx r) ∈ (free 𝒜 d).grading.piece p :=
-      hidx_deg r ▸ freeGenerator_mem_free_piece (𝒜 := 𝒜) (d := d) (idx r)
-    simpa using SetLike.GradedSMul.smul_mem (B := (free 𝒜 d).grading.piece) hcoeff hgen
-  refine (mem_free_positive_smul_top_iff hneg
-    ((free 𝒜 d).grading.piece p |>.sub_mem hz hz₀_mem)).mpr fun t ht => ?_
-  obtain ⟨r₀, rfl⟩ := hidx_surj t ht
-  rw [DFinsupp.sub_apply, sub_eq_zero, DFinsupp.finsetSum_apply, Finset.sum_eq_single r₀]
-  · rw [DFinsupp.smul_apply, freeGenerator_apply]
-    simp
-  · intro r _ hrr₀
-    rw [DFinsupp.smul_apply, freeGenerator_apply]
-    simp [hidx_inj.ne hrr₀]
-  · intro hnot
-    exact absurd (Finset.mem_univ r₀) hnot
+/-- Evaluating `freeLift` along an index equivalence on a reindexed generator recovers the
+corresponding homogeneous lift vector. -/
+private theorem freeLift_reindexed_generator {I : Type} [Fintype I] {s : I → ℤ}
+    {M : GradedModuleCat.{uA} 𝒜} {degRank : ℤ → ℕ}
+    (liftVec : ∀ p, Fin (degRank p) → M.grading.piece p)
+    {N : ℕ} (eJ : Fin N ≃ (Σ p : Finset.univ.image s, Fin (degRank p.1)))
+    {p : ℤ} (hp : p ∈ Finset.univ.image s) (r : Fin (degRank p)) :
+    (freeLift (d := fun t => (eJ t).1.1)
+        (fun t => liftVec (eJ t).1.1 (eJ t).2)).hom
+      (freeGenerator (𝒜 := 𝒜) (d := fun t => (eJ t).1.1) (eJ.symm ⟨⟨p, hp⟩, r⟩)) =
+      (liftVec p r : M) := by
+  let liftOfJ (q : Σ q : Finset.univ.image s, Fin (degRank q.1)) : M :=
+    (liftVec q.1.1 q.2 : M)
+  have hv_coe (t : Fin N) : (liftVec (eJ t).1.1 (eJ t).2 : M) = liftOfJ (eJ t) := rfl
+  rw [freeLift_generator, hv_coe, eJ.apply_symm_apply]
 
 /-- A finite `k`-basis of `range (evalZeroPiece h p)` lifted homogeneously to `M_p` for each shift
 degree `p ∈ Finset.univ.image s` induces a graded surjection from the corresponding finite graded
@@ -294,12 +276,6 @@ private theorem surjective_freeLift_of_evalZeroPiece_basis
   let d : Fin N → ℤ := fun t => (eJ t).1.1
   let v : ∀ t : Fin N, M.grading.piece (d t) := fun t => liftVec (eJ t).1.1 (eJ t).2
   let φ : free 𝒜 d ⟶ M := freeLift v
-  let liftOfJ (q : Σ p : S, Fin (degRank p.1)) : M := (liftVec q.1.1 q.2 : M)
-  have hφ_gen (p : ℤ) (hp : p ∈ S) (r : Fin (degRank p)) :
-      φ.hom (freeGenerator (𝒜 := 𝒜) (d := d) (eJ.symm ⟨⟨p, hp⟩, r⟩)) = (liftVec p r : M) := by
-    have hv_coe (t : Fin N) : (v t : M) = liftOfJ (eJ t) := rfl
-    dsimp only [φ]
-    rw [freeLift_generator, hv_coe, eJ.apply_symm_apply]
   have hMbelow : ∀ p < minShift s, M.grading.piece p = ⊥ := fun p hp => by
     have hr_surj : Function.Surjective h.r.hom := fun y =>
       ⟨h.i.hom y, LinearMap.congr_fun (congrArg Hom.hom h.retract) y⟩
@@ -317,7 +293,7 @@ private theorem surjective_freeLift_of_evalZeroPiece_basis
     have hφu : φ.hom u = ∑ t : Fin (degRank p), c t • (liftVec p t : M) := by
       rw [map_sum]
       refine Finset.sum_congr rfl fun t _ => ?_
-      rw [map_smul, hφ_gen p hp t, algebraMap_smul]
+      rw [map_smul, freeLift_reindexed_generator liftVec eJ hp t, algebraMap_smul]
     have hφu_mem : φ.hom u ∈ M.grading.piece p := by
       rw [hφu]
       exact (M.grading.piece p).sum_mem fun t _ =>
@@ -367,42 +343,49 @@ private theorem ker_freeLift_mem_positive_smul_top_of_evalZeroPiece_basis
   let d : Fin N → ℤ := fun t => (eJ t).1.1
   let v : ∀ t : Fin N, M.grading.piece (d t) := fun t => liftVec (eJ t).1.1 (eJ t).2
   let φ : free 𝒜 d ⟶ M := freeLift v
-  let liftOfJ (q : Σ p : S, Fin (degRank p.1)) : M := (liftVec q.1.1 q.2 : M)
-  have hφ_gen (q : ℤ) (hq : q ∈ S) (r : Fin (degRank q)) :
-      φ.hom (freeGenerator (𝒜 := 𝒜) (d := d) (eJ.symm ⟨⟨q, hq⟩, r⟩)) = (liftVec q r : M) := by
-    have hv_coe (t : Fin N) : (v t : M) = liftOfJ (eJ t) := rfl
-    dsimp only [φ]
-    rw [freeLift_generator, hv_coe, eJ.apply_symm_apply]
   refine (mem_free_positive_smul_top_iff hneg hz_free).mpr fun t ht => ?_
   have hp : p ∈ S := ht ▸ (eJ t).1.property
-  let idx (r : Fin (degRank p)) : Fin N := eJ.symm ⟨⟨p, hp⟩, r⟩
-  let z₀ : free 𝒜 d := ∑ r : Fin (degRank p), z (idx r) • freeGenerator (idx r)
-  have hidx_inj : Function.Injective idx := fun r₁ r₂ heq => by
-    have h1 := eJ.symm.injective heq
-    cases h1
-    rfl
-  have hidx_deg (r : Fin (degRank p)) : d (idx r) = p := by simp [d, idx]
-  have hidx_surj (t' : Fin N) (ht' : d t' = p) : ∃ r, idx r = t' := by
-    rcases heJt' : eJ t' with ⟨⟨p', hp'⟩, r₀⟩
-    have hp'eq : p' = p := by simpa [d, heJt'] using ht'
-    subst hp'eq
-    exact ⟨r₀, eJ.injective (by simp [idx, heJt'])⟩
+  let z₀ : free 𝒜 d := DFinsupp.filter (fun t' => d t' = p) z
+  have hz₀_mem_free : z₀ ∈ (free 𝒜 d).grading.piece p :=
+    (mem_free_piece_iff 𝒜 d p z₀).mpr fun t' => by
+      rw [DFinsupp.filter_apply]
+      split_ifs
+      · exact (mem_free_piece_iff 𝒜 d p z).mp hz_free t'
+      · exact Submodule.zero_mem _
   -- Split off the degree-`p` coordinates `z₀`; the remainder lies in `A₊ (free 𝒜 d)`.
   have hsub_pos : z - z₀ ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k (free 𝒜 d)) :=
-    sub_sum_freeGenerator_mem_positive_smul_top hneg idx hidx_inj hidx_deg hidx_surj hz_free
+    (mem_free_positive_smul_top_iff hneg
+      ((free 𝒜 d).grading.piece p |>.sub_mem hz_free hz₀_mem_free)).mpr fun t' ht' => by
+      rw [DFinsupp.sub_apply, DFinsupp.filter_apply_pos z ht', sub_self]
   have hφz₀_pos : φ.hom z₀ ∈ (⨆ (i : ℤ) (_ : 0 < i), 𝒜 i) • (⊤ : Submodule k M) := by
     have h1 := map_mem_positive_smul_top φ hsub_pos
     rw [map_sub, hφz, zero_sub] at h1
     exact (Submodule.neg_mem_iff _).mp h1
-  -- The `k`-coefficients of `z₀` vanish by `k`-linear independence of `degBasis p`.
-  have hcoeff_mem (r : Fin (degRank p)) : z (idx r) ∈ 𝒜 0 := by
-    have := (mem_free_piece_iff 𝒜 d p z).mp hz_free (idx r)
-    simpa [d, idx] using this
+  -- Expand `z₀` on the retained basis vectors and show its `k`-coefficients vanish.
+  have hz₀_sum : z₀ = ∑ r : Fin (degRank p),
+      z (eJ.symm ⟨⟨p, hp⟩, r⟩) • freeGenerator (𝒜 := 𝒜) (d := d) (eJ.symm ⟨⟨p, hp⟩, r⟩) := by
+    rw [← (freeBasis 𝒜 d).sum_repr z₀]
+    rw [Finset.sum_congr rfl fun t' _ => by rw [freeBasis_repr_apply, freeBasis_apply]]
+    rw [Fintype.sum_equiv eJ _ (fun q => z₀ (eJ.symm q) • freeGenerator (eJ.symm q))
+      (fun t' => by rw [Equiv.symm_apply_apply])]
+    rw [Fintype.sum_sigma, Finset.sum_eq_single ⟨p, hp⟩]
+    · refine Finset.sum_congr rfl fun r _ => ?_
+      rw [DFinsupp.filter_apply_pos z (by simp [d])]
+    · intro q _ hqp
+      refine Finset.sum_eq_zero fun r _ => ?_
+      have hne : d (eJ.symm ⟨q, r⟩) ≠ p := by
+        simpa [d] using fun h => hqp (Subtype.ext h)
+      rw [DFinsupp.filter_apply_neg z hne, zero_smul]
+    · intro hnot
+      exact absurd (Finset.mem_univ (⟨p, hp⟩ : S)) hnot
+  have hcoeff_mem (r : Fin (degRank p)) : z (eJ.symm ⟨⟨p, hp⟩, r⟩) ∈ 𝒜 0 := by
+    have := (mem_free_piece_iff 𝒜 d p z).mp hz_free (eJ.symm ⟨⟨p, hp⟩, r⟩)
+    simpa [d] using this
   choose c hc using fun r => hzero _ (hcoeff_mem r)
   have hφz₀_eq : φ.hom z₀ = ∑ r : Fin (degRank p), c r • (liftVec p r : M) := by
-    rw [map_sum]
+    rw [hz₀_sum, map_sum]
     refine Finset.sum_congr rfl fun r _ => ?_
-    rw [map_smul, ← hc r, hφ_gen p hp r, algebraMap_smul]
+    rw [map_smul, ← hc r, freeLift_reindexed_generator liftVec eJ hp r, algebraMap_smul]
   have hz₀_mem : φ.hom z₀ ∈ M.grading.piece p := by
     rw [hφz₀_eq]
     exact (M.grading.piece p).sum_mem fun r _ =>
@@ -421,8 +404,11 @@ private theorem ker_freeLift_mem_positive_smul_top_of_evalZeroPiece_basis
   have hc_zero (r : Fin (degRank p)) : c r = 0 := by
     have hr := congrArg (fun x => (degBasis p).repr x r) hlin
     simpa [Finsupp.single_apply] using hr
-  obtain ⟨r₀, rfl⟩ := hidx_surj t ht
-  rw [← hc r₀, hc_zero r₀, map_zero]
+  rcases heJt : eJ t with ⟨⟨p', hp'⟩, r₀⟩
+  have hp'eq : p' = p := by simpa [d, heJt] using ht
+  subst p'
+  have ht_eq : t = eJ.symm ⟨⟨p, hp⟩, r₀⟩ := eJ.injective (by simp [heJt])
+  rw [ht_eq, ← hc r₀, hc_zero r₀, map_zero]
 
 /-- If a graded morphism `φ : free 𝒜 d ⟶ M` from a bounded-below graded free module has a
 degree-zero section and every homogeneous element of `ker φ` lies in `A₊ (free 𝒜 d)`, then `φ` is
@@ -500,7 +486,7 @@ private def piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin m) (s : I → �
     (hhom : ∀ (d : ℤ) (v : I → A), (∀ j, v j ∈ 𝒜 (d - s j)) → ∀ j, p v j ∈ 𝒜 (d - s j)) :
     free 𝒜 (s ∘ eI.symm) ⟶ free 𝒜 (s ∘ eI.symm) :=
   let e := freeEquivPi (𝒜 := 𝒜) eI s
-  ofHom (e.symm.toLinearMap.comp (p.comp e.toLinearMap)) <|
+  ofHom (e.symm.conjRingEquiv p) <|
     LinearMap.isHomogeneous_def.mpr fun d x hx => by
       rw [add_zero, mem_free_piece_iff]
       intro t
@@ -508,16 +494,15 @@ private def piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin m) (s : I → �
         rw [freeEquivPi_apply]
         have hj := (mem_free_piece_iff 𝒜 (s ∘ eI.symm) d x).mp hx (eI j)
         simpa only [Function.comp_apply, Equiv.symm_apply_apply] using hj
-      rw [LinearMap.comp_apply, LinearMap.comp_apply, LinearEquiv.coe_toLinearMap,
-        LinearEquiv.coe_toLinearMap, freeEquivPi_symm_apply]
+      change e.symm (p (e x)) t ∈ 𝒜 (d - (s ∘ eI.symm) t)
+      rw [freeEquivPi_symm_apply]
       exact hhom d (e x) hx' (eI.symm t)
 
 private theorem hom_piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin m) (s : I → ℤ)
     (p : (I → A) →ₗ[A] (I → A))
     (hhom : ∀ (d : ℤ) (v : I → A), (∀ j, v j ∈ 𝒜 (d - s j)) → ∀ j, p v j ∈ 𝒜 (d - s j)) :
     (piEndToFree (𝒜 := 𝒜) eI s p hhom).hom =
-      (freeEquivPi (𝒜 := 𝒜) eI s).symm.toLinearMap.comp
-        (p.comp (freeEquivPi (𝒜 := 𝒜) eI s).toLinearMap) :=
+      (freeEquivPi (𝒜 := 𝒜) eI s).symm.conjRingEquiv p :=
   rfl
 
 private theorem freeEquivPi_piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin m) (s : I → ℤ)
@@ -525,9 +510,8 @@ private theorem freeEquivPi_piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin 
     (hhom : ∀ (d : ℤ) (v : I → A), (∀ j, v j ∈ 𝒜 (d - s j)) → ∀ j, p v j ∈ 𝒜 (d - s j))
     (x : free 𝒜 (s ∘ eI.symm)) :
     freeEquivPi (𝒜 := 𝒜) eI s ((piEndToFree (𝒜 := 𝒜) eI s p hhom).hom x) =
-      p (freeEquivPi (𝒜 := 𝒜) eI s x) := by
-  rw [hom_piEndToFree, LinearMap.comp_apply, LinearMap.comp_apply, LinearEquiv.coe_toLinearMap,
-    LinearEquiv.coe_toLinearMap, LinearEquiv.apply_symm_apply]
+      p (freeEquivPi (𝒜 := 𝒜) eI s x) :=
+  (freeEquivPi (𝒜 := 𝒜) eI s).apply_symm_apply (p (freeEquivPi (𝒜 := 𝒜) eI s x))
 
 private theorem freeEquivPi_comp_hom_piEndToFree {I : Type uI} {m : ℕ} (eI : I ≃ Fin m) (s : I → ℤ)
     (p : (I → A) →ₗ[A] (I → A))
@@ -540,11 +524,9 @@ private theorem piEndToFree_idempotent {I : Type uI} {m : ℕ} (eI : I ≃ Fin m
     (p : (I → A) →ₗ[A] (I → A)) (hp : p.comp p = p)
     (hhom : ∀ (d : ℤ) (v : I → A), (∀ j, v j ∈ 𝒜 (d - s j)) → ∀ j, p v j ∈ 𝒜 (d - s j)) :
     piEndToFree (𝒜 := 𝒜) eI s p hhom ≫ piEndToFree (𝒜 := 𝒜) eI s p hhom =
-      piEndToFree (𝒜 := 𝒜) eI s p hhom := by
-  apply hom_ext
-  refine LinearMap.ext fun x => (freeEquivPi (𝒜 := 𝒜) eI s).injective ?_
-  rw [hom_comp, LinearMap.comp_apply, freeEquivPi_piEndToFree, freeEquivPi_piEndToFree,
-    ← LinearMap.comp_apply, hp]
+      piEndToFree (𝒜 := 𝒜) eI s p hhom :=
+  hom_ext (IsIdempotentElem.map (show IsIdempotentElem p from hp)
+    (freeEquivPi (𝒜 := 𝒜) eI s).symm.conjRingEquiv)
 
 end PositiveAction
 

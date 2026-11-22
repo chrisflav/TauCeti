@@ -258,10 +258,8 @@ theorem hom_rangeRestrict : (rangeRestrict f).hom = f.hom.rangeRestrict := by
 
 /-- Factoring `f` through its graded image recovers `f`. -/
 @[reassoc (attr := simp)]
-theorem rangeRestrict_comp_rangeι : rangeRestrict f ≫ rangeι f = f := by
-  apply hom_ext
-  ext x
-  simp
+theorem rangeRestrict_comp_rangeι : rangeRestrict f ≫ rangeι f = f :=
+  hom_ext (LinearMap.subtype_comp_rangeRestrict f.hom)
 
 end Range
 
