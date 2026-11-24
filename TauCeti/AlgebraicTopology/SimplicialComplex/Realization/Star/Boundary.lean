@@ -47,11 +47,18 @@ variable {ι : Type*} [DecidableEq ι] {K : AbstractSimplicialComplex ι} {v : �
 /-- A combinatorial ball link supplies an open half-ball model at the vertex.
 The radius is one minus the apex coordinate, including when the link is a zero-ball
 and the model is a half-interval. -/
-theorem IsCombinatorialBall.exists_homeomorph_openStar_halfBall
-    (h : IsCombinatorialBall (link K.toPreAbstractSimplicialComplex {v}) n) :
+theorem exists_homeomorph_openStar_halfBall_of_homeomorph
+    (hfin : (link K.toPreAbstractSimplicialComplex {v}).faces.Finite)
+    (a : {x : Realization K // x.val.support ∈ K.link {v}} ≃ₜ
+      closedBall (0 : EuclideanSpace ℝ (Fin n)) 1) :
     ∃ e : openStarRealization K v ≃ₜ
         {z : EuclideanHalfSpace (n + 1) | ‖z.val‖ < 1},
-      ∀ x, ‖(e x).val.val‖ = 1 - x.val.val v := by
+      (∀ x, ‖(e x).val.val‖ = 1 - x.val.val v) ∧
+      ∀ (x : puncturedClosedStar K v) (hx : x.val ∈ openStarRealization K v),
+        ((e ⟨x.val, hx⟩).val.val 0 = 0 ↔
+          ‖(a ⟨(starLinkProjection K v x).val,
+            (mem_geometricLink_iff K v _).mp (starLinkProjection K v x).property⟩ :
+              EuclideanSpace ℝ (Fin n))‖ = 1) := by
   let E := EuclideanSpace ℝ (Fin (n + 1))
   let p : sphere (0 : E) 1 := ⟨EuclideanSpace.single 0 1,
     mem_sphere_zero_iff_norm.mpr (by
@@ -63,12 +70,10 @@ theorem IsCombinatorialBall.exists_homeomorph_openStar_halfBall
   let d : closedBall (0 : EuclideanSpace ℝ (Fin n)) 1 ≃ₜ
       closedBall (0 : (ℝ ∙ (p : E))ᗮ) 1 :=
     b.toHomeomorph.subtype fun x => by simp
-  obtain ⟨a⟩ := h.nonempty_homeomorph_closedBall link_le
   let r := Homeomorph.setCongr (s := K.geometricLink v)
     (t := {x : Realization K | x.val.support ∈ K.link {v}}) (Set.ext (mem_geometricLink_iff K v))
   let l := r.trans (a.trans (d.trans (TauCeti.hemisphereHomeomorph p).symm))
-  have hc := K.isCompact_closedStarRealization
-    (finite_faces_closedStar_iff.mpr h.finite_faces)
+  have hc := K.isCompact_closedStarRealization (finite_faces_closedStar_iff.mpr hfin)
   let f := openStarHomeomorphHalfBall hc l
   have hinner (z : E) : ⟪z, (p : E)⟫ = z 0 := by
     simp [p, E, EuclideanSpace.inner_single_right]
@@ -84,9 +89,70 @@ theorem IsCombinatorialBall.exists_homeomorph_openStar_halfBall
     continuous_toFun := by fun_prop
     continuous_invFun := by fun_prop }
   have hq (z) : (q z).val.val = (z : E) := rfl
-  refine ⟨f.trans q, fun x => ?_⟩
-  rw [Homeomorph.trans_apply, hq, coe_openStarHomeomorphHalfBall_apply,
-    norm_closedStarHomeomorphHalfBall]
+  refine ⟨f.trans q, fun x => ?_, fun x hx => ?_⟩
+  · rw [Homeomorph.trans_apply, hq, coe_openStarHomeomorphHalfBall_apply,
+      norm_closedStarHomeomorphHalfBall]
+  · have hxlt : x.val.val v < 1 := ((mem_puncturedClosedStar K v x.val).mp x.property).2
+    have hne : 1 - x.val.val v ≠ 0 := (sub_pos.mpr hxlt).ne'
+    have hcoeff :
+        (f ⟨x.val, hx⟩ : E) =
+          (1 - x.val.val v) • ((l (starLinkProjection K v x)).val : E) := by
+      rw [coe_openStarHomeomorphHalfBall_apply, coe_closedStarHomeomorphHalfBall_of_lt hc l _ hxlt]
+    have hnorm_d (u : closedBall (0 : EuclideanSpace ℝ (Fin n)) 1) :
+        ‖(d u : (ℝ ∙ (p : E))ᗮ)‖ = ‖(u : EuclideanSpace ℝ (Fin n))‖ := by
+      exact b.norm_map _
+    rw [Homeomorph.trans_apply, hq, ← hinner, hcoeff, real_inner_smul_left, mul_eq_zero,
+      or_iff_right hne, ← TauCeti.norm_hemisphereHomeomorph_apply_eq_one_iff p]
+    have hhl : TauCeti.hemisphereHomeomorph p (l (starLinkProjection K v x)) =
+        d (a (r (starLinkProjection K v x))) := by
+      simp [l]
+    rw [hhl, hnorm_d]
+    rfl
+
+/-- A combinatorial ball link supplies an open half-ball model at the vertex.
+The radius is one minus the apex coordinate, including when the link is a zero-ball
+and the model is a half-interval. -/
+theorem IsCombinatorialBall.exists_homeomorph_openStar_halfBall
+    (h : IsCombinatorialBall (link K.toPreAbstractSimplicialComplex {v}) n) :
+    ∃ e : openStarRealization K v ≃ₜ
+        {z : EuclideanHalfSpace (n + 1) | ‖z.val‖ < 1},
+      ∀ x, ‖(e x).val.val‖ = 1 - x.val.val v := by
+  obtain ⟨a⟩ := h.nonempty_homeomorph_closedBall link_le
+  obtain ⟨e, he, -⟩ := exists_homeomorph_openStar_halfBall_of_homeomorph h.finite_faces a
+  exact ⟨e, he⟩
+
+/-- Given a homeomorphism from a finite vertex link to the closed unit `n`-ball, its open vertex
+star carries a chart onto the open unit half-ball whose zero-coordinate slice detects the unit
+sphere of that ball. -/
+theorem exists_openPartialHomeomorph_openStar_halfBall_of_homeomorph
+    (hfin : (link K.toPreAbstractSimplicialComplex {v}).faces.Finite)
+    (a : {x : Realization K // x.val.support ∈ K.link {v}} ≃ₜ
+      closedBall (0 : EuclideanSpace ℝ (Fin n)) 1) :
+    ∃ c : OpenPartialHomeomorph (Realization K) (EuclideanHalfSpace (n + 1)),
+      c.source = openStarRealization K v ∧
+      c.target = {z | ‖z.val‖ < 1} ∧
+      c (vertex K v) = 0 ∧
+      (∀ x : openStarRealization K v, ‖(c x.val).val‖ = 1 - x.val.val v) ∧
+      ∀ (x : puncturedClosedStar K v), x.val ∈ openStarRealization K v →
+        ((c x.val).val 0 = 0 ↔
+          ‖(a ⟨(starLinkProjection K v x).val,
+            (mem_geometricLink_iff K v _).mp (starLinkProjection K v x).property⟩ :
+              EuclideanSpace ℝ (Fin n))‖ = 1) := by
+  obtain ⟨e, he, hbd⟩ := exists_homeomorph_openStar_halfBall_of_homeomorph hfin a
+  have hU : IsOpen {z : EuclideanHalfSpace (n + 1) | ‖z.val‖ < 1} :=
+    isOpen_lt continuous_subtypeVal.norm continuous_const
+  obtain ⟨c, hs, ht, hc⟩ := OpenPartialHomeomorph.exists_source_eq_target_eq_of_homeomorph
+    (K.isOpen_openStarRealization v) hU e ⟨vertex K v, by simp [mem_openStarRealization]⟩
+  have hradius (x : openStarRealization K v) : ‖(c x.val).val‖ = 1 - x.val.val v := by
+    rw [hc x]
+    exact he x
+  refine ⟨c, hs, ht, ?_, hradius, ?_⟩
+  · apply Subtype.ext
+    apply norm_eq_zero.mp
+    simpa using hradius ⟨vertex K v, by simp [mem_openStarRealization]⟩
+  · intro x hx
+    rw [hc ⟨x.val, hx⟩]
+    exact hbd x hx
 
 /-- A combinatorial ball link gives a chart on the weak realization with source
 the open vertex star and target the open unit half-ball. Its radius records the
@@ -98,17 +164,9 @@ theorem IsCombinatorialBall.exists_openPartialHomeomorph_openStar_halfBall
       c.target = {z | ‖z.val‖ < 1} ∧
       c (vertex K v) = 0 ∧
       ∀ x : openStarRealization K v, ‖(c x.val).val‖ = 1 - x.val.val v := by
-  obtain ⟨e, he⟩ := h.exists_homeomorph_openStar_halfBall
-  have hU : IsOpen {z : EuclideanHalfSpace (n + 1) | ‖z.val‖ < 1} :=
-    isOpen_lt continuous_subtypeVal.norm continuous_const
-  obtain ⟨c, hs, ht, hc⟩ := OpenPartialHomeomorph.exists_source_eq_target_eq_of_homeomorph
-    (K.isOpen_openStarRealization v) hU e ⟨vertex K v, by simp [mem_openStarRealization]⟩
-  have hradius (x : openStarRealization K v) : ‖(c x.val).val‖ = 1 - x.val.val v := by
-    rw [hc x]
-    exact he x
-  refine ⟨c, hs, ht, ?_, hradius⟩
-  · apply Subtype.ext
-    apply norm_eq_zero.mp
-    simpa using hradius ⟨vertex K v, by simp [mem_openStarRealization]⟩
+  obtain ⟨a⟩ := h.nonempty_homeomorph_closedBall link_le
+  obtain ⟨c, hs, ht, hv, hr, -⟩ :=
+    exists_openPartialHomeomorph_openStar_halfBall_of_homeomorph h.finite_faces a
+  exact ⟨c, hs, ht, hv, hr⟩
 
 end PreAbstractSimplicialComplex

@@ -176,6 +176,78 @@ theorem isBoundaryPoint_iff [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E
 
 end OpenPartialHomeomorph
 
+namespace Homeomorph
+
+variable (I I')
+
+/-- **Topological invariance of interior points.** A homeomorphism between charted spaces modelled
+with corners on spaces of the same finite dimension preserves interior points. -/
+theorem isInteriorPoint_iff [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') (x : M) :
+    I.IsInteriorPoint x ↔ I'.IsInteriorPoint (e x) :=
+  e.toOpenPartialHomeomorph.isInteriorPoint_iff I I' hEE' (mem_univ x)
+
+/-- **Topological invariance of boundary points.** A homeomorphism between charted spaces modelled
+with corners on spaces of the same finite dimension preserves boundary points. -/
+theorem isBoundaryPoint_iff [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') (x : M) :
+    I.IsBoundaryPoint x ↔ I'.IsBoundaryPoint (e x) :=
+  e.toOpenPartialHomeomorph.isBoundaryPoint_iff I I' hEE' (mem_univ x)
+
+/-- A homeomorphism between charted spaces modelled on spaces of the same finite dimension
+preserves and reflects membership in the manifold boundary. -/
+theorem mem_boundary_iff [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') (x : M) :
+    e x ∈ I'.boundary N ↔ x ∈ I.boundary M :=
+  (e.isBoundaryPoint_iff I I' hEE' x).symm
+
+/-- A homeomorphism between charted spaces modelled on spaces of the same finite dimension
+preserves and reflects membership in the manifold interior. -/
+theorem mem_interior_iff [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') (x : M) :
+    e x ∈ I'.interior N ↔ x ∈ I.interior M :=
+  (e.isInteriorPoint_iff I I' hEE' x).symm
+
+/-- **Invariance of the boundary.** A homeomorphism between charted spaces modelled on spaces of
+the same finite dimension carries the manifold boundary onto the manifold boundary. -/
+theorem image_boundary [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') :
+    e '' I.boundary M = I'.boundary N := by
+  ext y
+  refine ⟨?_, fun hy => ⟨e.symm y, (e.mem_boundary_iff I I' hEE' (e.symm y)).mp (by simpa using hy),
+    e.apply_symm_apply y⟩⟩
+  rintro ⟨x, hx, rfl⟩
+  exact (e.mem_boundary_iff I I' hEE' x).mpr hx
+
+/-- A homeomorphism between charted spaces modelled on spaces of the same finite dimension pulls
+the manifold boundary back to the manifold boundary. -/
+theorem preimage_boundary [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') :
+    e ⁻¹' I'.boundary N = I.boundary M := by
+  ext x
+  exact e.mem_boundary_iff I I' hEE' x
+
+/-- A homeomorphism between charted spaces modelled on spaces of the same finite dimension carries
+the manifold interior onto the manifold interior. -/
+theorem image_manifoldInterior [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') :
+    e '' I.interior M = I'.interior N := by
+  ext y
+  refine ⟨?_, fun hy => ⟨e.symm y, (e.mem_interior_iff I I' hEE' (e.symm y)).mp (by simpa using hy),
+    e.apply_symm_apply y⟩⟩
+  rintro ⟨x, hx, rfl⟩
+  exact (e.mem_interior_iff I I' hEE' x).mpr hx
+
+/-- A homeomorphism between charted spaces modelled on spaces of the same finite dimension pulls
+the manifold interior back to the manifold interior. -/
+theorem preimage_manifoldInterior [FiniteDimensional 𝕜 E] [FiniteDimensional 𝕜 E']
+    (e : M ≃ₜ N) (hEE' : finrank 𝕜 E = finrank 𝕜 E') :
+    e ⁻¹' I'.interior N = I.interior M := by
+  ext x
+  exact e.mem_interior_iff I I' hEE' x
+
+end Homeomorph
+
 namespace ModelWithCorners
 
 /-- **Chart independence of interior points.** On a charted space modelled with corners on a
