@@ -15,7 +15,10 @@ This file defines `ω_k = TauCeti.unitBallVolume k`, the volume of the unit ball
 `EuclideanSpace ℝ (Fin k)`, and expresses the volume of every ball of radius `r` in a
 `k`-dimensional real inner product space as `ω_k r ^ k`
 (`TauCeti.volume_ball_eq_unitBallVolume_mul`, `TauCeti.volume_closedBall_eq_unitBallVolume_mul`).
-It records `ω_1 = 2` and `ω_2 = π` (`TauCeti.unitBallVolume_one`, `TauCeti.unitBallVolume_two`).
+Inscribing a cube of side `2 / √k` gives `(2 / √k) ^ k ≤ ω_k`
+(`TauCeti.two_div_sqrt_pow_le_unitBallVolume`, and
+`TauCeti.two_div_sqrt_pow_le_volumeReal_closedBall` for general radii). It records `ω_1 = 2` and
+`ω_2 = π` (`TauCeti.unitBallVolume_one`, `TauCeti.unitBallVolume_two`).
 The constant `ω_k` normalizes the `k`-dimensional densities of a measure.
 -/
 
@@ -95,5 +98,62 @@ theorem unitBallVolume_one : unitBallVolume 1 = 2 := by
 theorem unitBallVolume_two : unitBallVolume 2 = ENNReal.ofReal Real.pi := by
   rw [unitBallVolume_def, EuclideanSpace.volume_ball_fin_two, ENNReal.ofReal_one, one_pow,
     one_mul]
+
+/-- Inscribing a cube of side `2 / √k` inside the closed unit ball of `ℝ ^ k` shows that
+`(2 / √k) ^ k ≤ ω_k`. -/
+theorem two_div_sqrt_pow_le_unitBallVolume (k : ℕ) :
+    ENNReal.ofReal (2 / √(k : ℝ)) ^ k ≤ unitBallVolume k := by
+  set s : ℝ := 1 / √(k : ℝ)
+  set Q : Set (Fin k → ℝ) := Set.Icc (fun _ ↦ -s) (fun _ ↦ s)
+  have hsub : WithLp.ofLp ⁻¹' Q ⊆ closedBall (0 : EuclideanSpace ℝ (Fin k)) 1 := by
+    intro x hx
+    rw [mem_closedBall_zero_iff, ← sq_le_one_iff₀ (norm_nonneg x),
+      EuclideanSpace.real_norm_sq_eq]
+    have hsq : ∀ i : Fin k, x i ^ 2 ≤ s ^ 2 := fun i ↦ by
+      have hi : x i ∈ Set.Icc (-s) s := ⟨hx.1 i, hx.2 i⟩
+      exact sq_le_sq.2 <| by simpa [abs_of_nonneg (show 0 ≤ s by positivity)] using abs_le.2 hi
+    calc ∑ i : Fin k, x i ^ 2 ≤ ∑ _i : Fin k, s ^ 2 := Finset.sum_le_sum fun i _ ↦ hsq i
+      _ = (k : ℝ) * (1 / (k : ℝ)) := by
+          simp [s, Real.sq_sqrt (Nat.cast_nonneg k)]
+      _ ≤ 1 := by
+          rcases eq_or_ne k 0 with rfl | hk
+          · simp
+          · rw [mul_one_div_cancel (Nat.cast_ne_zero.2 hk)]
+  have hvolQ : volume (WithLp.ofLp ⁻¹' Q : Set (EuclideanSpace ℝ (Fin k))) =
+      ENNReal.ofReal (2 / √(k : ℝ)) ^ k := by
+    rw [(PiLp.volume_preserving_ofLp (Fin k)).measure_preimage
+      measurableSet_Icc.nullMeasurableSet, Real.volume_Icc_pi]
+    simp [s, sub_neg_eq_add,
+      show (√(k : ℝ))⁻¹ + (√(k : ℝ))⁻¹ = 2 / √(k : ℝ) by ring]
+  have hball : volume (closedBall (0 : EuclideanSpace ℝ (Fin k)) 1) = unitBallVolume k := by
+    rw [volume_closedBall_eq_unitBallVolume_mul 0 zero_le_one, finrank_euclideanSpace_fin,
+      ENNReal.ofReal_one, one_pow, mul_one]
+  exact hvolQ ▸ hball ▸ measure_mono hsub
+
+section InnerProductSpace
+
+variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
+  [MeasurableSpace E] [BorelSpace E]
+
+/-- A closed ball of radius `r ≥ 0` in a `k`-dimensional real inner product space has volume at
+least `(2 * r / √k) ^ k`, by inscribing a hypercube of side `2 * r / √k`. -/
+theorem two_div_sqrt_pow_le_volume_closedBall (x : E) {r : ℝ} (hr : 0 ≤ r) :
+    ENNReal.ofReal (2 * r / √(finrank ℝ E : ℝ)) ^ finrank ℝ E ≤
+      volume (closedBall x r) := by
+  rw [volume_closedBall_eq_unitBallVolume_mul x hr,
+    show 2 * r / √(finrank ℝ E : ℝ) = 2 / √(finrank ℝ E : ℝ) * r by ring,
+    ENNReal.ofReal_mul (by positivity), mul_pow]
+  exact mul_le_mul_left (two_div_sqrt_pow_le_unitBallVolume (finrank ℝ E)) _
+
+/-- Real-valued form of `TauCeti.two_div_sqrt_pow_le_volume_closedBall`: a closed ball of radius
+`r ≥ 0` in a `k`-dimensional real inner product space has real volume at least
+`(2 * r / √k) ^ k`. -/
+theorem two_div_sqrt_pow_le_volumeReal_closedBall (x : E) {r : ℝ} (hr : 0 ≤ r) :
+    (2 * r / √(finrank ℝ E : ℝ)) ^ finrank ℝ E ≤ volume.real (closedBall x r) := by
+  have h := ENNReal.toReal_mono measure_closedBall_lt_top.ne
+    (two_div_sqrt_pow_le_volume_closedBall x hr)
+  rwa [← measureReal_def, ENNReal.toReal_pow, ENNReal.toReal_ofReal (by positivity)] at h
+
+end InnerProductSpace
 
 end TauCeti

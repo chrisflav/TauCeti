@@ -45,7 +45,10 @@ dimension, and the preimage of a submodule `p` inside another submodule `q` has 
 finite-dimensional subspace `p` under a map `f` with finite-dimensional kernel has dimension
 `dim (range f ⊓ p) + dim (ker f)` (`LinearMap.finrank_comap`). An `R`-submodule of
 rank less than `ℵ₀` has finite-dimensional `K`-span over any division ring `K` receiving `R`
-faithfully (`Submodule.finiteDimensional_span_of_rank_lt_aleph0`).
+faithfully (`Submodule.finiteDimensional_span_of_rank_lt_aleph0`). Finally, a surjection onto a
+finite product `ι → F` stays surjective on at least one coordinate block when restricted to a
+subspace of codimension strictly less than `#ι`
+(`LinearMap.exists_surjective_proj_comp_domRestrict`).
 -/
 
 public section
@@ -417,6 +420,53 @@ theorem finrank_comap_of_surjective {K : Type*} {M : Type u} {N : Type v} [Divis
     [FiniteDimensional K (ker f)] :
     Module.finrank K (p.comap f) = Module.finrank K p + Module.finrank K (ker f) := by
   rw [finrank_comap, range_eq_top.mpr hf, top_inf_eq]
+
+/-- If a linear map `φ : E →ₗ[𝕜] ι → F` out of a finite-dimensional space is surjective and
+`W` is a subspace with `dim E < dim W + #ι` (that is, codimension strictly less than `#ι`), then
+at least one coordinate block `LinearMap.proj i ∘ₗ φ` restricts to a surjection on `W`. -/
+theorem exists_surjective_proj_comp_domRestrict {𝕜 E ι F : Type*} [DivisionRing 𝕜]
+    [AddCommGroup E] [Module 𝕜 E] [FiniteDimensional 𝕜 E] [Fintype ι]
+    [AddCommGroup F] [Module 𝕜 F] {φ : E →ₗ[𝕜] ι → F} (hφ : Function.Surjective φ)
+    (W : Submodule 𝕜 E)
+    (hdim : Module.finrank 𝕜 E < Module.finrank 𝕜 W + Fintype.card ι) :
+    ∃ i : ι, Function.Surjective ((proj i ∘ₗ φ).domRestrict W) := by
+  have hcard : 0 < Fintype.card ι := by have := W.finrank_le; omega
+  obtain ⟨i₀⟩ := Fintype.card_pos_iff.mp hcard
+  have : FiniteDimensional 𝕜 F := Module.Finite.of_surjective (proj i₀ ∘ₗ φ) fun y ↦
+    (hφ fun _ ↦ y).imp fun x hx ↦ congrFun hx i₀
+  by_contra! hnot
+  let H : ι → Submodule 𝕜 F := fun i ↦ (W.map φ).map (proj i)
+  have hH_lt : ∀ i, H i < ⊤ := fun i ↦ by
+    refine lt_top_iff_ne_top.mpr fun htop ↦ hnot i ?_
+    rw [← range_eq_top, range_domRestrict, Submodule.map_comp]
+    exact htop
+  have hpi : W.map φ ≤ Submodule.pi Set.univ H := fun y hy i _ ↦ Submodule.mem_map_of_mem hy
+  let e : Submodule.pi Set.univ H ≃ₗ[𝕜] (∀ i, H i) :=
+    { toFun := fun x i ↦ ⟨x.val i, x.property i (Set.mem_univ i)⟩
+      invFun := fun x ↦ ⟨fun i ↦ (x i : F), fun i _ ↦ (x i).property⟩
+      map_add' := fun _ _ ↦ rfl
+      map_smul' := fun _ _ ↦ rfl
+      left_inv := fun _ ↦ rfl
+      right_inv := fun _ ↦ rfl }
+  have hH_le : Module.finrank 𝕜 (W.map φ) ≤ ∑ i : ι, Module.finrank 𝕜 (H i) := by
+    refine (Submodule.finrank_mono hpi).trans ?_
+    rw [e.finrank_eq, Module.finrank_pi_fintype]
+  have hblock :
+      ∑ i : ι, Module.finrank 𝕜 (H i) + Fintype.card ι ≤
+        Module.finrank 𝕜 (ι → F) := by
+    rw [Module.finrank_pi_fintype, ← Finset.card_univ, Finset.card_eq_sum_ones,
+      ← Finset.sum_add_distrib]
+    exact Finset.sum_le_sum fun i _ ↦
+      finrank_top 𝕜 F ▸ Submodule.finrank_lt_finrank_of_lt (hH_lt i)
+  have hrk := (φ.domRestrict W).finrank_range_add_finrank_ker
+  have hker : Module.finrank 𝕜 (ker (φ.domRestrict W)) ≤ Module.finrank 𝕜 (ker φ) := by
+    have : Module.Finite 𝕜 (ker φ) := inferInstance
+    rw [ker_domRestrict, Submodule.finrank_comap_subtype]
+    exact Submodule.finrank_mono inf_le_left
+  have hfull := φ.finrank_range_add_finrank_ker
+  rw [range_eq_top.mpr hφ, finrank_top] at hfull
+  rw [range_domRestrict] at hrk
+  omega
 
 end LinearMap
 
