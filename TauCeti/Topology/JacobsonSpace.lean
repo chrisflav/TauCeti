@@ -49,3 +49,20 @@ theorem IsLocallyClosed.finite_of_finite_inter_closedPoints {X : Type*} [Topolog
     exact h.isClosed_biUnion fun _ hx ↦ hx.2
   refine h.subset (subset_closure.trans ?_)
   rw [← JacobsonSpace.closure_inter_closedPoints_eq_closure hZ, hc.closure_eq]
+
+/-- **A locally closed subset containing every closed point of a Jacobson space is the whole
+space**: writing it as `U ∩ C` with `U` open and `C` closed, both `Uᶜ` (closed) and `Cᶜ`
+(open) are locally closed subsets containing no closed point, hence empty. -/
+theorem IsLocallyClosed.eq_univ_of_closedPoints_subset {X : Type*} [TopologicalSpace X]
+    [JacobsonSpace X] {Z : Set X} (hZ : IsLocallyClosed Z) (h : closedPoints X ⊆ Z) :
+    Z = Set.univ := by
+  obtain ⟨U, C, hU, hC, rfl⟩ := hZ
+  have hUc : Uᶜ = ∅ := Set.eq_empty_of_forall_notMem fun x hx ↦ by
+    obtain ⟨y, hyU, hyc⟩ :=
+      nonempty_inter_closedPoints ⟨x, hx⟩ hU.isClosed_compl.isLocallyClosed
+    exact hyU (h hyc).1
+  have hCc : Cᶜ = ∅ := Set.eq_empty_of_forall_notMem fun x hx ↦ by
+    obtain ⟨y, hyC, hyc⟩ :=
+      nonempty_inter_closedPoints ⟨x, hx⟩ hC.isOpen_compl.isLocallyClosed
+    exact hyC (h hyc).2
+  rw [Set.compl_empty_iff.mp hUc, Set.compl_empty_iff.mp hCc, Set.inter_univ]

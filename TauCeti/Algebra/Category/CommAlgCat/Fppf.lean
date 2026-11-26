@@ -16,6 +16,8 @@ public import Mathlib.RingTheory.RingHom.FaithfullyFlat
 public import Mathlib.RingTheory.RingHom.FinitePresentation
 import Mathlib.RingTheory.FiniteStability
 import TauCeti.AlgebraicGeometry.Sites.Fpqc
+import TauCeti.CategoryTheory.Sites.Canonical
+import TauCeti.CategoryTheory.Sites.Continuous
 
 /-!
 # The affine fppf site
@@ -48,6 +50,9 @@ points is fppf locally surjective is surjective, because fppf covers are jointly
   points is a morphism of schemes over `Spec R`.
 * `TauCeti.CommAlgCat.surjective_of_isLocallySurjective_pointsSheafFunctor_map`: a morphism
   inducing a locally surjective map of fppf sheaves of points is surjective.
+* `TauCeti.CommAlgCat.isLocallySurjective_pointsSheafFunctor_map_of_flat`: a flat, locally
+  finitely presented, surjective morphism induces a locally surjective map of fppf sheaves of
+  points.
 * `TauCeti.CommAlgCat.generate_singleton_op_mem_fppfTopology`: a faithfully flat, finitely
   presented algebra map is an affine fppf cover.
 * `AlgebraicGeometry.algSpec_obj_left`,
@@ -406,6 +411,29 @@ theorem surjective_of_isLocallySurjective_pointsSheafFunctor_map
   refine ⟨t.left (h.left z), ?_⟩
   rw [← Scheme.Hom.comp_apply, ← Over.comp_left, ht', Over.comp_left, Scheme.Hom.comp_apply]
   exact Scheme.fromSpecResidueField_apply _ _
+
+variable {R} in
+/-- **Flat surjective locally finitely presented morphisms induce locally surjective maps of
+points.** If `f : X ⟶ Y` over `Spec R` is flat, locally of finite presentation, and surjective,
+then `(pointsSheafFunctor R).map f` is locally surjective for the affine fppf topology. -/
+instance isLocallySurjective_pointsSheafFunctor_map_of_flat
+    {X Y : Over (Spec (CommRingCat.of R))} (f : X ⟶ Y)
+    [Flat f.left] [LocallyOfFinitePresentation f.left] [Surjective f.left] :
+    Sheaf.IsLocallySurjective ((pointsSheafFunctor R).map f) := by
+  have hf : Sieve.generate (Presieve.singleton f) ∈
+      (Scheme.fppfTopology.over (Spec (CommRingCat.of R))) Y := by
+    rw [← Presieve.ofArrows_pUnit.{0}, GrothendieckTopology.mem_over_iff,
+      Sieve.overEquiv_ofArrows]
+    exact Precoverage.generate_mem_toGrothendieck (by
+      rw [Presieve.ofArrows_pUnit]
+      exact f.left.singleton_mem_fppfPrecoverage)
+  have : Sheaf.IsLocallySurjective
+      ((Scheme.fppfTopology.over (Spec (CommRingCat.of R))).uliftYoneda.{u + 1}.map f) :=
+    Sheaf.isLocallySurjective_uliftYoneda_map_of_mem hf
+  exact Functor.isLocallySurjective_sheafPushforwardContinuous_map
+    (algSpec (CommRingCat.of R)) (Type (u + 1)) (fppfTopology R)
+    (Scheme.fppfTopology.over (Spec (CommRingCat.of R)))
+    ((Scheme.fppfTopology.over (Spec (CommRingCat.of R))).uliftYoneda.{u + 1}.map f)
 
 end CommAlgCat
 
