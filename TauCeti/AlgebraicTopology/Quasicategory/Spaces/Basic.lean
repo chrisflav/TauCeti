@@ -7,7 +7,7 @@ module
 
 public import Mathlib.AlgebraicTopology.SimplicialCategory.SimplicialObject
 public import TauCeti.AlgebraicTopology.SimplicialNerve.Quasicategory
-import TauCeti.AlgebraicTopology.SimplicialSet.InternalHom
+import TauCeti.AlgebraicTopology.SimplicialSet.InternalHom.Basic
 import TauCeti.CategoryTheory.Enriched.Ordinary.Basic
 
 /-!
